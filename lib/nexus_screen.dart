@@ -1,13 +1,5 @@
-// lib/main.dart
-//
-// NEXUS — Tienda de Tecnología
-// Réplica estática de la pantalla mostrada en la captura.
-// Sin lógica de negocio: solo la interfaz visual, tal como se ve.
-//
-// Cómo usarlo:
-// 1. flutter create nexus_app
-// 2. Reemplaza el contenido de lib/main.dart por este archivo.
-// 3. flutter run
+
+//roger se la come doblada
 
 import 'package:flutter/material.dart';
 
