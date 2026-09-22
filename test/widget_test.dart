@@ -5,15 +5,26 @@
 // gestures. You can also use WidgetTester to find child widgets in the widget
 // tree, read text, and verify that the values of widget properties are correct.
 
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:prueba01/nexus_screen.dart';
+import 'package:prueba01/screens/home/home_screen.dart';
 
 void main() {
-  testWidgets('renders the Nexus home screen', (WidgetTester tester) async {
+  testWidgets('renders the Nexus home screen without layout errors', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const MaterialApp(home: HomeScreen()));
+
+    expect(find.text('NEXUS'), findsWidgets);
+    expect(find.text('TIENDA DE\nTECNOLOGÍA'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('renders the app bootstrap screen', (WidgetTester tester) async {
     await tester.pumpWidget(const NexusApp());
 
-    expect(find.text('NEXUS'), findsOneWidget);
-    expect(find.text('TIENDA DE\nTECNOLOGÍA'), findsOneWidget);
+    expect(find.text('NEXUS'), findsWidgets);
   });
 }
