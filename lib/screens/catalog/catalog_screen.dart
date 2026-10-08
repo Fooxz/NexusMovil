@@ -317,22 +317,18 @@ class _ProductGridCard extends StatelessWidget {
                   Row(
                     children: [
                       Expanded(
-                        child: OutlinedButton(
+                        child: NexusOutlineButton(
+                          label: 'Ver',
                           onPressed: () =>
                               Navigator.of(context)
                                   .pushNamed(NexusRoutes.productDetail),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: NexusColors.text,
-                            side: const BorderSide(color: NexusColors.border),
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                          ),
-                          child: const Text(
-                            'Ver',
-                            style: TextStyle(fontSize: 10.5),
-                          ),
+                          color: NexusColors.text,
+                          borderColor: NexusColors.border,
+                          compact: true,
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          fontSize: 10.5,
+                          borderRadius: 6,
+                          bold: false,
                         ),
                       ),
                       const SizedBox(width: 6),

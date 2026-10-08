@@ -157,45 +157,33 @@ class _Hero extends StatelessWidget {
           const SizedBox(height: 16),
           Row(
             children: [
-              ElevatedButton(
+              NexusPrimaryButton(
+                label: 'EXPLORAR CATÁLOGO',
                 onPressed: () =>
                     Navigator.of(context).pushNamed(NexusRoutes.catalog),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: NexusColors.cyan,
-                  foregroundColor: NexusColors.onCyan,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 10,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(7),
-                  ),
-                  elevation: 0,
+                fullWidth: false,
+                fontSize: 11.5,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 10,
                 ),
-                child: const Text(
-                  'EXPLORAR CATÁLOGO',
-                  style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold),
-                ),
+                borderRadius: 7,
               ),
               const SizedBox(width: 10),
-              OutlinedButton(
+              NexusOutlineButton(
+                label: 'VER CATEGORÍAS',
                 onPressed: () =>
                     Navigator.of(context).pushNamed(NexusRoutes.catalog),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: NexusColors.text,
-                  side: const BorderSide(color: NexusColors.textFaint),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 10,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(7),
-                  ),
+                color: NexusColors.text,
+                borderColor: NexusColors.textFaint,
+                compact: true,
+                fullWidth: false,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 10,
                 ),
-                child: const Text(
-                  'VER CATEGORÍAS',
-                  style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold),
-                ),
+                fontSize: 11.5,
+                borderRadius: 7,
               ),
             ],
           ),

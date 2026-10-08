@@ -251,30 +251,66 @@ class NexusSpecRow extends StatelessWidget {
 
 /// Botón primario cian de ancho completo, reutilizado en varias pantallas.
 class NexusPrimaryButton extends StatelessWidget {
-  const NexusPrimaryButton({super.key, required this.label, this.onPressed});
+  const NexusPrimaryButton({
+    super.key,
+    required this.label,
+    this.onPressed,
+    this.color = NexusColors.cyan,
+    this.foregroundColor = NexusColors.onCyan,
+    this.icon,
+    this.fullWidth = true,
+    this.fontSize = 13,
+    this.padding,
+    this.borderRadius,
+  });
 
   final String label;
   final VoidCallback? onPressed;
+  final Color color;
+  final Color foregroundColor;
+  final IconData? icon;
+  final bool fullWidth;
+  final double fontSize;
+  final EdgeInsets? padding;
+  final double? borderRadius;
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton(
-        onPressed: onPressed ?? () {},
-        style: ElevatedButton.styleFrom(
-          backgroundColor: NexusColors.cyan,
-          foregroundColor: NexusColors.onCyan,
-          padding: const EdgeInsets.symmetric(vertical: 15),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          elevation: 0,
-        ),
-        child: Text(
-          label,
-          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+    final buttonStyle = ElevatedButton.styleFrom(
+      backgroundColor: color,
+      foregroundColor: foregroundColor,
+      padding:
+          padding ??
+          (fullWidth
+              ? const EdgeInsets.symmetric(vertical: 15)
+              : const EdgeInsets.symmetric(horizontal: 14, vertical: 10)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(
+          borderRadius ?? (fullWidth ? 8 : 7),
         ),
       ),
+      elevation: 0,
     );
+    final labelWidget = Text(
+      label,
+      style: TextStyle(fontSize: fontSize, fontWeight: FontWeight.bold),
+    );
+    // TODO: Pass null when disabled buttons should become truly disabled.
+    final VoidCallback pressed = onPressed ?? () {};
+    final button = icon == null
+        ? ElevatedButton(
+            onPressed: pressed,
+            style: buttonStyle,
+            child: labelWidget,
+          )
+        : ElevatedButton.icon(
+            onPressed: pressed,
+            icon: Icon(icon, size: 15),
+            label: labelWidget,
+            style: buttonStyle,
+          );
+
+    return fullWidth ? SizedBox(width: double.infinity, child: button) : button;
   }
 }
 
@@ -358,29 +394,50 @@ class NexusOutlineButton extends StatelessWidget {
     required this.label,
     this.onPressed,
     this.color = NexusColors.text,
+    this.borderColor,
+    this.compact = false,
+    this.fullWidth = true,
+    this.padding,
+    this.fontSize,
+    this.borderRadius,
+    this.bold = true,
   });
 
   final String label;
   final VoidCallback? onPressed;
   final Color color;
+  final Color? borderColor;
+  final bool compact;
+  final bool fullWidth;
+  final EdgeInsets? padding;
+  final double? fontSize;
+  final double? borderRadius;
+  final bool bold;
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      child: OutlinedButton(
-        onPressed: onPressed ?? () {},
-        style: OutlinedButton.styleFrom(
-          foregroundColor: color,
-          side: BorderSide(color: color.withValues(alpha: 0.6)),
-          padding: const EdgeInsets.symmetric(vertical: 14),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+    final button = OutlinedButton(
+      // TODO: Pass null when disabled buttons should become truly disabled.
+      onPressed: onPressed ?? () {},
+      style: OutlinedButton.styleFrom(
+        foregroundColor: color,
+        side: BorderSide(color: borderColor ?? color.withValues(alpha: 0.6)),
+        padding: padding ?? EdgeInsets.symmetric(vertical: compact ? 9 : 14),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(
+            borderRadius ?? (compact ? 6 : 8),
+          ),
         ),
-        child: Text(
-          label,
-          style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: fontSize ?? (compact ? 10.5 : 12.5),
+          fontWeight: bold ? FontWeight.bold : FontWeight.normal,
         ),
       ),
     );
+
+    return fullWidth ? SizedBox(width: double.infinity, child: button) : button;
   }
 }

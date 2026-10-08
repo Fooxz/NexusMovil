@@ -347,40 +347,29 @@ class _ComponentCard extends StatelessWidget {
             Row(
               children: [
                 Expanded(
-                  child: OutlinedButton(
+                  child: NexusOutlineButton(
+                    label: 'Editar',
                     onPressed: () {},
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: NexusColors.text,
-                      side: const BorderSide(color: NexusColors.border),
-                      padding: const EdgeInsets.symmetric(vertical: 9),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                    ),
-                    child: const Text(
-                      'Editar',
-                      style: TextStyle(fontSize: 10.5),
-                    ),
+                    color: NexusColors.text,
+                    borderColor: NexusColors.border,
+                    compact: true,
+                    padding: const EdgeInsets.symmetric(vertical: 9),
+                    fontSize: 10.5,
+                    borderRadius: 6,
+                    bold: false,
                   ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: OutlinedButton(
+                  child: NexusOutlineButton(
+                    label: 'Eliminar',
                     onPressed: () {},
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: NexusColors.pink,
-                      side: BorderSide(
-                        color: NexusColors.pink.withValues(alpha: 0.6),
-                      ),
-                      padding: const EdgeInsets.symmetric(vertical: 9),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                    ),
-                    child: const Text(
-                      'Eliminar',
-                      style: TextStyle(fontSize: 10.5),
-                    ),
+                    color: NexusColors.pink,
+                    compact: true,
+                    padding: const EdgeInsets.symmetric(vertical: 9),
+                    fontSize: 10.5,
+                    borderRadius: 6,
+                    bold: false,
                   ),
                 ),
               ],

@@ -111,44 +111,32 @@ class ProductDetailScreen extends StatelessWidget {
             ),
             const SizedBox(width: 8),
             Expanded(
-              child: ElevatedButton(
+              child: NexusPrimaryButton(
+                label: 'COMPRAR AHORA',
                 onPressed: () {},
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: NexusColors.pink,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 13),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  elevation: 0,
-                ),
-                child: const Text(
-                  'COMPRAR AHORA',
-                  style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold),
-                ),
+                color: NexusColors.pink,
+                foregroundColor: Colors.white,
+                fullWidth: false,
+                fontSize: 10.5,
+                padding: const EdgeInsets.symmetric(vertical: 13),
+                borderRadius: 8,
               ),
             ),
             const SizedBox(width: 8),
             Expanded(
-              child: ElevatedButton.icon(
+              child: NexusPrimaryButton(
+                label: 'AGREGAR AL CARRITO',
                 onPressed: () {},
-                icon: const Icon(Icons.shopping_cart, size: 15),
-                label: const Text(
-                  'AGREGAR AL CARRITO',
-                  style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold),
+                color: NexusColors.cyan,
+                foregroundColor: NexusColors.onCyan,
+                icon: Icons.shopping_cart,
+                fullWidth: false,
+                fontSize: 9,
+                padding: const EdgeInsets.symmetric(
+                  vertical: 13,
+                  horizontal: 4,
                 ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: NexusColors.cyan,
-                  foregroundColor: NexusColors.onCyan,
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 13,
-                    horizontal: 4,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  elevation: 0,
-                ),
+                borderRadius: 8,
               ),
             ),
           ],
