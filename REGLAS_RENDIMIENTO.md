@@ -1,0 +1,78 @@
+# Reglas permanentes de rendimiento
+
+Estas reglas aplican a todos los pasos de desarrollo desde el paso 3. Deben guiar la implementación desde el primer cambio, no dejarse para una optimización posterior.
+
+## R1. Listas y grillas: construir solo lo visible
+
+- Para datos de repositorio, usar `ListView.builder`, `SliverList.builder` o `SliverGrid.builder`.
+- No usar `shrinkWrap: true` junto con `NeverScrollableScrollPhysics` para listas variables dentro de `SingleChildScrollView`.
+- No materializar listas variables con `Column(children: [...])`.
+- `Column` y `Wrap` son válidos para colecciones fijas y cortas, como slots del PC builder o chips de filtros.
+
+## R2. `NexusPage` debe admitir slivers
+
+- Añadir una API de `slivers` que construya la página con `CustomScrollView`.
+- Conservar `children` para pantallas cortas existentes.
+- El catálogo será el primer consumidor de la API de slivers en el paso 5.
+
+## R3. `build` solo presenta
+
+- No filtrar, ordenar, sumar, parsear JSON ni calcular compatibilidad en `build`.
+- Calcular valores derivados una vez al cambiar el estado, en el controlador correspondiente.
+
+## R4. Reconstruir lo mínimo
+
+- Cada widget debe observar solo el dato que necesita.
+- Evitar un único objeto de estado monolítico observado por toda la pantalla.
+- Mantener constructores e instancias `const` siempre que se pueda.
+- Extraer partes estables a widgets propios; los métodos `_buildX()` no aíslan reconstrucciones.
+
+## R5. Trabajo fuera del hilo de UI
+
+- Parsear respuestas JSON grandes con `compute()` o `Isolate.run`.
+- Evitar bucles pesados sincrónicos en controladores.
+
+## R6. Búsqueda y entrada
+
+- Implementar debounce de 300 ms en el controlador, nunca en `NexusTextField`.
+- Cancelar la petición anterior cuando llegue una búsqueda nueva.
+- `NexusTextField` solo reenvía `onChanged`.
+
+## R7. Paginación
+
+- El catálogo solicita páginas (por ejemplo, 20 productos), no todo el inventario.
+- Solicitar la siguiente página al acercarse al final de la lista.
+
+## R8. Imágenes
+
+- Al sustituir placeholders, usar `cached_network_image` para caché en memoria y disco.
+- Solicitar miniaturas del backend para grillas.
+- Decodificar al tamaño mostrado mediante `memCacheWidth`, no a resolución completa.
+
+## R9. Efectos costosos
+
+- Evitar `Opacity`, `BackdropFilter` y sombras grandes en elementos repetidos de listas.
+- Usar `Clip.antiAlias` solo cuando sea necesario; preferir `Clip.hardEdge` en listas largas si visualmente basta.
+- Envolver animaciones autónomas, como visor 3D o spinners, en `RepaintBoundary`.
+
+## R10. Ciclo de vida
+
+- Quien crea un `TextEditingController`, `ScrollController`, `AnimationController` o una suscripción debe liberarlo en `dispose()`.
+- En `MainShell` (paso 4), crear las pestañas la primera vez que se visiten, no todas al iniciar.
+
+## Aplicación por pasos
+
+| Paso | Aplicación |
+|---|---|
+| 3 | Sin cambios visuales en las pantallas. R10: el creador libera los controladores. R6: el campo no implementa debounce. |
+| 4 | Pestañas perezosas en `MainShell` y estado fuera del árbol de widgets. |
+| 5 | Aplicar R2-R7 al catálogo y datos reales. |
+| 7 | Aplicar R9 al visor 3D, incluyendo `RepaintBoundary` y carga diferida del modelo. |
+
+## Verificación de rendimiento
+
+- Chrome sirve para comprobar lógica y aspecto, no para medir fluidez móvil.
+- Medir en un teléfono físico con `flutter run --profile`, no en modo debug.
+- Revisar Performance en DevTools; a 60 Hz, los cuadros que exceden aproximadamente 16 ms pueden producir tirones.
+- Usar `Track widget rebuilds` para detectar reconstrucciones innecesarias.
+- Hacer mediciones al completar los pasos 4, 5 y 7, cuando existan las pestañas, datos del catálogo y visor 3D correspondientes.
