@@ -83,21 +83,7 @@ class ProductDetailScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-              decoration: BoxDecoration(
-                color: NexusColors.pink,
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: const Text(
-                '-13%',
-                style: TextStyle(
-                  fontSize: 9,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-            ),
+            const NexusDiscountBadge(label: '-13%'),
           ],
         ),
         const SizedBox(height: 18),

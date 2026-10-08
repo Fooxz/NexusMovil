@@ -242,24 +242,7 @@ class _ProductGridCard extends StatelessWidget {
                   Positioned(
                     top: 6,
                     left: 6,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 3,
-                      ),
-                      decoration: BoxDecoration(
-                        color: NexusColors.pink,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        discount!,
-                        style: const TextStyle(
-                          fontSize: 8,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
+                    child: NexusDiscountBadge(label: discount!, fontSize: 8),
                   ),
               ],
             ),

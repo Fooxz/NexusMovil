@@ -5,6 +5,7 @@
 // simulan imágenes de producto (no hay assets reales todavía).
 
 import 'package:flutter/material.dart';
+
 import '../theme/nexus_theme.dart';
 
 /// Etiqueta pequeña con borde de color (ej: "NVIDIA", "EN STOCK", "Compatible").
@@ -70,6 +71,32 @@ class NexusStatusDot extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class NexusDiscountBadge extends StatelessWidget {
+  const NexusDiscountBadge({super.key, required this.label, this.fontSize = 9});
+
+  final String label;
+  final double fontSize;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+      decoration: BoxDecoration(
+        color: NexusColors.pink,
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: fontSize,
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
+        ),
+      ),
     );
   }
 }
@@ -147,7 +174,11 @@ class NexusPlaceholderBox extends StatelessWidget {
           colors: gradientColors,
         ),
       ),
-      child: Icon(icon, size: iconSize, color: iconColor.withValues(alpha: 0.85)),
+      child: Icon(
+        icon,
+        size: iconSize,
+        color: iconColor.withValues(alpha: 0.85),
+      ),
     );
   }
 }
@@ -293,10 +324,16 @@ class NexusTextField extends StatelessWidget {
         prefixIcon: prefixIcon == null
             ? null
             : Icon(prefixIcon, size: 18, color: NexusColors.textFaint),
-        hintStyle: const TextStyle(fontSize: 12.5, color: NexusColors.textFaint),
+        hintStyle: const TextStyle(
+          fontSize: 12.5,
+          color: NexusColors.textFaint,
+        ),
         filled: true,
         fillColor: NexusColors.card,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 14,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
           borderSide: const BorderSide(color: NexusColors.border),
