@@ -10,6 +10,7 @@ import '../../routes.dart';
 import '../../theme/nexus_theme.dart';
 import '../../widgets/nexus_bottom_nav.dart';
 import '../../widgets/nexus_page.dart';
+import '../../widgets/nexus_product_card.dart';
 import '../../widgets/nexus_widgets.dart';
 
 class CatalogScreen extends StatelessWidget {
@@ -100,24 +101,28 @@ class CatalogScreen extends StatelessWidget {
                 crossAxisSpacing: 10,
                 mainAxisSpacing: 10,
                 childAspectRatio: 0.72,
-                children: const [
-                  _ProductGridCard(
+                children: [
+                  NexusProductCard(
                     icon: Icons.videogame_asset,
                     gradientColors: [
                       Color(0xFF1A1A1A),
                       Color(0xFF3A1010),
                       Color(0xFF8A1C1C),
                     ],
-                    discount: '-12%',
+                    discountLabel: '-12%',
                     brand: 'NVIDIA / GPU',
                     status: 'ESTABLE',
                     statusColor: NexusColors.cyan,
                     name: 'RTX 5090 FOUNDERS',
                     specs: '24 GB GDDR6X · 2.5K · Ray tracing',
-                    oldPrice: '\$2,299.00',
-                    price: '\$1,999.00',
+                    oldPriceCents: 229900,
+                    priceCents: 199900,
+                    onTap: () =>
+                        Navigator.of(context)
+                            .pushNamed(NexusRoutes.productDetail),
+                    actions: _productActions(context),
                   ),
-                  _ProductGridCard(
+                  NexusProductCard(
                     icon: Icons.memory,
                     gradientColors: [Color(0xFF101010), Color(0xFF1B1B1B)],
                     brand: 'AMD / CPU',
@@ -125,22 +130,30 @@ class CatalogScreen extends StatelessWidget {
                     statusColor: NexusColors.cyan,
                     name: 'RYZEN 9 9950X',
                     specs: '16 núcleos · 5.7 GHz · Zen 5',
-                    oldPrice: '\$699.00',
-                    price: '\$649.00',
+                    oldPriceCents: 69900,
+                    priceCents: 64900,
+                    onTap: () =>
+                        Navigator.of(context)
+                            .pushNamed(NexusRoutes.productDetail),
+                    actions: _productActions(context),
                   ),
-                  _ProductGridCard(
+                  NexusProductCard(
                     icon: Icons.developer_board,
                     gradientColors: [Color(0xFF14101C), Color(0xFF241735)],
-                    discount: '-10%',
+                    discountLabel: '-10%',
                     brand: 'ASUS / MB',
                     status: 'CRÍTICO',
                     statusColor: NexusColors.pink,
                     name: 'ROG MAXIMUS Z790 HERO',
                     specs: 'Z890 · Wi-Fi 7 · 24+2 fases',
-                    oldPrice: '\$699.99',
-                    price: '\$599.99',
+                    oldPriceCents: 69999,
+                    priceCents: 59999,
+                    onTap: () =>
+                        Navigator.of(context)
+                            .pushNamed(NexusRoutes.productDetail),
+                    actions: _productActions(context),
                   ),
-                  _ProductGridCard(
+                  NexusProductCard(
                     icon: Icons.ac_unit,
                     gradientColors: [Color(0xFF0F1B2E), Color(0xFF14314A)],
                     brand: 'NZXT / LIQUID AIO',
@@ -148,8 +161,12 @@ class CatalogScreen extends StatelessWidget {
                     statusColor: NexusColors.cyan,
                     name: 'KRAKEN ELITE 360',
                     specs: '360 mm · RGB · 2x fans',
-                    oldPrice: '\$329.99',
-                    price: '\$299.99',
+                    oldPriceCents: 32999,
+                    priceCents: 29999,
+                    onTap: () =>
+                        Navigator.of(context)
+                            .pushNamed(NexusRoutes.productDetail),
+                    actions: _productActions(context),
                   ),
                 ],
               ),
@@ -191,170 +208,39 @@ class _FilterChip extends StatelessWidget {
   }
 }
 
-class _ProductGridCard extends StatelessWidget {
-  const _ProductGridCard({
-    required this.icon,
-    required this.gradientColors,
-    required this.brand,
-    required this.status,
-    required this.statusColor,
-    required this.name,
-    required this.specs,
-    required this.oldPrice,
-    required this.price,
-    this.discount,
-  });
-
-  final IconData icon;
-  final List<Color> gradientColors;
-  final String? discount;
-  final String brand;
-  final String status;
-  final Color statusColor;
-  final String name;
-  final String specs;
-  final String oldPrice;
-  final String price;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: () => Navigator.of(context).pushNamed(NexusRoutes.productDetail),
-      child: Container(
-        decoration: BoxDecoration(
-          color: NexusColors.card,
-          border: Border.all(color: NexusColors.border),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Stack(
-              children: [
-                NexusPlaceholderBox(
-                  icon: icon,
-                  gradientColors: gradientColors,
-                  height: 84,
-                  borderRadius: 0,
-                ),
-                if (discount != null)
-                  Positioned(
-                    top: 6,
-                    left: 6,
-                    child: NexusDiscountBadge(label: discount!, fontSize: 8),
-                  ),
-              ],
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(8, 7, 8, 9),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          brand,
-                          style: const TextStyle(
-                            fontSize: 8,
-                            color: NexusColors.textFaint,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      NexusStatusDot(status, color: statusColor),
-                    ],
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    name,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    specs,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 8,
-                      color: NexusColors.textDim,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Row(
-                    children: [
-                      Text(
-                        oldPrice,
-                        style: const TextStyle(
-                          fontSize: 9,
-                          color: NexusColors.textFaint,
-                          decoration: TextDecoration.lineThrough,
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          price,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: NexusColors.cyan,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: NexusOutlineButton(
-                          label: 'Ver',
-                          onPressed: () =>
-                              Navigator.of(context)
-                                  .pushNamed(NexusRoutes.productDetail),
-                          color: NexusColors.text,
-                          borderColor: NexusColors.border,
-                          compact: true,
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          fontSize: 10.5,
-                          borderRadius: 6,
-                          bold: false,
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      InkWell(
-                        onTap: () {},
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: NexusColors.cyan,
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: const Icon(
-                            Icons.shopping_cart,
-                            size: 15,
-                            color: NexusColors.onCyan,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
+Widget _productActions(BuildContext context) {
+  return Row(
+    children: [
+      Expanded(
+        child: NexusOutlineButton(
+          label: 'Ver',
+          onPressed: () =>
+              Navigator.of(context).pushNamed(NexusRoutes.productDetail),
+          color: NexusColors.text,
+          borderColor: NexusColors.border,
+          compact: true,
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          fontSize: 10.5,
+          borderRadius: 6,
+          bold: false,
         ),
       ),
-    );
-  }
+      const SizedBox(width: 6),
+      InkWell(
+        onTap: () {},
+        child: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: NexusColors.cyan,
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: const Icon(
+            Icons.shopping_cart,
+            size: 15,
+            color: NexusColors.onCyan,
+          ),
+        ),
+      ),
+    ],
+  );
 }

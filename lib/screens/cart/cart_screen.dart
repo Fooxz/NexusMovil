@@ -5,6 +5,7 @@
 
 import 'package:flutter/material.dart';
 
+import '../../core/utils/format_price.dart';
 import '../../theme/nexus_theme.dart';
 import '../../widgets/nexus_bottom_nav.dart';
 import '../../widgets/nexus_page.dart';
@@ -27,9 +28,9 @@ class CartScreen extends StatelessWidget {
           icon: Icons.videogame_asset,
           gradientColors: [Color(0xFF16321A), Color(0xFF0D1E10)],
           name: 'RTX 5090 FOUNDERS',
-          unitPrice: '\$1,999.00',
+          unitPriceCents: 199900,
           qty: '01',
-          subtotal: '\$1,999.00',
+          subtotalCents: 199900,
         ),
         const SizedBox(height: 12),
         const _CartItemCard(
@@ -37,9 +38,9 @@ class CartScreen extends StatelessWidget {
           icon: Icons.dns_outlined,
           gradientColors: [Color(0xFF101010), Color(0xFF1C1C1C)],
           name: 'DDR5 VENGEANCE...',
-          unitPrice: '\$499.98',
+          unitPriceCents: 49998,
           qty: '02',
-          subtotal: '\$999.96',
+          subtotalCents: 99996,
         ),
         const SizedBox(height: 20),
         NexusCard(
@@ -82,18 +83,18 @@ class _CartItemCard extends StatelessWidget {
     required this.icon,
     required this.gradientColors,
     required this.name,
-    required this.unitPrice,
+    required this.unitPriceCents,
     required this.qty,
-    required this.subtotal,
+    required this.subtotalCents,
   });
 
   final String category;
   final IconData icon;
   final List<Color> gradientColors;
   final String name;
-  final String unitPrice;
+  final int unitPriceCents;
   final String qty;
-  final String subtotal;
+  final int subtotalCents;
 
   @override
   Widget build(BuildContext context) {
@@ -150,7 +151,7 @@ class _CartItemCard extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      unitPrice,
+                      formatPrice(unitPriceCents),
                       style: const TextStyle(
                         fontSize: 11,
                         color: NexusColors.textDim,
@@ -176,7 +177,7 @@ class _CartItemCard extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      subtotal,
+                      formatPrice(subtotalCents),
                       style: const TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.bold,

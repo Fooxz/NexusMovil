@@ -6,9 +6,11 @@
 
 import 'package:flutter/material.dart';
 
+import '../../core/utils/format_price.dart';
 import '../../theme/nexus_theme.dart';
 import '../../widgets/nexus_bottom_nav.dart';
 import '../../widgets/nexus_page.dart';
+import '../../widgets/nexus_product_card.dart';
 import '../../widgets/nexus_quantity_stepper.dart';
 import '../../widgets/nexus_widgets.dart';
 
@@ -65,8 +67,8 @@ class ProductDetailScreen extends StatelessWidget {
         Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            const Text(
-              '\$1,999.00',
+            Text(
+              formatPrice(199900),
               style: TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.w800,
@@ -74,8 +76,8 @@ class ProductDetailScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 8),
-            const Text(
-              '\$2,299.00',
+            Text(
+              formatPrice(229900),
               style: TextStyle(
                 fontSize: 13,
                 color: NexusColors.textFaint,
@@ -171,22 +173,26 @@ class ProductDetailScreen extends StatelessWidget {
         Row(
           children: const [
             Expanded(
-              child: _RelatedCard(
+              child: NexusProductCard(
                 icon: Icons.videogame_asset_outlined,
                 gradientColors: [Color(0xFF141414), Color(0xFF23364A)],
+                imageHeight: 74,
                 tags: ['RTX 5080', '16GB'],
                 name: 'NVIDIA RTX 5080',
-                price: '\$1,699.00',
+                priceCents: 169900,
+                priceFontSize: 11.5,
               ),
             ),
             SizedBox(width: 10),
             Expanded(
-              child: _RelatedCard(
+              child: NexusProductCard(
                 icon: Icons.ac_unit,
                 gradientColors: [Color(0xFF141414), Color(0xFF3A1030)],
+                imageHeight: 74,
                 tags: ['LIQUID', '360MM'],
                 name: 'Cooler Master Elite Liquid 360',
-                price: '\$249.00',
+                priceCents: 24900,
+                priceFontSize: 11.5,
               ),
             ),
           ],
@@ -216,78 +222,6 @@ class _Breadcrumb extends StatelessWidget {
             style: TextStyle(
               color: NexusColors.cyan,
               fontWeight: FontWeight.bold,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _RelatedCard extends StatelessWidget {
-  const _RelatedCard({
-    required this.icon,
-    required this.gradientColors,
-    required this.tags,
-    required this.name,
-    required this.price,
-  });
-
-  final IconData icon;
-  final List<Color> gradientColors;
-  final List<String> tags;
-  final String name;
-  final String price;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: NexusColors.card,
-        border: Border.all(color: NexusColors.border),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          NexusPlaceholderBox(
-            icon: icon,
-            gradientColors: gradientColors,
-            height: 74,
-            borderRadius: 0,
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(8, 7, 8, 9),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Wrap(
-                  spacing: 4,
-                  runSpacing: 4,
-                  children: [for (final t in tags) NexusTag(t)],
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  name,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  price,
-                  style: const TextStyle(
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.bold,
-                    color: NexusColors.cyan,
-                  ),
-                ),
-              ],
             ),
           ),
         ],

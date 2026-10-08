@@ -6,6 +6,7 @@
 
 import 'package:flutter/material.dart';
 
+import '../../core/utils/format_price.dart';
 import '../../theme/nexus_theme.dart';
 import '../../widgets/nexus_bottom_nav.dart';
 import '../../widgets/nexus_page.dart';
@@ -33,49 +34,49 @@ class PcBuilderScreen extends StatelessWidget {
         const _ComponentCard(
           category: 'CPU',
           name: 'AMD Ryzen 7 9800X3D',
-          price: '\$799.00',
+          priceCents: 79900,
         ),
         const SizedBox(height: 10),
         const _ComponentCard(
           category: 'Motherboard',
           name: 'ASRock X670E Taichi',
-          price: '\$499.00',
+          priceCents: 49900,
         ),
         const SizedBox(height: 10),
         const _ComponentCard(
           category: 'GPU',
           name: 'NVIDIA GeForce RTX 5080',
-          price: '\$1,249.00',
+          priceCents: 124900,
         ),
         const SizedBox(height: 10),
         const _ComponentCard(
           category: 'RAM Slot 1',
           name: 'Corsair Vengeance 16GB DDR5',
-          price: '\$69.00',
+          priceCents: 6900,
         ),
         const SizedBox(height: 10),
         const _ComponentCard(
           category: 'RAM Slot 2',
           name: 'Corsair Vengeance 16GB DDR5',
-          price: '\$69.00',
+          priceCents: 6900,
         ),
         const SizedBox(height: 10),
         const _ComponentCard(
           category: 'Almacenamiento',
           name: 'WD Black SN850X 2TB',
-          price: '\$249.00',
+          priceCents: 24900,
         ),
         const SizedBox(height: 10),
         const _ComponentCard(
           category: 'PSU',
           name: 'EVGA 850 GA, 80+ Gold',
-          price: '\$139.00',
+          priceCents: 13900,
         ),
         const SizedBox(height: 10),
         const _ComponentCard(
           category: 'Refrigeración',
           name: 'Noctua NH-U14S TR4-SP3',
-          price: '\$39.00',
+          priceCents: 3900,
         ),
         const SizedBox(height: 10),
         const _ComponentCard(category: 'Gabinete', isEmpty: true),
@@ -277,13 +278,13 @@ class _ComponentCard extends StatelessWidget {
   const _ComponentCard({
     required this.category,
     this.name,
-    this.price,
+    this.priceCents,
     this.isEmpty = false,
   });
 
   final String category;
   final String? name;
-  final String? price;
+  final int? priceCents;
   final bool isEmpty;
 
   @override
@@ -336,7 +337,7 @@ class _ComponentCard extends StatelessWidget {
             ),
             const SizedBox(height: 3),
             Text(
-              price!,
+              formatPrice(priceCents!),
               style: const TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.bold,

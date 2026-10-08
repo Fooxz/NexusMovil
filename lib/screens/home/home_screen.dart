@@ -6,6 +6,7 @@
 
 import 'package:flutter/material.dart';
 
+import '../../core/utils/format_price.dart';
 import '../../routes.dart';
 import '../../theme/nexus_theme.dart';
 import '../../widgets/nexus_bottom_nav.dart';
@@ -214,7 +215,7 @@ class _ProductStrip extends StatelessWidget {
               Color(0xFF8A1C1C),
             ],
             name: 'RTX 5080',
-            price: '\$1,199.99',
+            priceCents: 119999,
           ),
         ),
         const SizedBox(width: 8),
@@ -228,7 +229,7 @@ class _ProductStrip extends StatelessWidget {
               Color(0xFF173A33),
             ],
             name: 'CORE 64G',
-            price: '\$249.99',
+            priceCents: 24999,
           ),
         ),
         const SizedBox(width: 8),
@@ -238,7 +239,7 @@ class _ProductStrip extends StatelessWidget {
             iconColor: NexusColors.text,
             gradientColors: const [Color(0xFF0F1113), Color(0xFF1C2226)],
             name: 'DRONE DJI',
-            price: '\$899.99',
+            priceCents: 89999,
           ),
         ),
       ],
@@ -252,14 +253,14 @@ class _ProductCard extends StatelessWidget {
     required this.iconColor,
     required this.gradientColors,
     required this.name,
-    required this.price,
+    required this.priceCents,
   });
 
   final IconData icon;
   final Color iconColor;
   final List<Color> gradientColors;
   final String name;
-  final String price;
+  final int priceCents;
 
   @override
   Widget build(BuildContext context) {
@@ -299,7 +300,7 @@ class _ProductCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 3),
                   Text(
-                    price,
+                    formatPrice(priceCents),
                     style: const TextStyle(
                       fontSize: 10.5,
                       fontWeight: FontWeight.bold,
