@@ -8,7 +8,6 @@ import 'package:flutter/material.dart';
 
 import '../../core/utils/format_price.dart';
 import '../../theme/nexus_theme.dart';
-import '../../widgets/nexus_bottom_nav.dart';
 import '../../widgets/nexus_page.dart';
 import '../../widgets/nexus_widgets.dart';
 
@@ -20,7 +19,6 @@ class PcBuilderScreen extends StatelessWidget {
     return NexusPage(
       title: 'PC BUILDER',
       trailingBadge: 'NXS.v1.0',
-      bottomNavigationBar: const NexusBottomNav(currentIndex: 2),
       children: [
         const Text(
           'Arma tu PC ideal. Verificamos compatibilidad en tiempo real.',

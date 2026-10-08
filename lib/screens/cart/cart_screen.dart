@@ -7,7 +7,6 @@ import 'package:flutter/material.dart';
 
 import '../../core/utils/format_price.dart';
 import '../../theme/nexus_theme.dart';
-import '../../widgets/nexus_bottom_nav.dart';
 import '../../widgets/nexus_page.dart';
 import '../../widgets/nexus_quantity_stepper.dart';
 import '../../widgets/nexus_widgets.dart';
@@ -21,7 +20,6 @@ class CartScreen extends StatelessWidget {
       title: 'CARRITO DE COMPRA',
       showBack: true,
       showCart: false,
-      bottomNavigationBar: const NexusBottomNav(currentIndex: 1),
       children: [
         const _CartItemCard(
           category: 'GPU',

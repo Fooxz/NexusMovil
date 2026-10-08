@@ -11,7 +11,6 @@ class NexusPage extends StatelessWidget {
     this.showBack = false,
     this.showCart = true,
     this.trailingBadge,
-    this.bottomNavigationBar,
     this.horizontalPadding = 16,
   });
 
@@ -20,7 +19,6 @@ class NexusPage extends StatelessWidget {
   final bool showCart;
   final String? trailingBadge;
   final List<Widget> children;
-  final Widget? bottomNavigationBar;
   final double horizontalPadding;
 
   @override
@@ -49,7 +47,6 @@ class NexusPage extends StatelessWidget {
           ),
         ),
       ),
-      bottomNavigationBar: bottomNavigationBar,
     );
   }
 }

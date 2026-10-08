@@ -7,7 +7,6 @@ import 'package:flutter/material.dart';
 
 import '../../routes.dart';
 import '../../theme/nexus_theme.dart';
-import '../../widgets/nexus_bottom_nav.dart';
 import '../../widgets/nexus_auth_header.dart';
 import '../../widgets/nexus_widgets.dart';
 
@@ -92,7 +91,6 @@ class SignupScreen extends StatelessWidget {
           ),
         ),
       ),
-      bottomNavigationBar: const NexusBottomNav(currentIndex: 4),
     );
   }
 }

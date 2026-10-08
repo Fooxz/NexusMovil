@@ -8,7 +8,6 @@ import 'package:flutter/material.dart';
 
 import '../../core/utils/format_price.dart';
 import '../../theme/nexus_theme.dart';
-import '../../widgets/nexus_bottom_nav.dart';
 import '../../widgets/nexus_page.dart';
 import '../../widgets/nexus_product_card.dart';
 import '../../widgets/nexus_quantity_stepper.dart';
@@ -22,7 +21,6 @@ class ProductDetailScreen extends StatelessWidget {
     return NexusPage(
       title: 'DETALLES DEL PRODUCTO',
       showBack: true,
-      bottomNavigationBar: const NexusBottomNav(currentIndex: 1),
       children: [
         const _Breadcrumb(),
         const SizedBox(height: 14),

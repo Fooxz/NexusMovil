@@ -7,7 +7,6 @@
 import 'package:flutter/material.dart';
 
 import '../../theme/nexus_theme.dart';
-import '../../widgets/nexus_bottom_nav.dart';
 import '../../widgets/nexus_page.dart';
 
 class ComparatorScreen extends StatelessWidget {
@@ -29,7 +28,6 @@ class ComparatorScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return NexusPage(
       title: 'COMPARADOR',
-      bottomNavigationBar: const NexusBottomNav(currentIndex: 3),
       children: [
         Padding(
           padding: EdgeInsets.zero,

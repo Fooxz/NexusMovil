@@ -20,7 +20,7 @@ lib/
 |   |   |-- login_screen.dart         # Inicio de sesión visual
 |   |   `-- signup_screen.dart        # Registro visual
 |   |-- home/
-|   |   `-- home_screen.dart          # Inicio, productos destacados y accesos
+|   |   `-- home_screen.dart          # Inicio, productos destacados y accesos al shell
 |   |-- catalog/
 |   |   |-- catalog_screen.dart       # Búsqueda, filtros y productos de ejemplo
 |   |   `-- product_detail_screen.dart # Detalle fijo de una tarjeta gráfica
@@ -28,13 +28,17 @@ lib/
 |   |   `-- cart_screen.dart          # Carrito y resumen de ejemplo
 |   |-- comparator/
 |   |   `-- comparator_screen.dart    # Comparación fija de dos celulares
-|   `-- pc_builder/
-|       `-- pc_builder_screen.dart    # Configuración de PC de ejemplo
+|   |-- pc_builder/
+|   |   `-- pc_builder_screen.dart    # Configuración de PC de ejemplo
+|   `-- shell/
+|       |-- main_shell.dart           # Shell de pestañas con LazyIndexedStack y back handling
+|       `-- main_shell_scope.dart     # Scope para cambiar de pestaña desde los widgets hijos
 |-- theme/
 |   `-- nexus_theme.dart              # Colores, estilos y ThemeData compartidos
 `-- widgets/
+    |-- lazy_indexed_stack.dart       # IndexedStack perezoso que crea solo la pestaña visitada
     |-- nexus_auth_header.dart        # Encabezado compartido de autenticación
-    |-- nexus_bottom_nav.dart         # Navegación inferior principal
+    |-- nexus_bottom_nav.dart         # Barra inferior sin rutas: emite un NexusTab
     |-- nexus_page.dart               # Scaffold y estructura para páginas
     |-- nexus_product_card.dart       # Tarjeta de producto configurable
     |-- nexus_quantity_stepper.dart   # Control visual de cantidad
@@ -48,20 +52,17 @@ lib/
 
 `main.dart` contiene `main()`, que ejecuta `runApp(const ProviderScope(child: NexusApp()))`. `ProviderScope` es el contenedor global de Riverpod; `NexusApp` configura el `MaterialApp`, usa `buildNexusTheme()` y define `NexusRoutes.login` como ruta inicial. Por tanto, al iniciar la app, la primera pantalla es el inicio de sesión. Las reglas de organización y uso de estado están en [docs/ARQUITECTURA.md](docs/ARQUITECTURA.md).
 
-El mapa de rutas conecta estos nombres con sus pantallas:
+El mapa de rutas conecta estos nombres con sus pantallas principales y con las pantallas empujadas por encima del shell:
 
 | Ruta | Pantalla |
 |---|---|
 | `/login` | `LoginScreen` |
 | `/signup` | `SignupScreen` |
-| `/home` | `HomeScreen` |
-| `/catalog` | `CatalogScreen` |
+| `/home` | `MainShell` |
 | `/product-detail` | `ProductDetailScreen` |
 | `/cart` | `CartScreen` |
-| `/comparator` | `ComparatorScreen` |
-| `/pc-builder` | `PcBuilderScreen` |
 
-`routes.dart` declara los nombres como constantes estáticas de `NexusRoutes`; no contiene lógica de navegación adicional.
+Las rutas de catálogo, PC Builder y comparador ya no se abren como pantallas separadas: sus contenidos viven dentro de `MainShell`, que mantiene una sola barra inferior y conserva el estado de la interfaz al cambiar entre pestañas. `routes.dart` sigue declarando los nombres, pero el catálogo, comparador y PC Builder se cambian por `MainShellScope.selectTab(...)` en lugar de `pushNamed`.
 
 ### Recorrido principal
 
@@ -80,7 +81,7 @@ Inicio de app
       -> Inicio / Catálogo / PC Builder / Comparador / Perfil
 ```
 
-La barra inferior usa `pushReplacementNamed` para cambiar entre las pestañas principales sin acumular cada pestaña en la pila. El destino `PERFIL` apunta temporalmente a `/login`; no existe una pantalla de perfil. Las barras superiores pueden volver con `Navigator.pop` y abrir el carrito.
+La barra inferior ya no conoce rutas. `MainShell` conserva el tab activo con `LazyIndexedStack`, y `NexusBottomNav` emite un `NexusTab` al `onTap`. El destino `PERFIL` sigue abriendo `/login` mediante `pushReplacementNamed`, pero el shell mantiene las 4 pestañas principales sin destruir el árbol de widgets. El botón atrá de Android, si no se está en `Inicio`, vuelve a `Inicio` y no sale de la ruta; las pantallas empujadas como detalle y carrito conservan la barra oculta.
 
 ## Pantallas y responsabilidades
 
@@ -144,8 +145,10 @@ En la implementación actual tampoco hay llamadas a servicios, carga asíncrona 
 Otros widgets y utilidades compartidos:
 
 - `widgets/nexus_auth_header.dart`: cabecera de marca y formulario para login/registro.
-- `widgets/nexus_bottom_nav.dart`: navegación inferior de cinco destinos.
+- `widgets/nexus_bottom_nav.dart`: barra inferior "tonta" que recibe `NexusTab current` y `ValueChanged<NexusTab> onTap` sin depender de `routes.dart`.
 - `widgets/nexus_page.dart`: `Scaffold`, `SafeArea`, barra superior, scroll vertical y padding común. Por ahora recibe `children`; todavía no admite `slivers`.
+- `widgets/lazy_indexed_stack.dart`: `IndexedStack` perezoso que solo crea la pestaña visitada y pausa los tickers del resto.
+- `screens/shell/main_shell.dart`: shell de navegación principal con `LazyIndexedStack`, `PopScope` y `MainShellScope`.
 - `widgets/nexus_product_card.dart`: tarjeta de producto con precio en centavos y acciones provistas por la pantalla.
 - `widgets/nexus_quantity_stepper.dart`: control visual de cantidad reutilizado en detalle y carrito.
 - `widgets/nexus_top_bar.dart`: barra superior con navegación y acceso opcional al carrito.

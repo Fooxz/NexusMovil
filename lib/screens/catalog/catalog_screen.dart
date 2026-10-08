@@ -8,7 +8,6 @@ import 'package:flutter/material.dart';
 
 import '../../routes.dart';
 import '../../theme/nexus_theme.dart';
-import '../../widgets/nexus_bottom_nav.dart';
 import '../../widgets/nexus_page.dart';
 import '../../widgets/nexus_product_card.dart';
 import '../../widgets/nexus_widgets.dart';
@@ -34,7 +33,6 @@ class CatalogScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return NexusPage(
       title: 'CATÁLOGO COMPLETO',
-      bottomNavigationBar: const NexusBottomNav(currentIndex: 1),
       children: [
         Padding(
           padding: EdgeInsets.zero,

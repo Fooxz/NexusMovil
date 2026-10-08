@@ -8,8 +8,8 @@ import 'package:flutter/material.dart';
 
 import '../../core/utils/format_price.dart';
 import '../../routes.dart';
+import '../shell/main_shell.dart';
 import '../../theme/nexus_theme.dart';
-import '../../widgets/nexus_bottom_nav.dart';
 import '../../widgets/nexus_widgets.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -52,7 +52,6 @@ class HomeScreen extends StatelessWidget {
           ),
         ),
       ),
-      bottomNavigationBar: const NexusBottomNav(currentIndex: 0),
     );
   }
 }
@@ -161,7 +160,7 @@ class _Hero extends StatelessWidget {
               NexusPrimaryButton(
                 label: 'EXPLORAR CATÁLOGO',
                 onPressed: () =>
-                    Navigator.of(context).pushNamed(NexusRoutes.catalog),
+                    MainShellScope.of(context).selectTab(NexusTab.catalog),
                 fullWidth: false,
                 fontSize: 11.5,
                 padding: const EdgeInsets.symmetric(
@@ -174,7 +173,7 @@ class _Hero extends StatelessWidget {
               NexusOutlineButton(
                 label: 'VER CATEGORÍAS',
                 onPressed: () =>
-                    Navigator.of(context).pushNamed(NexusRoutes.catalog),
+                    MainShellScope.of(context).selectTab(NexusTab.catalog),
                 color: NexusColors.text,
                 borderColor: NexusColors.textFaint,
                 compact: true,
@@ -355,7 +354,7 @@ class _CategoryChip extends StatelessWidget {
         return SizedBox(
           width: (constraints.maxWidth - 16) / 3,
           child: InkWell(
-            onTap: () => Navigator.of(context).pushNamed(NexusRoutes.catalog),
+            onTap: () => MainShellScope.of(context).selectTab(NexusTab.catalog),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
               decoration: BoxDecoration(
@@ -498,7 +497,7 @@ class _FeatureGrid extends StatelessWidget {
             gradientColors: const [Color(0xFF123A3C), Color(0xFF0A1416)],
             title: 'PC BUILDER',
             subtitle: 'CREA TU SETUP\nPERFECTO',
-            onTap: () => Navigator.of(context).pushNamed(NexusRoutes.pcBuilder),
+            onTap: () => MainShellScope.of(context).selectTab(NexusTab.pcBuilder),
           ),
         ),
         const SizedBox(width: 8),
@@ -508,7 +507,7 @@ class _FeatureGrid extends StatelessWidget {
             title: 'COMPARADOR DE\nPRODUCTOS',
             subtitle: 'ENCUENTRA ENTRE TUS\nFAVORITOS',
             onTap: () =>
-                Navigator.of(context).pushNamed(NexusRoutes.comparator),
+                MainShellScope.of(context).selectTab(NexusTab.comparator),
           ),
         ),
       ],
