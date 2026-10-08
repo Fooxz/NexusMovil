@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import '../../theme/nexus_theme.dart';
 import '../../widgets/nexus_bottom_nav.dart';
 import '../../widgets/nexus_page.dart';
+import '../../widgets/nexus_quantity_stepper.dart';
 import '../../widgets/nexus_widgets.dart';
 
 class ProductDetailScreen extends StatelessWidget {
@@ -117,40 +118,10 @@ class ProductDetailScreen extends StatelessWidget {
         const SizedBox(height: 18),
         Row(
           children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              decoration: BoxDecoration(
-                border: Border.all(color: NexusColors.border),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                children: [
-                  IconButton(
-                    onPressed: () {},
-                    icon: const Icon(
-                      Icons.remove,
-                      size: 16,
-                      color: NexusColors.textDim,
-                    ),
-                  ),
-                  const Text(
-                    '01',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: NexusColors.text,
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: () {},
-                    icon: const Icon(
-                      Icons.add,
-                      size: 16,
-                      color: NexusColors.textDim,
-                    ),
-                  ),
-                ],
-              ),
+            NexusQuantityStepper(
+              value: 1,
+              onIncrement: () {},
+              onDecrement: () {},
             ),
             const SizedBox(width: 8),
             Expanded(

@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import '../../theme/nexus_theme.dart';
 import '../../widgets/nexus_bottom_nav.dart';
 import '../../widgets/nexus_page.dart';
+import '../../widgets/nexus_quantity_stepper.dart';
 import '../../widgets/nexus_widgets.dart';
 
 class CartScreen extends StatelessWidget {
@@ -155,47 +156,11 @@ class _CartItemCard extends StatelessWidget {
                         color: NexusColors.textDim,
                       ),
                     ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: NexusColors.border),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(),
-                            onPressed: () {},
-                            icon: const Icon(
-                              Icons.remove,
-                              size: 14,
-                              color: NexusColors.textDim,
-                            ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 4),
-                            child: Text(
-                              qty,
-                              style: const TextStyle(
-                                fontSize: 11,
-                                color: NexusColors.text,
-                              ),
-                            ),
-                          ),
-                          IconButton(
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(),
-                            onPressed: () {},
-                            icon: const Icon(
-                              Icons.add,
-                              size: 14,
-                              color: NexusColors.textDim,
-                            ),
-                          ),
-                        ],
-                      ),
+                    NexusQuantityStepper(
+                      value: int.parse(qty),
+                      compact: true,
+                      onIncrement: () {},
+                      onDecrement: () {},
                     ),
                   ],
                 ),
