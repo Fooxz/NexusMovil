@@ -8,7 +8,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:prueba01/nexus_screen.dart';
+import 'package:prueba01/main.dart';
 import 'package:prueba01/screens/home/home_screen.dart';
 
 void main() {
@@ -25,6 +25,6 @@ void main() {
   testWidgets('renders the app bootstrap screen', (WidgetTester tester) async {
     await tester.pumpWidget(const NexusApp());
 
-    expect(find.text('NEXUS'), findsWidgets);
+    expect(find.text('INICIA SESIÓN'), findsOneWidget);
   });
 }
