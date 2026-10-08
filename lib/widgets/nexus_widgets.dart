@@ -344,16 +344,38 @@ class NexusTextField extends StatelessWidget {
     required this.hint,
     this.obscure = false,
     this.prefixIcon,
+    this.controller,
+    this.onChanged,
+    this.onSubmitted,
+    this.validator,
+    this.keyboardType,
+    this.textInputAction,
+    this.enabled = true,
   });
 
   final String hint;
   final bool obscure;
   final IconData? prefixIcon;
+  final TextEditingController? controller;
+  final ValueChanged<String>? onChanged;
+  final ValueChanged<String>? onSubmitted;
+  final String? Function(String?)? validator;
+  final TextInputType? keyboardType;
+  final TextInputAction? textInputAction;
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
-    return TextField(
+    // The caller owns a supplied controller; TextFormField manages its internal one.
+    return TextFormField(
+      controller: controller,
       obscureText: obscure,
+      onChanged: onChanged,
+      onFieldSubmitted: onSubmitted,
+      validator: validator,
+      keyboardType: keyboardType,
+      textInputAction: textInputAction,
+      enabled: enabled,
       style: const TextStyle(fontSize: 13, color: NexusColors.text),
       decoration: InputDecoration(
         hintText: hint,
@@ -382,6 +404,15 @@ class NexusTextField extends StatelessWidget {
           borderRadius: BorderRadius.circular(8),
           borderSide: const BorderSide(color: NexusColors.cyan),
         ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: NexusColors.pink),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: NexusColors.pink),
+        ),
+        errorStyle: const TextStyle(fontSize: 10, color: NexusColors.pink),
       ),
     );
   }
