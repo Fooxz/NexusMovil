@@ -46,7 +46,7 @@ lib/
 
 ### Punto de entrada activo
 
-`main.dart` contiene `main()`, que ejecuta `runApp(const NexusApp())`. `NexusApp` configura el `MaterialApp`, usa `buildNexusTheme()` y define `NexusRoutes.login` como ruta inicial. Por tanto, al iniciar la app, la primera pantalla es el inicio de sesión.
+`main.dart` contiene `main()`, que ejecuta `runApp(const ProviderScope(child: NexusApp()))`. `ProviderScope` es el contenedor global de Riverpod; `NexusApp` configura el `MaterialApp`, usa `buildNexusTheme()` y define `NexusRoutes.login` como ruta inicial. Por tanto, al iniciar la app, la primera pantalla es el inicio de sesión. Las reglas de organización y uso de estado están en [docs/ARQUITECTURA.md](docs/ARQUITECTURA.md).
 
 El mapa de rutas conecta estos nombres con sus pantallas:
 
@@ -157,14 +157,16 @@ Otros widgets y utilidades compartidos:
 
 ## Siguientes pasos y límites actuales
 
-Para convertir el prototipo en una aplicación funcional, las superficies principales que aún requieren implementación son:
+Los siguientes pasos vigentes son:
 
-1. Definir modelos y una fuente de datos para productos, usuarios, carrito y configuración de PC.
-2. Conectar formularios y búsqueda a estado/controladores, usar la validación expuesta por `NexusTextField` y liberar los controladores desde quien los crea.
-3. Pasar el producto seleccionado al detalle mediante argumentos de ruta o una solución de estado compartido.
-4. Implementar filtros, orden, cantidades, acciones del carrito, selección del comparador y cálculos de compatibilidad/precio.
-5. Conectar autenticación y persistencia (servicio remoto o almacenamiento local, según el alcance del proyecto).
-6. Aplicar paginación y slivers al catálogo de acuerdo con `REGLAS_RENDIMIENTO.md`; hoy los cuatro productos son datos locales fijos.
+- **5B:** entidad `Product`, repositorio mock del catálogo, controlador y detalle
+  que recibe `productId`.
+- **5C:** catálogo con slivers, debounce y paginación, siguiendo
+  `REGLAS_RENDIMIENTO.md`.
+- **5D:** controlador del carrito.
+- **7:** PC Builder con estado fuera del árbol de widgets.
+
+Autenticación y comparador quedan pendientes y fuera del camino crítico.
 
 ## Archivos y validación
 

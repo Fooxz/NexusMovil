@@ -6,6 +6,7 @@
 // poder recorrer el prototipo de punta a punta.
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'routes.dart';
 import 'theme/nexus_theme.dart';
@@ -18,7 +19,7 @@ import 'screens/cart/cart_screen.dart';
 import 'screens/comparator/comparator_screen.dart';
 import 'screens/pc_builder/pc_builder_screen.dart';
 
-void main() => runApp(const NexusApp());
+void main() => runApp(const ProviderScope(child: NexusApp()));
 
 class NexusApp extends StatelessWidget {
   const NexusApp({super.key});

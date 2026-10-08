@@ -6,6 +6,7 @@
 // tree, read text, and verify that the values of widget properties are correct.
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:prueba01/core/utils/format_price.dart';
@@ -54,7 +55,7 @@ void main() {
   });
 
   testWidgets('renders the app bootstrap screen', (WidgetTester tester) async {
-    await tester.pumpWidget(const NexusApp());
+    await tester.pumpWidget(const ProviderScope(child: NexusApp()));
 
     expect(find.text('INICIA SESIÓN'), findsOneWidget);
   });
