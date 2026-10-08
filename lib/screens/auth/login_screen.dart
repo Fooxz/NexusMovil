@@ -6,9 +6,11 @@
 // el flujo se pueda recorrer de punta a punta.
 
 import 'package:flutter/material.dart';
+
 import '../../routes.dart';
 import '../../theme/nexus_theme.dart';
 import '../../widgets/nexus_bottom_nav.dart';
+import '../../widgets/nexus_auth_header.dart';
 import '../../widgets/nexus_widgets.dart';
 
 class LoginScreen extends StatelessWidget {
@@ -31,47 +33,9 @@ class LoginScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Container(
-                    width: 56,
-                    height: 56,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: NexusColors.cyan,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Text(
-                      'NX',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w900,
-                        color: NexusColors.onCyan,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  const Text(
-                    'NEXUS',
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 2,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(height: 28),
-                  const Text(
-                    'INICIA SESIÓN',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w800,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Accede a tu cuenta de operador para continuar\ncon la tienda tech.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 11.5, height: 1.5, color: NexusColors.textDim),
+                  const NexusAuthHeader(
+                    title: 'INICIA SESIÓN',
+                    subtitle: 'Accede a tu cuenta de operador para continuar\ncon la tienda tech.',
                   ),
                   const SizedBox(height: 24),
                   const NexusFieldLabel('EMAIL'),
@@ -86,7 +50,8 @@ class LoginScreen extends StatelessWidget {
                     label: 'INGRESAR',
                     onPressed: () {
                       // Mockup: aún no hay autenticación real contra la BD.
-                      Navigator.of(context).pushReplacementNamed(NexusRoutes.home);
+                      Navigator.of(context)
+                          .pushReplacementNamed(NexusRoutes.home);
                     },
                   ),
                   const SizedBox(height: 16),
@@ -95,10 +60,14 @@ class LoginScreen extends StatelessWidget {
                     children: [
                       const Text(
                         '¿No tienes cuenta? ',
-                        style: TextStyle(fontSize: 11, color: NexusColors.textDim),
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: NexusColors.textDim,
+                        ),
                       ),
                       GestureDetector(
-                        onTap: () => Navigator.of(context).pushNamed(NexusRoutes.signup),
+                        onTap: () =>
+                            Navigator.of(context).pushNamed(NexusRoutes.signup),
                         child: const Text(
                           'Crear cuenta',
                           style: TextStyle(
