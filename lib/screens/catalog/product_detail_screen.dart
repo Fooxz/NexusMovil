@@ -171,7 +171,7 @@ class ProductDetailScreen extends StatelessWidget {
                             ),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: NexusColors.cyan,
-                              foregroundColor: const Color(0xFF04211F),
+                              foregroundColor: NexusColors.onCyan,
                               padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 4),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                               elevation: 0,

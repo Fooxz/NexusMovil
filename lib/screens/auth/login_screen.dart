@@ -44,7 +44,7 @@ class LoginScreen extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w900,
-                        color: Color(0xFF04211F),
+                        color: NexusColors.onCyan,
                       ),
                     ),
                   ),

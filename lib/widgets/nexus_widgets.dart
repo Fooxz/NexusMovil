@@ -35,7 +35,7 @@ class NexusTag extends StatelessWidget {
           fontSize: 9,
           fontWeight: FontWeight.bold,
           letterSpacing: 0.6,
-          color: filled ? const Color(0xFF04211F) : color,
+          color: filled ? NexusColors.onCyan : color,
         ),
       ),
     );
@@ -233,7 +233,7 @@ class NexusPrimaryButton extends StatelessWidget {
         onPressed: onPressed ?? () {},
         style: ElevatedButton.styleFrom(
           backgroundColor: NexusColors.cyan,
-          foregroundColor: const Color(0xFF04211F),
+          foregroundColor: NexusColors.onCyan,
           padding: const EdgeInsets.symmetric(vertical: 15),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           elevation: 0,

@@ -163,7 +163,7 @@ class _FilterChip extends StatelessWidget {
         style: TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w600,
-          color: active ? const Color(0xFF04211F) : NexusColors.text,
+          color: active ? NexusColors.onCyan : NexusColors.text,
         ),
       ),
     );
@@ -324,7 +324,7 @@ class _ProductGridCard extends StatelessWidget {
                             color: NexusColors.cyan,
                             borderRadius: BorderRadius.circular(6),
                           ),
-                          child: const Icon(Icons.shopping_cart, size: 15, color: Color(0xFF04211F)),
+                          child: const Icon(Icons.shopping_cart, size: 15, color: NexusColors.onCyan),
                         ),
                       ),
                     ],

@@ -162,7 +162,7 @@ class _Hero extends StatelessWidget {
                     Navigator.of(context).pushNamed(NexusRoutes.catalog),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: NexusColors.cyan,
-                  foregroundColor: const Color(0xFF04211F),
+                  foregroundColor: NexusColors.onCyan,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 14,
                     vertical: 10,

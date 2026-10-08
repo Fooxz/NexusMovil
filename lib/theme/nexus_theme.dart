@@ -16,6 +16,7 @@ class NexusColors {
 
   static const cyan = Color(0xFF3EE6E0);
   static const cyanDim = Color(0xFF2BB8B3);
+  static const onCyan = Color(0xFF04211F);
   static const pink = Color(0xFFFF4D6D);
   static const green = Color(0xFF3DDC84);
 
@@ -55,7 +56,6 @@ ThemeData buildNexusTheme() {
   return ThemeData(
     scaffoldBackgroundColor: NexusColors.bg,
     useMaterial3: true,
-    fontFamily: 'Segoe UI',
     colorScheme: const ColorScheme.dark(
       primary: NexusColors.cyan,
       secondary: NexusColors.pink,
