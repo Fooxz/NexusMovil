@@ -68,7 +68,9 @@ class _TickerProbe extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tickerState = TickerMode.of(context) ? 'enabled' : 'disabled';
+    final tickerState = TickerMode.valuesOf(context).enabled
+        ? 'enabled'
+        : 'disabled';
     return Text('tab-$index-ticker-$tickerState');
   }
 }

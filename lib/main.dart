@@ -12,7 +12,7 @@ import 'routes.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/auth/signup_screen.dart';
 import 'screens/cart/cart_screen.dart';
-import 'screens/catalog/product_detail_screen.dart';
+import 'features/catalog/presentation/product_detail_screen.dart';
 import 'screens/shell/main_shell.dart';
 import 'theme/nexus_theme.dart';
 

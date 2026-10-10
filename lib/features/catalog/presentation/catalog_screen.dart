@@ -6,11 +6,11 @@
 
 import 'package:flutter/material.dart';
 
-import '../../routes.dart';
-import '../../theme/nexus_theme.dart';
-import '../../widgets/nexus_page.dart';
-import '../../widgets/nexus_product_card.dart';
-import '../../widgets/nexus_widgets.dart';
+import '../../../routes.dart';
+import '../../../theme/nexus_theme.dart';
+import '../../../widgets/nexus_page.dart';
+import '../../../widgets/nexus_product_card.dart';
+import '../../../widgets/nexus_widgets.dart';
 
 class CatalogScreen extends StatelessWidget {
   const CatalogScreen({super.key});

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../routes.dart';
-import '../catalog/catalog_screen.dart';
+import '../../features/catalog/presentation/catalog_screen.dart';
 import '../comparator/comparator_screen.dart';
 import '../home/home_screen.dart';
 import '../pc_builder/pc_builder_screen.dart';

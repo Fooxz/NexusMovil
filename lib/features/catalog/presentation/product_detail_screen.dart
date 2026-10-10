@@ -6,12 +6,12 @@
 
 import 'package:flutter/material.dart';
 
-import '../../core/utils/format_price.dart';
-import '../../theme/nexus_theme.dart';
-import '../../widgets/nexus_page.dart';
-import '../../widgets/nexus_product_card.dart';
-import '../../widgets/nexus_quantity_stepper.dart';
-import '../../widgets/nexus_widgets.dart';
+import '../../../core/utils/format_price.dart';
+import '../../../theme/nexus_theme.dart';
+import '../../../widgets/nexus_page.dart';
+import '../../../widgets/nexus_product_card.dart';
+import '../../../widgets/nexus_quantity_stepper.dart';
+import '../../../widgets/nexus_widgets.dart';
 
 class ProductDetailScreen extends StatelessWidget {
   const ProductDetailScreen({super.key});
