@@ -264,7 +264,11 @@ class _ProductCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      onTap: () => Navigator.of(context).pushNamed(NexusRoutes.productDetail),
+      // TODO: Migrate Home's mock products to the catalog repository.
+      onTap: () => Navigator.of(context).pushNamed(
+        NexusRoutes.productDetail,
+        arguments: 'rtx-5090',
+      ),
       child: Container(
         decoration: BoxDecoration(
           color: NexusColors.card,
@@ -442,7 +446,11 @@ class _TrendCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      onTap: () => Navigator.of(context).pushNamed(NexusRoutes.productDetail),
+      // TODO: Migrate Home's mock trends to the catalog repository.
+      onTap: () => Navigator.of(context).pushNamed(
+        NexusRoutes.productDetail,
+        arguments: 'rtx-5090',
+      ),
       child: Container(
         decoration: BoxDecoration(
           color: NexusColors.card,

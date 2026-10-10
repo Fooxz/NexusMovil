@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:prueba01/screens/shell/main_shell.dart';
 import 'package:prueba01/widgets/lazy_indexed_stack.dart';
@@ -113,6 +114,11 @@ class _RecordingNavigatorObserver extends NavigatorObserver {
   }
 }
 
+Widget _withProviderScope(Widget child) => ProviderScope(
+  retry: (retryCount, error) => null,
+  child: child,
+);
+
 void main() {
   testWidgets('LazyIndexedStack builds only the selected tab initially', (
     WidgetTester tester,
@@ -179,7 +185,9 @@ void main() {
   });
 
   testWidgets('MainShell changes the visible tab', (WidgetTester tester) async {
-    await tester.pumpWidget(const MaterialApp(home: MainShell()));
+    await tester.pumpWidget(
+      _withProviderScope(const MaterialApp(home: MainShell())),
+    );
 
     expect(find.text('TIENDA DE\nTECNOLOGÍA'), findsOneWidget);
 
@@ -193,13 +201,15 @@ void main() {
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(
-      MaterialApp(
+      _withProviderScope(
+        MaterialApp(
         routes: {'/shell': (_) => const MainShell()},
         home: Builder(
           builder: (context) => Scaffold(
             body: ElevatedButton(
               onPressed: () => Navigator.of(context).pushNamed('/shell'),
               child: const Text('open shell'),
+              ),
             ),
           ),
         ),
@@ -223,10 +233,12 @@ void main() {
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(
-      const MaterialApp(
-        home: MediaQuery(
-          data: MediaQueryData(viewInsets: EdgeInsets.zero),
-          child: MainShell(),
+      _withProviderScope(
+        const MaterialApp(
+          home: MediaQuery(
+            data: MediaQueryData(viewInsets: EdgeInsets.zero),
+            child: MainShell(),
+          ),
         ),
       ),
     );
@@ -238,10 +250,12 @@ void main() {
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(
-      const MaterialApp(
-        home: MediaQuery(
-          data: MediaQueryData(viewInsets: EdgeInsets.only(bottom: 240)),
-          child: MainShell(),
+      _withProviderScope(
+        const MaterialApp(
+          home: MediaQuery(
+            data: MediaQueryData(viewInsets: EdgeInsets.only(bottom: 240)),
+            child: MainShell(),
+          ),
         ),
       ),
     );
@@ -255,10 +269,12 @@ void main() {
     final observer = _RecordingNavigatorObserver();
 
     await tester.pumpWidget(
-      MaterialApp(
-        navigatorObservers: [observer],
-        routes: {'/login': (_) => const Scaffold(body: Text('login route'))},
-        home: const MainShell(),
+      _withProviderScope(
+        MaterialApp(
+          navigatorObservers: [observer],
+          routes: {'/login': (_) => const Scaffold(body: Text('login route'))},
+          home: const MainShell(),
+        ),
       ),
     );
 
