@@ -8,26 +8,43 @@ lib/
 |-- core/                    # lo que usa cualquier feature (utils, red, errores)
 |-- widgets/                 # widgets visuales compartidos (como hoy)
 |-- theme/
-`-- features/<nombre>/
-    |-- <nombre>_providers.dart   # conecta repositorio, controladores
-    |-- domain/                   # entidades, reglas, interfaz del repositorio
-    |-- data/                     # repositorio mock y real, DTOs
-    `-- presentation/             # pantallas y widgets de la feature
+`-- features/
+    `-- catalog/
+        |-- catalog_providers.dart
+        |-- domain/               # Product, ProductPage y ProductRepository
+        |-- data/                 # MockProductRepository
+        `-- presentation/         # catálogo, detalle y recursos visuales
 ```
 
-El código actual de `lib/screens/` no se mueve ahora. Cada feature se migra
-cuando le toca: catálogo en 5B, carrito en 5D y PC Builder en 7. No se crean
-carpetas vacías por adelantado.
+El catálogo es la primera feature migrada (paso 5B). Las pantallas que aún no
+tienen una implementación basada en repositorios permanecen en `lib/screens/`;
+el carrito se migra en 5D y PC Builder en 7. No se crean carpetas vacías por
+adelantado.
 
 ## Regla de dependencias
 
 - `domain` no importa Flutter ni Riverpod: es Dart puro.
 - `data` importa `domain`.
-- `presentation` importa `domain` y los providers.
+- `presentation` importa `domain`, los providers y los widgets compartidos.
 - Solo `<nombre>_providers.dart` decide si se usa el repositorio mock o el real.
 
 Así, las reglas de negocio se prueban sin widgets y cambiar el mock por el
 backend requiere modificar un único archivo de providers.
+
+### Catálogo como ejemplo
+
+`features/catalog/domain/` define `Product`, sus categorías y estado de stock,
+`ProductPage` y el contrato `ProductRepository`. `data/` implementa el contrato
+con seis productos de muestra, latencia configurable, búsqueda por nombre,
+marca o categoría, filtro por categoría y paginación en memoria.
+`catalog_providers.dart` es el único archivo de producción que selecciona
+`MockProductRepository`; los providers de detalle y relacionados son families
+`autoDispose` parametrizadas por `productId`. El proveedor de catálogo solicita
+la primera página y se ampliará con búsqueda y paginación en el paso 5C.
+
+`ProductSpec` contiene texto de presentación, no datos tipados de compatibilidad.
+Los datos para PC Builder se modelarán por separado como `PcPartSpec` en el paso
+7, sin acoplar el dominio del catálogo al builder.
 
 ## Reglas de uso de Riverpod
 
@@ -47,6 +64,9 @@ backend requiere modificar un único archivo de providers.
   u objetos existentes.
 - Definir los repositorios como `abstract class` en `domain`; los controladores
   dependen de esa abstracción, nunca de una implementación concreta.
+- En Riverpod 3.4.3, `ProviderScope.retry` permite configurar los reintentos.
+  La app devuelve `null` desde esa función para desactivar reintentos
+  automáticos y mostrar los errores sin demoras adicionales.
 
 ## Decisiones tomadas
 

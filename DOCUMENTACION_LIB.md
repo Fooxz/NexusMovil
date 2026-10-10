@@ -4,13 +4,13 @@ Este documento describe el código Dart actual de `lib/`, el punto de entrada, l
 
 ## Estado general
 
-NEXUS es actualmente un prototipo Flutter navegable de una tienda tecnológica. Las pantallas presentan datos de ejemplo escritos directamente en el código. No hay conexión a una API, base de datos, autenticación, persistencia local ni modelos de dominio compartidos. La mayoría de los controles muestran el flujo esperado, pero todavía no ejecutan operaciones de negocio. `NexusTextField` ya permite entregar texto y definir validadores; las pantallas aún no están conectadas a esas capacidades.
+NEXUS es actualmente un prototipo Flutter navegable de una tienda tecnológica. El catálogo ya usa un dominio y un repositorio mock con carga asíncrona; las demás pantallas aún presentan datos de ejemplo escritos directamente en el código. No hay conexión a una API, base de datos, autenticación ni persistencia local. La mayoría de los controles muestran el flujo esperado, pero todavía no ejecutan operaciones de negocio. `NexusTextField` ya permite entregar texto y definir validadores; búsqueda y filtros del catálogo aún no están conectados a esas capacidades.
 
 ## Estructura de `lib/`
 
 ```text
 lib/
-|-- main.dart                         # Arranque activo, tema y mapa de rutas
+|-- main.dart                         # Arranque activo, tema y rutas; reintentos desactivados
 |-- routes.dart                       # Nombres centralizados de rutas
 |-- core/
 |   `-- utils/
@@ -21,9 +21,6 @@ lib/
 |   |   `-- signup_screen.dart        # Registro visual
 |   |-- home/
 |   |   `-- home_screen.dart          # Inicio, productos destacados y accesos al shell
-|   |-- catalog/
-|   |   |-- catalog_screen.dart       # Búsqueda, filtros y productos de ejemplo
-|   |   `-- product_detail_screen.dart # Detalle fijo de una tarjeta gráfica
 |   |-- cart/
 |   |   `-- cart_screen.dart          # Carrito y resumen de ejemplo
 |   |-- comparator/
@@ -33,6 +30,19 @@ lib/
 |   `-- shell/
 |       |-- main_shell.dart           # Shell de pestañas con LazyIndexedStack y back handling
 |       `-- main_shell_scope.dart     # Scope para cambiar de pestaña desde los widgets hijos
+|-- features/
+|   `-- catalog/
+|       |-- catalog_providers.dart    # Selecciona el mock y expone providers
+|       |-- domain/
+|       |   |-- product.dart          # Producto, categorías, stock y ProductSpec
+|       |   |-- product_page.dart     # Página de productos y hasMore
+|       |   `-- product_repository.dart # Contrato del repositorio
+|       |-- data/
+|       |   `-- mock_product_repository.dart # Seis productos y consultas en memoria
+|       `-- presentation/
+|           |-- catalog_screen.dart   # Catálogo basado en provider
+|           |-- product_detail_screen.dart # Detalle por productId
+|           `-- product_visuals.dart # Icono, degradado y etiqueta por categoría
 |-- theme/
 |   `-- nexus_theme.dart              # Colores, estilos y ThemeData compartidos
 `-- widgets/
@@ -43,6 +53,8 @@ lib/
     |-- nexus_product_card.dart       # Tarjeta de producto configurable
     |-- nexus_quantity_stepper.dart   # Control visual de cantidad
     |-- nexus_top_bar.dart            # Barra superior y acceso al carrito
+    |-- nexus_loading.dart            # Indicador de carga cian
+    |-- nexus_error_state.dart        # Mensaje de error y acción de reintento
     `-- nexus_widgets.dart            # Componentes visuales reutilizables
 ```
 
@@ -50,7 +62,7 @@ lib/
 
 ### Punto de entrada activo
 
-`main.dart` contiene `main()`, que ejecuta `runApp(const ProviderScope(child: NexusApp()))`. `ProviderScope` es el contenedor global de Riverpod; `NexusApp` configura el `MaterialApp`, usa `buildNexusTheme()` y define `NexusRoutes.login` como ruta inicial. Por tanto, al iniciar la app, la primera pantalla es el inicio de sesión. Las reglas de organización y uso de estado están en [docs/ARQUITECTURA.md](docs/ARQUITECTURA.md).
+`main.dart` contiene `main()`, que ejecuta la app dentro de `ProviderScope`. Su parámetro `retry` devuelve `null`, desactivando reintentos automáticos en Riverpod 3.4.3. `NexusApp` configura el `MaterialApp`, usa `buildNexusTheme()` y define `NexusRoutes.login` como ruta inicial. Por tanto, al iniciar la app, la primera pantalla es el inicio de sesión. Las reglas de organización y uso de estado están en [docs/ARQUITECTURA.md](docs/ARQUITECTURA.md).
 
 El mapa de rutas conecta estos nombres con sus pantallas principales y con las pantallas empujadas por encima del shell:
 
@@ -59,10 +71,9 @@ El mapa de rutas conecta estos nombres con sus pantallas principales y con las p
 | `/login` | `LoginScreen` |
 | `/signup` | `SignupScreen` |
 | `/home` | `MainShell` |
-| `/product-detail` | `ProductDetailScreen` |
 | `/cart` | `CartScreen` |
 
-Las rutas de catálogo, PC Builder y comparador ya no se abren como pantallas separadas: sus contenidos viven dentro de `MainShell`, que mantiene una sola barra inferior y conserva el estado de la interfaz al cambiar entre pestañas. `routes.dart` sigue declarando los nombres, pero el catálogo, comparador y PC Builder se cambian por `MainShellScope.selectTab(...)` en lugar de `pushNamed`.
+`/product-detail` se resuelve mediante `onGenerateRoute`: la pantalla recibe el `String` `productId` desde `settings.arguments`. Si el argumento no es un `String`, se pasa un id vacío y el detalle presenta "Producto no encontrado". Las rutas de catálogo, PC Builder y comparador no se abren como pantallas separadas: sus contenidos viven dentro de `MainShell`, que mantiene una sola barra inferior y conserva el estado de la interfaz al cambiar entre pestañas. `routes.dart` sigue declarando los nombres, pero el catálogo, comparador y PC Builder se cambian por `MainShellScope.selectTab(...)` en lugar de `pushNamed`.
 
 ### Recorrido principal
 
@@ -92,12 +103,15 @@ La barra inferior ya no conoce rutas. `MainShell` conserva el tab activo con `La
 
 ### Inicio
 
-`screens/home/home_screen.dart` compone la pantalla principal con barra superior, hero, franja de productos, categorías, tendencias, accesos a PC Builder y comparador, y pie de página. Los productos y etiquetas son constantes dentro de los widgets. Los accesos llevan a catálogo, detalle, carrito, comparador o PC Builder; no transmiten identificadores ni datos del producto seleccionado.
+`screens/home/home_screen.dart` compone la pantalla principal con barra superior, hero, franja de productos, categorías, tendencias, accesos a PC Builder y comparador, y pie de página. Los productos y etiquetas siguen siendo constantes dentro de los widgets. Los accesos a detalle pasan el id mock `rtx-5090` como fallback hasta que Home migre al repositorio; ambos puntos de entrada llevan un TODO para esa migración.
 
 ### Catálogo y detalle
 
-- `screens/catalog/catalog_screen.dart`: dibuja un campo de búsqueda, chips de categoría, el texto fijo `128 productos` y cuatro tarjetas. Búsqueda, filtros, orden y botón de carrito no actualizan datos; las tarjetas y el botón `Ver` abren el mismo detalle genérico. La grilla todavía usa `GridView.count` con `shrinkWrap` dentro de la estructura de scroll de `NexusPage`; deberá migrarse a slivers y carga paginada en el paso 5.
-- `screens/catalog/product_detail_screen.dart`: muestra siempre la ficha fija de una NVIDIA GeForce RTX 5090, sus especificaciones y dos relacionados. No recibe argumentos de ruta ni producto seleccionado. Cantidad, compra y agregar al carrito tienen callbacks vacíos.
+- `features/catalog/presentation/catalog_screen.dart`: observa `catalogPageProvider`, muestra carga/error/datos y dibuja las tarjetas de la página recibida. El contador procede de `ProductPage.total` (seis con el mock). Las tarjetas y el botón `Ver` envían su propio `productId`. Búsqueda, chips y orden siguen siendo visuales en 5B. La grilla conserva `GridView.count` hasta la migración a slivers del paso 5C.
+- `features/catalog/presentation/product_detail_screen.dart`: recibe `productId` y obtiene el producto mediante `productDetailProvider`. Muestra estado de carga, error recuperable o "Producto no encontrado"; marca, categoría, estado, precios, descuento, especificaciones y relacionados se derivan del producto y del repositorio. Las secciones sin especificaciones no se dibujan. Cantidad, compra y agregar al carrito siguen teniendo callbacks vacíos.
+- `features/catalog/domain/` define `ProductCategory`, `StockLevel`, `ProductSpec`, `Product`, `ProductPage` y `ProductRepository` sin importar Flutter ni Riverpod. El descuento se deriva de los precios.
+- `features/catalog/data/mock_product_repository.dart` contiene los cuatro productos que aparecían en el catálogo y los dos relacionados del detalle. Simula 300 ms de latencia (configurable para pruebas) y ejecuta búsqueda, filtro y paginación en memoria. No hay DTOs, JSON ni conexión a backend.
+- `features/catalog/catalog_providers.dart` es el único archivo de producción que conoce `MockProductRepository`. El catálogo solicita la primera página (20); detalle y relacionados son providers `FutureProvider.autoDispose.family` que reciben el id. En 5C el provider de catálogo evolucionará para búsqueda y paginación.
 
 ### Carrito
 
@@ -117,7 +131,8 @@ La barra inferior ya no conoce rutas. `MainShell` conserva el tab activo con `La
 |---|---|---|
 | Login | Correo y contraseña | `NexusTextField` sin controlador, validador ni envío conectado. El botón solo navega al inicio. |
 | Registro | Nombre, correo, contraseña y confirmación | Campos visuales sin controlador, validador, creación de cuenta o persistencia. |
-| Búsqueda del catálogo | Texto de producto, marca o categoría | `NexusTextField` sin callback/controlador ni filtro asociado. |
+| Catálogo inicial | Primera página de productos | `catalogPageProvider` lee 20 productos del mock; se muestran seis. |
+| Búsqueda del catálogo | Texto de producto, marca o categoría | El repositorio mock implementa búsqueda; el campo no está conectado todavía (5C). |
 | Filtros y orden | Categoría y orden de catálogo | Elementos visuales; no cambian selección ni resultados. |
 | Cantidad de producto | Unidades en detalle | Valor fijo `01`; los controles `+`/`-` no lo alteran. |
 | Carrito | Producto, cantidad y totales | Datos fijos en los constructores; no hay estado de carrito compartido. |
@@ -128,7 +143,7 @@ La barra inferior ya no conoce rutas. `MainShell` conserva el tab activo con `La
 
 El paso 3 se limitó al widget y a `test/nexus_text_field_test.dart`; login, registro y catálogo no conectan todavía las nuevas opciones. La suite del campo cubre controlador, `onChanged`, validación dentro de `Form`, uso sin `Form`, texto oculto y campo deshabilitado.
 
-En la implementación actual tampoco hay llamadas a servicios, carga asíncrona de datos, serialización JSON ni almacenamiento local. Los datos visibles proceden de literales y listas constantes dentro de cada pantalla. La navegación entre pantallas no conserva una selección de producto o un formulario enviado.
+No hay llamadas a servicios, serialización JSON ni almacenamiento local. El catálogo es la excepción al origen de datos por literales: sus datos proceden del repositorio mock y la navegación al detalle conserva el id seleccionado. Home, carrito, comparador y PC Builder todavía usan datos locales; la navegación no conserva formularios enviados.
 
 ## Componentes visuales compartidos
 
@@ -150,6 +165,7 @@ Otros widgets y utilidades compartidos:
 - `widgets/lazy_indexed_stack.dart`: `IndexedStack` perezoso que solo crea la pestaña visitada y pausa los tickers del resto.
 - `screens/shell/main_shell.dart`: shell de navegación principal con `LazyIndexedStack`, `PopScope` y `MainShellScope`.
 - `widgets/nexus_product_card.dart`: tarjeta de producto con precio en centavos y acciones provistas por la pantalla.
+- `widgets/nexus_loading.dart` y `widgets/nexus_error_state.dart`: estados compartidos de carga y error con reintento.
 - `widgets/nexus_quantity_stepper.dart`: control visual de cantidad reutilizado en detalle y carrito.
 - `widgets/nexus_top_bar.dart`: barra superior con navegación y acceso opcional al carrito.
 - `core/utils/format_price.dart`: función `formatPrice` para presentar importes almacenados en centavos.
@@ -162,8 +178,8 @@ Otros widgets y utilidades compartidos:
 
 Los siguientes pasos vigentes son:
 
-- **5B:** entidad `Product`, repositorio mock del catálogo, controlador y detalle
-  que recibe `productId`.
+- **5B:** dominio y repositorio mock del catálogo, providers y detalle que recibe
+  `productId` — completado.
 - **5C:** catálogo con slivers, debounce y paginación, siguiendo
   `REGLAS_RENDIMIENTO.md`.
 - **5D:** controlador del carrito.
@@ -173,4 +189,4 @@ Autenticación y comparador quedan pendientes y fuera del camino crítico.
 
 ## Archivos y validación
 
-El árbol anterior refleja los archivos Dart actuales bajo `lib/`; también hay pruebas en `test/`. Las validaciones posteriores al paso 3 fueron `flutter analyze` y `flutter test`, ambas aprobadas. La inspección visual disponible se hizo en Chrome; no equivale a medir fluidez en un teléfono. Para las mediciones de rendimiento indicadas por hito, usar un dispositivo físico con `flutter run --profile`, según `REGLAS_RENDIMIENTO.md`.
+El árbol anterior refleja los archivos Dart actuales bajo `lib/`; también hay pruebas en `test/`, incluidas pruebas de dominio, repositorio, providers, carga/error/reintento, navegación por producto y ficha vacía. Para el paso 5B, `flutter analyze` y `flutter test` pasan. No se probó en dispositivo. Para mediciones de rendimiento, usar un teléfono físico con `flutter run --profile`, según `REGLAS_RENDIMIENTO.md`.
