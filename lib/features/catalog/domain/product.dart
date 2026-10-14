@@ -10,7 +10,20 @@ enum ProductCategory {
   cooling,
 }
 
-enum StockLevel { stable, critical }
+enum StockLevel { stable, critical, outOfStock }
+
+extension StockLevelX on StockLevel {
+  String get tagLabel => switch (this) {
+    StockLevel.stable => 'ESTABLE',
+    StockLevel.critical => 'CRÍTICO',
+    StockLevel.outOfStock => 'AGOTADO',
+  };
+
+  String get detailLabel => switch (this) {
+    StockLevel.outOfStock => 'AGOTADO',
+    _ => 'EN STOCK',
+  };
+}
 
 class ProductSpec {
   const ProductSpec({required this.label, required this.value});

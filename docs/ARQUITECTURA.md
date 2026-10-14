@@ -40,7 +40,17 @@ marca o categoría, filtro por categoría y paginación en memoria.
 `catalog_providers.dart` es el único archivo de producción que selecciona
 `MockProductRepository`; los providers de detalle y relacionados son families
 `autoDispose` parametrizadas por `productId`. El proveedor de catálogo solicita
-la primera página y se ampliará con búsqueda y paginación en el paso 5C.
+la primera página. `CatalogController` administra la búsqueda con debounce de
+300 ms, el filtro de categoría, el total reportado por el repositorio y la
+paginación incremental. La pantalla observa por separado los datos de filtros
+y el total; la grilla usa slivers y solicita otra página al acercarse al final.
+
+Para probar el catálogo con más datos, se puede sustituir temporalmente el
+override de `productRepositoryProvider` en `main.dart` por
+`MockProductRepository.generated(200)`. Este cambio es solo para desarrollo
+local: no debe quedar en un commit. Las pruebas de widgets montan el mismo
+catálogo con un repositorio falso y pueden cambiar `catalogPageSizeProvider`
+para recorrer la paginación con pocas filas.
 
 `ProductSpec` contiene texto de presentación, no datos tipados de compatibilidad.
 Los datos para PC Builder se modelarán por separado como `PcPartSpec` en el paso

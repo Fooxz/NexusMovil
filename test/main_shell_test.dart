@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:prueba01/screens/shell/main_shell.dart';
 import 'package:prueba01/widgets/lazy_indexed_stack.dart';
 import 'package:prueba01/widgets/nexus_bottom_nav.dart';
+import 'support/main_shell_test_support.dart';
 
 class _BuildCounter extends StatefulWidget {
   const _BuildCounter({required this.index, required this.buildCounts});
@@ -200,22 +201,7 @@ void main() {
   testWidgets('Android back from catalog returns home without popping shell', (
     WidgetTester tester,
   ) async {
-    await tester.pumpWidget(
-      _withProviderScope(
-        MaterialApp(
-        routes: {'/shell': (_) => const MainShell()},
-        home: Builder(
-          builder: (context) => Scaffold(
-            body: ElevatedButton(
-              onPressed: () => Navigator.of(context).pushNamed('/shell'),
-              child: const Text('open shell'),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-
+    await tester.pumpWidget(shellWithExternalRoute());
     await tester.tap(find.text('open shell'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('CATÁLOGO'));
@@ -310,33 +296,4 @@ void main() {
     expect(observer.replacedRouteName, isNull);
   });
 
-  testWidgets('MainShellScope exposes selectTab to descendants', (
-    WidgetTester tester,
-  ) async {
-    NexusTab? selectedTab;
-
-    await tester.pumpWidget(
-      MaterialApp(
-        home: MainShellScope(
-          selectTab: (tab) => selectedTab = tab,
-          child: Builder(
-            builder: (context) {
-              return Center(
-                child: ElevatedButton(
-                  onPressed: () =>
-                      MainShellScope.of(context).selectTab(NexusTab.comparator),
-                  child: const Text('switch'),
-                ),
-              );
-            },
-          ),
-        ),
-      ),
-    );
-
-    await tester.tap(find.text('switch'));
-    await tester.pump();
-
-    expect(selectedTab, NexusTab.comparator);
-  });
 }

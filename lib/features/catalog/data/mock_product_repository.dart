@@ -3,18 +3,26 @@ import '../domain/product_page.dart';
 import '../domain/product_repository.dart';
 
 class MockProductRepository implements ProductRepository {
-  MockProductRepository({this.latency = const Duration(milliseconds: 300)});
+  MockProductRepository({this.latency = const Duration(milliseconds: 300)}) {
+    _products = _seedProducts();
+  }
+
+  MockProductRepository.generated(
+    int count, {
+    this.latency = const Duration(milliseconds: 300),
+  }) : _products = _generateProducts(count);
 
   final Duration latency;
+  late final List<Product> _products;
 
-  static const _products = [
-    Product(
+  static List<Product> _seedProducts() => [
+    const Product(
       id: 'rtx-5090',
       name: 'NVIDIA GEFORCE RTX 5090',
       brand: 'NVIDIA',
       category: ProductCategory.gpu,
-      priceCents: 199900,
-      oldPriceCents: 229900,
+      priceCents: 799600000,
+      oldPriceCents: 919600000,
       stockLevel: StockLevel.stable,
       summary: '24 GB GDDR6X · 2.5K · Ray tracing',
       quickSpecs: [
@@ -33,55 +41,88 @@ class MockProductRepository implements ProductRepository {
         ProductSpec(label: 'INTERFAZ', value: 'PCI-E 5.0 x16'),
       ],
     ),
-    Product(
+    const Product(
       id: 'ryzen-9-9950x',
       name: 'RYZEN 9 9950X',
       brand: 'AMD',
       category: ProductCategory.cpu,
-      priceCents: 64900,
-      oldPriceCents: 69900,
+      priceCents: 259600000,
+      oldPriceCents: 279600000,
       stockLevel: StockLevel.stable,
       summary: '16 núcleos · 5.7 GHz · Zen 5',
     ),
-    Product(
+    const Product(
       id: 'rog-maximus-z790-hero',
       name: 'ROG MAXIMUS Z790 HERO',
       brand: 'ASUS',
       category: ProductCategory.motherboard,
-      priceCents: 59999,
-      oldPriceCents: 69999,
+      priceCents: 599990000,
+      oldPriceCents: 699990000,
       stockLevel: StockLevel.critical,
       summary: 'Z890 · Wi-Fi 7 · 24+2 fases',
     ),
-    Product(
+    const Product(
       id: 'kraken-elite-360',
       name: 'KRAKEN ELITE 360',
       brand: 'NZXT',
       category: ProductCategory.cooling,
-      priceCents: 29999,
-      oldPriceCents: 32999,
-      stockLevel: StockLevel.stable,
+      priceCents: 299990000,
+      oldPriceCents: 329990000,
+      stockLevel: StockLevel.outOfStock,
       summary: '360 mm · RGB · 2x fans',
     ),
-    Product(
+    const Product(
       id: 'rtx-5080',
       name: 'NVIDIA RTX 5080',
       brand: 'NVIDIA',
       category: ProductCategory.gpu,
-      priceCents: 169900,
+      priceCents: 169900000,
       stockLevel: StockLevel.stable,
       quickSpecs: ['RTX 5080', '16GB'],
     ),
-    Product(
+    const Product(
       id: 'cooler-master-elite-liquid-360',
       name: 'Cooler Master Elite Liquid 360',
       brand: 'Cooler Master',
       category: ProductCategory.cooling,
-      priceCents: 24900,
+      priceCents: 249000000,
       stockLevel: StockLevel.stable,
       quickSpecs: ['LIQUID', '360MM'],
     ),
   ];
+
+  static List<Product> _generateProducts(int count) {
+    final generated = <Product>[];
+    for (var index = 0; index < count; index++) {
+      final category = ProductCategory.values[index % ProductCategory.values.length];
+      final stockLevel = switch (index % 3) {
+        0 => StockLevel.stable,
+        1 => StockLevel.critical,
+        _ => StockLevel.outOfStock,
+      };
+      final basePrice = 4000000 + (index * 450000);
+      final oldPrice = basePrice + 600000;
+      generated.add(
+        Product(
+          id: 'generated-${index + 1}',
+          name: '${category.name.toUpperCase()} PRODUCT ${index + 1}',
+          brand: switch (index % 5) {
+            0 => 'NVIDIA',
+            1 => 'AMD',
+            2 => 'ASUS',
+            3 => 'NZXT',
+            _ => 'CORSAIR',
+          },
+          category: category,
+          priceCents: basePrice,
+          oldPriceCents: oldPrice,
+          stockLevel: stockLevel,
+          summary: 'Producto sintético ${index + 1}',
+        ),
+      );
+    }
+    return generated;
+  }
 
   @override
   Future<ProductPage> getProducts({
@@ -176,11 +217,7 @@ class MockProductRepository implements ProductRepository {
       switch (category) {
         ProductCategory.phone => const ['phone', 'celular', 'telefono'],
         ProductCategory.cpu => const ['cpu', 'procesador'],
-        ProductCategory.gpu => const [
-          'gpu',
-          'tarjeta grafica',
-          'tarjetas graficas',
-        ],
+        ProductCategory.gpu => const ['gpu', 'tarjeta grafica', 'tarjetas graficas'],
         ProductCategory.ram => const ['ram', 'memoria'],
         ProductCategory.motherboard => const ['motherboard', 'placa madre'],
         ProductCategory.storage => const ['storage', 'almacenamiento'],

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:prueba01/widgets/nexus_widgets.dart';
+import 'support/nexus_text_field_test_support.dart';
 
 void main() {
   testWidgets('controller receives entered text', (WidgetTester tester) async {
@@ -44,31 +45,9 @@ void main() {
   ) async {
     final formKey = GlobalKey<FormState>();
     var isValid = true;
-
     await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: Form(
-            key: formKey,
-            child: Column(
-              children: [
-                NexusTextField(
-                  hint: 'Correo',
-                  validator: (value) => value == null || value.isEmpty
-                      ? 'Campo obligatorio'
-                      : null,
-                ),
-                ElevatedButton(
-                  onPressed: () => isValid = formKey.currentState!.validate(),
-                  child: const Text('Validar'),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
+      requiredEmailValidationApp(formKey, (value) => isValid = value),
     );
-
     await tester.tap(find.text('Validar'));
     await tester.pump();
 

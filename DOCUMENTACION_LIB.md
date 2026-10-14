@@ -103,19 +103,19 @@ La barra inferior ya no conoce rutas. `MainShell` conserva el tab activo con `La
 
 ### Inicio
 
-`screens/home/home_screen.dart` compone la pantalla principal con barra superior, hero, franja de productos, categorías, tendencias, accesos a PC Builder y comparador, y pie de página. Los productos y etiquetas siguen siendo constantes dentro de los widgets. Los accesos a detalle pasan el id mock `rtx-5090` como fallback hasta que Home migre al repositorio; ambos puntos de entrada llevan un TODO para esa migración.
+`screens/home/home_screen.dart` compone la pantalla principal con barra superior, hero, franja de productos, categorías, tendencias, accesos a PC Builder y comparador, y pie de página. Los productos y etiquetas siguen siendo constantes dentro de los widgets; los precios literales se convierten a COP con tasa 4.000 y redondeo unitario al millar. Los accesos a detalle pasan el id mock `rtx-5090` como fallback hasta que Home migre al repositorio; ambos puntos de entrada llevan un TODO para esa migración.
 
 ### Catálogo y detalle
 
-- `features/catalog/presentation/catalog_screen.dart`: observa `catalogPageProvider`, muestra carga/error/datos y dibuja las tarjetas de la página recibida. El contador procede de `ProductPage.total` (seis con el mock). Las tarjetas y el botón `Ver` envían su propio `productId`. Búsqueda, chips y orden siguen siendo visuales en 5B. La grilla conserva `GridView.count` hasta la migración a slivers del paso 5C.
-- `features/catalog/presentation/product_detail_screen.dart`: recibe `productId` y obtiene el producto mediante `productDetailProvider`. Muestra estado de carga, error recuperable o "Producto no encontrado"; marca, categoría, estado, precios, descuento, especificaciones y relacionados se derivan del producto y del repositorio. Las secciones sin especificaciones no se dibujan. Cantidad, compra y agregar al carrito siguen teniendo callbacks vacíos.
+- `features/catalog/presentation/catalog_screen.dart`: observa `catalogPageProvider`, muestra carga/error/datos y dibuja las tarjetas de la página recibida. El contador procede de `CatalogState.total`; tarjetas y botón `Ver` envían su propio `productId`. El controlador soporta búsqueda con debounce, filtro de categoría y paginación, pero el campo, los chips y la grilla todavía no están conectados a esas operaciones ni migrados a slivers.
+- `features/catalog/presentation/product_detail_screen.dart`: recibe `productId` y obtiene el producto mediante `productDetailProvider`. Muestra estado de carga, error recuperable o "Producto no encontrado"; marca, categoría, stock, precios, descuento, especificaciones y relacionados se derivan del producto y del repositorio. Los productos agotados se identifican como "AGOTADO" en gris. Las secciones sin especificaciones no se dibujan. Cantidad, compra y agregar al carrito siguen teniendo callbacks vacíos.
 - `features/catalog/domain/` define `ProductCategory`, `StockLevel`, `ProductSpec`, `Product`, `ProductPage` y `ProductRepository` sin importar Flutter ni Riverpod. El descuento se deriva de los precios.
-- `features/catalog/data/mock_product_repository.dart` contiene los cuatro productos que aparecían en el catálogo y los dos relacionados del detalle. Simula 300 ms de latencia (configurable para pruebas) y ejecuta búsqueda, filtro y paginación en memoria. No hay DTOs, JSON ni conexión a backend.
-- `features/catalog/catalog_providers.dart` es el único archivo de producción que conoce `MockProductRepository`. El catálogo solicita la primera página (20); detalle y relacionados son providers `FutureProvider.autoDispose.family` que reciben el id. En 5C el provider de catálogo evolucionará para búsqueda y paginación.
+- `features/catalog/data/mock_product_repository.dart` contiene seis productos de muestra y permite generar catálogos sintéticos. Simula 300 ms de latencia (configurable para pruebas) y ejecuta búsqueda insensible a mayúsculas y acentos, filtro y paginación en memoria. No hay DTOs, JSON ni conexión a backend.
+- `features/catalog/catalog_providers.dart` es el único archivo de producción que conoce `MockProductRepository`. El catálogo usa un `AsyncNotifier` con estado de consulta, categoría, página y carga incremental; detalle y relacionados son providers `FutureProvider.autoDispose.family` que reciben el id.
 
 ### Carrito
 
-`screens/cart/cart_screen.dart` muestra dos líneas fijas, cantidades, subtotales, envío y total precalculados en el código. Los botones para cambiar cantidad, eliminar, confirmar pedido y vaciar carrito no modifican el carrito ni disparan una compra.
+`screens/cart/cart_screen.dart` muestra dos líneas fijas, cantidades, subtotales, envío y total precalculados en el código. Los precios mock se convierten a COP con tasa 4.000 y redondeo unitario al millar; el total fijo es la suma de los subtotales convertidos. Los botones para cambiar cantidad, eliminar, confirmar pedido y vaciar carrito no modifican el carrito ni disparan una compra.
 
 ### Comparador
 
@@ -123,7 +123,7 @@ La barra inferior ya no conoce rutas. `MainShell` conserva el tab activo con `La
 
 ### PC Builder
 
-`screens/pc_builder/pc_builder_screen.dart` presenta componentes fijos, un gabinete vacío, un progreso fijo de 8/9, estado compatible, desglose y total fijo. Las acciones de editar, eliminar, seleccionar, comprar y agregar al carrito no cambian la configuración. El cálculo de compatibilidad descrito en comentarios todavía no está implementado.
+`screens/pc_builder/pc_builder_screen.dart` presenta componentes fijos, un gabinete vacío, un progreso fijo de 8/9, estado compatible, desglose y total fijo. Los precios mock se convierten a COP con tasa 4.000 y redondeo unitario al millar; el total fijo suma los componentes convertidos. Las acciones de editar, eliminar, seleccionar, comprar y agregar al carrito no cambian la configuración. El cálculo de compatibilidad descrito en comentarios todavía no está implementado.
 
 ## Entrada y origen de datos
 
@@ -131,9 +131,9 @@ La barra inferior ya no conoce rutas. `MainShell` conserva el tab activo con `La
 |---|---|---|
 | Login | Correo y contraseña | `NexusTextField` sin controlador, validador ni envío conectado. El botón solo navega al inicio. |
 | Registro | Nombre, correo, contraseña y confirmación | Campos visuales sin controlador, validador, creación de cuenta o persistencia. |
-| Catálogo inicial | Primera página de productos | `catalogPageProvider` lee 20 productos del mock; se muestran seis. |
-| Búsqueda del catálogo | Texto de producto, marca o categoría | El repositorio mock implementa búsqueda; el campo no está conectado todavía (5C). |
-| Filtros y orden | Categoría y orden de catálogo | Elementos visuales; no cambian selección ni resultados. |
+| Catálogo inicial | Primera página de productos | `catalogControllerProvider` obtiene 20 productos por página; el mock inicial contiene seis. |
+| Búsqueda del catálogo | Texto de producto, marca o categoría | El repositorio implementa búsqueda normalizada y el controlador aplica debounce; el campo todavía no está conectado. |
+| Filtros y orden | Categoría y orden de catálogo | El controlador filtra por categoría; los chips y el orden todavía son visuales. |
 | Cantidad de producto | Unidades en detalle | Valor fijo `01`; los controles `+`/`-` no lo alteran. |
 | Carrito | Producto, cantidad y totales | Datos fijos en los constructores; no hay estado de carrito compartido. |
 | Comparador | Dos celulares y especificaciones | Modelos fijos; no hay selección, carga ni comparación de datos. |
@@ -161,14 +161,15 @@ Otros widgets y utilidades compartidos:
 
 - `widgets/nexus_auth_header.dart`: cabecera de marca y formulario para login/registro.
 - `widgets/nexus_bottom_nav.dart`: barra inferior "tonta" que recibe `NexusTab current` y `ValueChanged<NexusTab> onTap` sin depender de `routes.dart`.
-- `widgets/nexus_page.dart`: `Scaffold`, `SafeArea`, barra superior, scroll vertical y padding común. Por ahora recibe `children`; todavía no admite `slivers`.
+- `widgets/nexus_page.dart`: `Scaffold`, `SafeArea`, barra superior y scroll común. Conserva `children` y admite una variante `NexusPage.slivers` basada en `CustomScrollView`.
+- `widgets/nexus_empty_state.dart`: estado reutilizable para resultados vacíos, con acción opcional.
 - `widgets/lazy_indexed_stack.dart`: `IndexedStack` perezoso que solo crea la pestaña visitada y pausa los tickers del resto.
 - `screens/shell/main_shell.dart`: shell de navegación principal con `LazyIndexedStack`, `PopScope` y `MainShellScope`.
 - `widgets/nexus_product_card.dart`: tarjeta de producto con precio en centavos y acciones provistas por la pantalla.
 - `widgets/nexus_loading.dart` y `widgets/nexus_error_state.dart`: estados compartidos de carga y error con reintento.
 - `widgets/nexus_quantity_stepper.dart`: control visual de cantidad reutilizado en detalle y carrito.
 - `widgets/nexus_top_bar.dart`: barra superior con navegación y acceso opcional al carrito.
-- `core/utils/format_price.dart`: función `formatPrice` para presentar importes almacenados en centavos.
+- `core/utils/format_price.dart`: función `formatPrice` para presentar centavos de COP en pesos enteros, con puntos como separadores de miles y redondeo al peso.
 
 ## Tema
 
@@ -180,8 +181,9 @@ Los siguientes pasos vigentes son:
 
 - **5B:** dominio y repositorio mock del catálogo, providers y detalle que recibe
   `productId` — completado.
-- **5C:** catálogo con slivers, debounce y paginación, siguiendo
-  `REGLAS_RENDIMIENTO.md`.
+- **5C:** parcial. El estado/controlador, el soporte de slivers, el estado vacío,
+  los precios COP y el estado de agotado están implementados y probados; falta
+  conectar la búsqueda, los chips y la grilla del catálogo al controlador/slivers.
 - **5D:** controlador del carrito.
 - **7:** PC Builder con estado fuera del árbol de widgets.
 
@@ -189,4 +191,4 @@ Autenticación y comparador quedan pendientes y fuera del camino crítico.
 
 ## Archivos y validación
 
-El árbol anterior refleja los archivos Dart actuales bajo `lib/`; también hay pruebas en `test/`, incluidas pruebas de dominio, repositorio, providers, carga/error/reintento, navegación por producto y ficha vacía. Para el paso 5B, `flutter analyze` y `flutter test` pasan. No se probó en dispositivo. Para mediciones de rendimiento, usar un teléfono físico con `flutter run --profile`, según `REGLAS_RENDIMIENTO.md`.
+El árbol anterior refleja los archivos Dart actuales bajo `lib/`; también hay pruebas en `test/`, incluidas pruebas de formato COP, estados de stock, búsqueda/paginación, controlador, widgets, carga/error/reintento y navegación por producto. Validación del paso 5C: `flutter analyze` sin hallazgos y `flutter test` con 59 pruebas aprobadas. No se probó en dispositivo. Para mediciones de rendimiento, usar un teléfono físico con `flutter run --profile`, según `REGLAS_RENDIMIENTO.md`.

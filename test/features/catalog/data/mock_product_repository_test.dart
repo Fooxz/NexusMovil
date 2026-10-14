@@ -33,6 +33,33 @@ void main() {
     ]);
   });
 
+  test('searches accented names and categories without accents', () async {
+    final page = await repository.getProducts(search: 'tarjetas graficas');
+
+    expect(page.items.map((product) => product.id), [
+      'rtx-5090',
+      'rtx-5080',
+    ]);
+  });
+
+  test('generated repository returns the requested 200 products', () async {
+    final generatedRepository = MockProductRepository.generated(
+      200,
+      latency: Duration.zero,
+    );
+    final firstPage = await generatedRepository.getProducts(pageSize: 50);
+    final lastPage = await generatedRepository.getProducts(
+      page: 3,
+      pageSize: 50,
+    );
+
+    expect(firstPage.total, 200);
+    expect(firstPage.items, hasLength(50));
+    expect(lastPage.items, hasLength(50));
+    expect(lastPage.items.last.id, 'generated-200');
+    expect(lastPage.hasMore, isFalse);
+  });
+
   test('filters by category', () async {
     final page = await repository.getProducts(
       category: ProductCategory.cooling,

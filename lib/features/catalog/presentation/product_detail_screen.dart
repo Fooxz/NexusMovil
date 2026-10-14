@@ -58,9 +58,16 @@ class _ProductDetailContent extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final visuals = ProductVisuals.forCategory(product.category);
-    final isCritical = product.stockLevel == StockLevel.critical;
-    final stockLabel = isCritical ? 'CRÍTICO' : 'EN STOCK';
-    final stockColor = isCritical ? NexusColors.pink : NexusColors.green;
+    final stockLabel = switch (product.stockLevel) {
+      StockLevel.stable => 'EN STOCK',
+      StockLevel.critical => 'CRÍTICO',
+      StockLevel.outOfStock => ProductVisuals.stockLabel(product.stockLevel),
+    };
+    final stockColor = switch (product.stockLevel) {
+      StockLevel.stable => NexusColors.green,
+      StockLevel.critical => NexusColors.pink,
+      StockLevel.outOfStock => ProductVisuals.stockColor(product.stockLevel),
+    };
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,

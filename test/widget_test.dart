@@ -15,10 +15,10 @@ import 'package:prueba01/screens/home/home_screen.dart';
 import 'package:prueba01/widgets/nexus_product_card.dart';
 
 void main() {
-  test('formats integer cents as US currency', () {
-    expect(formatPrice(199900), '\$1,999.00');
-    expect(formatPrice(5), '\$0.05');
-    expect(formatPrice(-123456), '-\$1,234.56');
+  test('formats integer centavos as COP', () {
+    expect(formatPrice(199900), '\$1.999');
+    expect(formatPrice(5), '\$0');
+    expect(formatPrice(-123456), '-\$1.235');
   });
 
   testWidgets('product card formats price and delegates tap', (
@@ -39,7 +39,7 @@ void main() {
       ),
     );
 
-    expect(find.text('\$1,999.00'), findsOneWidget);
+    expect(find.text('\$1.999'), findsOneWidget);
     await tester.tap(find.byType(NexusProductCard));
     expect(wasTapped, isTrue);
   });

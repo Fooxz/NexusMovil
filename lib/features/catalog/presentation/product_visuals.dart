@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../domain/product.dart';
+import '../../../theme/nexus_theme.dart';
 
 class ProductVisuals {
   const ProductVisuals({
@@ -80,4 +81,12 @@ class ProductVisuals {
         ),
         null => _generic,
       };
+
+  static String stockLabel(StockLevel stockLevel) => stockLevel.tagLabel;
+
+  static Color stockColor(StockLevel stockLevel) => switch (stockLevel) {
+    StockLevel.stable => NexusColors.cyan,
+    StockLevel.critical => NexusColors.pink,
+    StockLevel.outOfStock => NexusColors.textFaint,
+  };
 }

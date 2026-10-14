@@ -49,4 +49,13 @@ void main() {
     expect(firstPage.hasMore, isTrue);
     expect(lastPage.hasMore, isFalse);
   });
+
+  test('maps stock levels to their catalog and detail labels', () {
+    expect(StockLevel.stable.tagLabel, 'ESTABLE');
+    expect(StockLevel.stable.detailLabel, 'EN STOCK');
+    expect(StockLevel.critical.tagLabel, 'CRÍTICO');
+    expect(StockLevel.critical.detailLabel, 'EN STOCK');
+    expect(StockLevel.outOfStock.tagLabel, 'AGOTADO');
+    expect(StockLevel.outOfStock.detailLabel, 'AGOTADO');
+  });
 }

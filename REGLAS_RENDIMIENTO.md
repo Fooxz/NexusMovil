@@ -66,8 +66,18 @@ Estas reglas aplican a todos los pasos de desarrollo desde el paso 3. Deben guia
 |---|---|
 | 3 | Sin cambios visuales en las pantallas. R10: el creador libera los controladores. R6: el campo no implementa debounce. |
 | 4 | Pestañas perezosas en `MainShell` y estado fuera del árbol de widgets. |
-| 5 | Aplicar R2-R7 al catálogo y datos reales. |
+| 5 | Aplicar R1, R2, R6 y R7 al catálogo. R3-R5 se aplican según corresponda al trabajo del feature. |
 | 7 | Aplicar R9 al visor 3D, incluyendo `RepaintBoundary` y carga diferida del modelo. |
+
+### Catálogo (5C)
+
+- **R1 aplicada:** `CatalogScreen` construye resultados con `SliverGrid.builder`.
+- **R2 aplicada:** la pantalla consume `NexusPage.slivers` y conserva el scroll
+  común de la página.
+- **R6 aplicada:** el campo solo reenvía `onChanged`; el debounce de 300 ms y
+  la gestión de solicitudes viven en `CatalogController`.
+- **R7 aplicada:** el catálogo solicita páginas configurables y pide la
+  siguiente al quedar menos de 600 px de contenido.
 
 ## Verificación de rendimiento
 
