@@ -6,9 +6,10 @@
 
 import 'package:flutter/material.dart';
 
+import '../../core/utils/format_price.dart';
 import '../../routes.dart';
+import '../shell/main_shell.dart';
 import '../../theme/nexus_theme.dart';
-import '../../widgets/nexus_bottom_nav.dart';
 import '../../widgets/nexus_widgets.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -51,7 +52,6 @@ class HomeScreen extends StatelessWidget {
           ),
         ),
       ),
-      bottomNavigationBar: const NexusBottomNav(currentIndex: 0),
     );
   }
 }
@@ -157,45 +157,33 @@ class _Hero extends StatelessWidget {
           const SizedBox(height: 16),
           Row(
             children: [
-              ElevatedButton(
+              NexusPrimaryButton(
+                label: 'EXPLORAR CATÁLOGO',
                 onPressed: () =>
-                    Navigator.of(context).pushNamed(NexusRoutes.catalog),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: NexusColors.cyan,
-                  foregroundColor: const Color(0xFF04211F),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 10,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(7),
-                  ),
-                  elevation: 0,
+                    MainShellScope.of(context).selectTab(NexusTab.catalog),
+                fullWidth: false,
+                fontSize: 11.5,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 10,
                 ),
-                child: const Text(
-                  'EXPLORAR CATÁLOGO',
-                  style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold),
-                ),
+                borderRadius: 7,
               ),
               const SizedBox(width: 10),
-              OutlinedButton(
+              NexusOutlineButton(
+                label: 'VER CATEGORÍAS',
                 onPressed: () =>
-                    Navigator.of(context).pushNamed(NexusRoutes.catalog),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: NexusColors.text,
-                  side: const BorderSide(color: NexusColors.textFaint),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 10,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(7),
-                  ),
+                    MainShellScope.of(context).selectTab(NexusTab.catalog),
+                color: NexusColors.text,
+                borderColor: NexusColors.textFaint,
+                compact: true,
+                fullWidth: false,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 10,
                 ),
-                child: const Text(
-                  'VER CATEGORÍAS',
-                  style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold),
-                ),
+                fontSize: 11.5,
+                borderRadius: 7,
               ),
             ],
           ),
@@ -226,7 +214,7 @@ class _ProductStrip extends StatelessWidget {
               Color(0xFF8A1C1C),
             ],
             name: 'RTX 5080',
-            price: '\$1,199.99',
+            priceCents: 480000000,
           ),
         ),
         const SizedBox(width: 8),
@@ -240,7 +228,7 @@ class _ProductStrip extends StatelessWidget {
               Color(0xFF173A33),
             ],
             name: 'CORE 64G',
-            price: '\$249.99',
+            priceCents: 100000000,
           ),
         ),
         const SizedBox(width: 8),
@@ -250,7 +238,7 @@ class _ProductStrip extends StatelessWidget {
             iconColor: NexusColors.cyan,
             gradientColors: const [Color(0xFF0F1113), Color(0xFF1C2226)],
             name: 'MOTHERBOARD',
-            price: '\$199.99',
+            priceCents: 360000000,
           ),
         ),
       ],
@@ -264,19 +252,23 @@ class _ProductCard extends StatelessWidget {
     required this.iconColor,
     required this.gradientColors,
     required this.name,
-    required this.price,
+    required this.priceCents,
   });
 
   final IconData icon;
   final Color iconColor;
   final List<Color> gradientColors;
   final String name;
-  final String price;
+  final int priceCents;
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      onTap: () => Navigator.of(context).pushNamed(NexusRoutes.productDetail),
+      // TODO: Migrate Home's mock products to the catalog repository.
+      onTap: () => Navigator.of(context).pushNamed(
+        NexusRoutes.productDetail,
+        arguments: 'rtx-5090',
+      ),
       child: Container(
         decoration: BoxDecoration(
           color: NexusColors.card,
@@ -311,7 +303,7 @@ class _ProductCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 3),
                   Text(
-                    price,
+                    formatPrice(priceCents),
                     style: const TextStyle(
                       fontSize: 10.5,
                       fontWeight: FontWeight.bold,
@@ -366,7 +358,7 @@ class _CategoryChip extends StatelessWidget {
         return SizedBox(
           width: (constraints.maxWidth - 16) / 3,
           child: InkWell(
-            onTap: () => Navigator.of(context).pushNamed(NexusRoutes.catalog),
+            onTap: () => MainShellScope.of(context).selectTab(NexusTab.catalog),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
               decoration: BoxDecoration(
@@ -454,7 +446,11 @@ class _TrendCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      onTap: () => Navigator.of(context).pushNamed(NexusRoutes.productDetail),
+      // TODO: Migrate Home's mock trends to the catalog repository.
+      onTap: () => Navigator.of(context).pushNamed(
+        NexusRoutes.productDetail,
+        arguments: 'rtx-5090',
+      ),
       child: Container(
         decoration: BoxDecoration(
           color: NexusColors.card,
@@ -501,11 +497,18 @@ class _FeatureGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _FeatureCard(
-      gradientColors: const [Color(0xFF123A3C), Color(0xFF0A1416)],
-      title: 'PC BUILDER',
-      subtitle: 'CREA TU SETUP\nPERFECTO',
-      onTap: () => Navigator.of(context).pushNamed(NexusRoutes.pcBuilder),
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: _FeatureCard(
+            gradientColors: const [Color(0xFF123A3C), Color(0xFF0A1416)],
+            title: 'PC BUILDER',
+            subtitle: 'CREA TU SETUP\nPERFECTO',
+            onTap: () => MainShellScope.of(context).selectTab(NexusTab.pcBuilder),
+          ),
+        ),
+      ],
     );
   }
 }

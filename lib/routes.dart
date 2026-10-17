@@ -9,8 +9,6 @@ class NexusRoutes {
   static const login = '/login';
   static const signup = '/signup';
   static const home = '/home';
-  static const catalog = '/catalog';
   static const productDetail = '/product-detail';
   static const cart = '/cart';
-  static const pcBuilder = '/pc-builder';
 }

@@ -1,32 +1,17 @@
-// lib/widgets/nexus_bottom_nav.dart
-//
-// Barra de navegación inferior compartida por (casi) todas las pantallas.
-// Es puramente visual/navegación: cambia de pantalla con pushReplacementNamed
-// para que el usuario pueda moverse entre las pestañas principales sin
-// acumular un historial infinito. "PERFIL" lleva a Login mientras no exista
-// una pantalla de perfil real (el cliente aún no está autenticado).
-
 import 'package:flutter/material.dart';
-import '../routes.dart';
+
+import '../screens/shell/main_shell.dart';
 import '../theme/nexus_theme.dart';
 
 class NexusBottomNav extends StatelessWidget {
-  const NexusBottomNav({super.key, required this.currentIndex});
+  const NexusBottomNav({
+    super.key,
+    required this.current,
+    required this.onTap,
+  });
 
-  /// 0 = Inicio, 1 = Catálogo, 2 = PC Builder, 3 = Perfil.
-  final int currentIndex;
-
-  static const _routesByIndex = [
-    NexusRoutes.home,
-    NexusRoutes.catalog,
-    NexusRoutes.pcBuilder,
-    NexusRoutes.login,
-  ];
-
-  void _onTap(BuildContext context, int index) {
-    if (index == currentIndex) return;
-    Navigator.of(context).pushReplacementNamed(_routesByIndex[index]);
-  }
+  final NexusTab current;
+  final ValueChanged<NexusTab> onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -38,8 +23,15 @@ class NexusBottomNav extends StatelessWidget {
       child: SafeArea(
         top: false,
         child: BottomNavigationBar(
-          currentIndex: currentIndex.clamp(0, 3),
-          onTap: (i) => _onTap(context, i),
+          currentIndex: current.tabIndex.clamp(0, NexusTab.values.length - 1),
+          onTap: (index) {
+            final tab = NexusTab.values.firstWhere(
+              (candidate) => candidate.tabIndex == index,
+              orElse: () => NexusTab.home,
+            );
+            if (tab == current) return;
+            onTap(tab);
+          },
           type: BottomNavigationBarType.fixed,
           backgroundColor: NexusColors.bgAlt,
           selectedItemColor: NexusColors.cyan,

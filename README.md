@@ -1,17 +1,23 @@
-# prueba01
+# NEXUS
 
-A new Flutter project.
+Prototipo Flutter navegable para una tienda de computadoras y componentes. La app inicia en login y permite recorrer inicio, catálogo, detalle, carrito y PC Builder. Actualmente utiliza datos de ejemplo; autenticación y carrito todavía no están conectados a servicios.
 
-## Getting Started
+## Ejecutar y comprobar
 
-This project is a starting point for a Flutter application.
+```powershell
+flutter pub get
+flutter run
+```
 
-A few resources to get you started if this is your first Flutter project:
+```powershell
+flutter analyze
+flutter test
+```
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+Para inspección de rendimiento, usar un dispositivo físico y `flutter run --profile`; Chrome solo sirve para revisar lógica y aspecto, no fluidez.
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Documentación
+
+- [Documentación del código y estado funcional](DOCUMENTACION_LIB.md)
+- [Reglas permanentes de rendimiento](REGLAS_RENDIMIENTO.md)
+- [Registro histórico de refactorización de los pasos 1 y 2](REFACTORIZACION_PASOS_1_Y_2.md)
