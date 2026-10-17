@@ -14,7 +14,7 @@ import '../../widgets/nexus_widgets.dart';
 class CatalogScreen extends StatelessWidget {
   const CatalogScreen({super.key});
 
-  static const _primaryFilters = ['Celular', 'CPU', 'GPU', 'RAM', 'Motherboard'];
+  static const _primaryFilters = ['Computadoras', 'CPU', 'GPU', 'RAM', 'Motherboard'];
   static const _secondaryFilters = ['Almacenamiento', 'Fuente', 'Gabinete', 'Refrigeración'];
 
   @override
@@ -41,7 +41,7 @@ class CatalogScreen extends StatelessWidget {
                       spacing: 8,
                       runSpacing: 8,
                       children: [
-                        for (final f in _primaryFilters) _FilterChip(label: f, active: f == 'Celular'),
+                        for (final f in _primaryFilters) _FilterChip(label: f, active: f == 'Computadoras'),
                         for (final f in _secondaryFilters) _FilterChip(label: f),
                       ],
                     ),

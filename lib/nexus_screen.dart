@@ -1,4 +1,3 @@
-
 //roger se la come doblada
 
 import 'package:flutter/material.dart';
@@ -193,7 +192,7 @@ class _Hero extends StatelessWidget {
           const SizedBox(
             width: 230,
             child: Text(
-              'Celulares, laptops, drones, TVs, motos eléctricas y más...',
+              'Computadoras y componentes para armar o mejorar tu equipo.',
               style: TextStyle(
                 fontSize: 11.5,
                 height: 1.5,
@@ -291,11 +290,11 @@ class _ProductStrip extends StatelessWidget {
         SizedBox(width: 8),
         Expanded(
           child: _ProductCard(
-            icon: Icons.flight,
-            iconColor: NexusColors.text,
+            icon: Icons.developer_board,
+            iconColor: NexusColors.cyan,
             thumbGradient: [Color(0xFF0F1113), Color(0xFF1C2226)],
-            name: 'DRONE DJI',
-            price: '\$899.99',
+            name: 'MOTHERBOARD',
+            price: '\$199.99',
           ),
         ),
       ],
@@ -418,12 +417,12 @@ class _CategoryGrid extends StatelessWidget {
   const _CategoryGrid();
 
   static const _categories = [
-    'CELULARES',
-    'LAPTOPS',
-    'DRONES',
-    'TVS',
-    'MOTOS EL.',
-    'AUDIO',
+    'COMPUTADORAS',
+    'PROCESADORES',
+    'TARJETAS GRÁFICAS',
+    'MEMORIA RAM',
+    'ALMACENAMIENTO',
+    'REFRIGERACIÓN',
   ];
 
   @override
@@ -486,23 +485,23 @@ class _TrendingRow extends StatelessWidget {
       children: const [
         Expanded(
           child: _TrendCard(
-            icon: Icons.smartphone,
+            icon: Icons.memory,
             gradient: RadialGradient(
               colors: [Color(0xFF2A2F36), Color(0xFF0C0E11)],
             ),
-            name: 'SAMSUNG S24\nULTRA',
+            name: 'PROCESADOR\nRYZEN 9',
           ),
         ),
         SizedBox(width: 8),
         Expanded(
           child: _TrendCard(
-            icon: Icons.tablet_mac,
+            icon: Icons.developer_board,
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [Color(0xFF12181C), Color(0xFF0A3F45), Color(0xFF1FB3AE)],
             ),
-            name: 'IPAD PRO',
+            name: 'PLACA BASE\nX870',
           ),
         ),
         SizedBox(width: 8),
@@ -574,7 +573,7 @@ class _TrendCard extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Feature grid (PC Builder / Comparador)
+// PC Builder feature
 // ---------------------------------------------------------------------------
 
 class _FeatureGrid extends StatelessWidget {
@@ -590,14 +589,6 @@ class _FeatureGrid extends StatelessWidget {
             gradientColors: [Color(0xFF123A3C), Color(0xFF0A1416)],
             title: 'PC BUILDER',
             subtitle: 'CREA TU SETUP\nPERFECTO',
-          ),
-        ),
-        SizedBox(width: 8),
-        Expanded(
-          child: _FeatureCard(
-            gradientColors: [Color(0xFF1A2F4A), Color(0xFF0A1416)],
-            title: 'COMPARADOR DE\nPRODUCTOS',
-            subtitle: 'ENCUENTRA ENTRE TUS\nFAVORITOS',
           ),
         ),
       ],
@@ -780,10 +771,6 @@ class _NexusBottomNav extends StatelessWidget {
             BottomNavigationBarItem(
               icon: Icon(Icons.dvr_outlined, size: 18),
               label: 'PC BUILDER',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.bar_chart_outlined, size: 18),
-              label: 'COMPARADOR',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.person_outline, size: 18),

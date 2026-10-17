@@ -122,7 +122,7 @@ class SignupScreen extends StatelessWidget {
           ),
         ),
       ),
-      bottomNavigationBar: const NexusBottomNav(currentIndex: 4),
+      bottomNavigationBar: const NexusBottomNav(currentIndex: 3),
     );
   }
 }

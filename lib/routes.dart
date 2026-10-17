@@ -12,6 +12,5 @@ class NexusRoutes {
   static const catalog = '/catalog';
   static const productDetail = '/product-detail';
   static const cart = '/cart';
-  static const comparator = '/comparator';
   static const pcBuilder = '/pc-builder';
 }

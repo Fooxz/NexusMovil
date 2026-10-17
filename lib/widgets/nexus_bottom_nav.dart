@@ -13,14 +13,13 @@ import '../theme/nexus_theme.dart';
 class NexusBottomNav extends StatelessWidget {
   const NexusBottomNav({super.key, required this.currentIndex});
 
-  /// 0 = Inicio, 1 = Catálogo, 2 = PC Builder, 3 = Comparador, 4 = Perfil.
+  /// 0 = Inicio, 1 = Catálogo, 2 = PC Builder, 3 = Perfil.
   final int currentIndex;
 
   static const _routesByIndex = [
     NexusRoutes.home,
     NexusRoutes.catalog,
     NexusRoutes.pcBuilder,
-    NexusRoutes.comparator,
     NexusRoutes.login,
   ];
 
@@ -39,7 +38,7 @@ class NexusBottomNav extends StatelessWidget {
       child: SafeArea(
         top: false,
         child: BottomNavigationBar(
-          currentIndex: currentIndex.clamp(0, 4),
+          currentIndex: currentIndex.clamp(0, 3),
           onTap: (i) => _onTap(context, i),
           type: BottomNavigationBarType.fixed,
           backgroundColor: NexusColors.bgAlt,
@@ -63,10 +62,6 @@ class NexusBottomNav extends StatelessWidget {
             BottomNavigationBarItem(
               icon: Icon(Icons.dvr_outlined, size: 18),
               label: 'PC BUILDER',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.bar_chart_outlined, size: 18),
-              label: 'COMPARADOR',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.person_outline, size: 18),

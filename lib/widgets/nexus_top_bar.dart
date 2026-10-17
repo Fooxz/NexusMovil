@@ -1,6 +1,6 @@
 // lib/widgets/nexus_top_bar.dart
 //
-// Barra superior reutilizada en catálogo, detalle, carrito, comparador y
+// Barra superior reutilizada en catálogo, detalle, carrito y
 // PC builder: título grande + botón de volver opcional + ícono de carrito.
 
 import 'package:flutter/material.dart';
