@@ -27,6 +27,13 @@ adelantado.
 - `data` importa `domain`.
 - `presentation` importa `domain`, los providers y los widgets compartidos.
 - Solo `<nombre>_providers.dart` decide si se usa el repositorio mock o el real.
+- Solo los repositorios de `data/` leen `supabaseClientProvider`
+  (`core/network/`). Traducen las excepciones de Supabase o de red a un
+  `AppFailure` (`core/errors/`), de modo que controladores y pantallas no
+  dependen de la infraestructura.
+- La configuración de entorno (`core/config/env.dart`) llega por
+  `--dart-define`. Sin ella la app arranca con los mocks y las pruebas no
+  necesitan backend.
 
 Así, las reglas de negocio se prueban sin widgets y cambiar el mock por el
 backend requiere modificar un único archivo de providers.

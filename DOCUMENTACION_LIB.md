@@ -4,15 +4,21 @@ Este documento describe el código Dart actual de `lib/`, el punto de entrada, l
 
 ## Estado general
 
-NEXUS es actualmente un prototipo Flutter navegable de una tienda de computadoras y componentes. El catálogo ya usa un dominio y un repositorio mock con carga asíncrona; las demás pantallas aún presentan datos de ejemplo escritos directamente en el código. No hay conexión a una API, base de datos, autenticación ni persistencia local. La mayoría de los controles muestran el flujo esperado, pero todavía no ejecutan operaciones de negocio. Búsqueda y filtros del catálogo actualizan el repositorio mock.
+NEXUS es actualmente un prototipo Flutter navegable de una tienda de computadoras y componentes. El catálogo ya usa un dominio y un repositorio mock con carga asíncrona; las demás pantallas aún presentan datos de ejemplo escritos directamente en el código. La app ya puede inicializar Supabase (fase 1), pero ningún feature lo usa todavía: no hay conexión a datos reales, autenticación ni persistencia local. La mayoría de los controles muestran el flujo esperado, pero todavía no ejecutan operaciones de negocio. Búsqueda y filtros del catálogo actualizan el repositorio mock.
 
 ## Estructura de `lib/`
 
 ```text
 lib/
-|-- main.dart                         # Arranque activo, tema y rutas; reintentos desactivados
+|-- main.dart                         # Arranque, Supabase opcional, tema y rutas; reintentos desactivados
 |-- routes.dart                       # Nombres centralizados de rutas
 |-- core/
+|   |-- config/
+|   |   `-- env.dart                  # AppEnv: SUPABASE_URL y SUPABASE_PUBLISHABLE_KEY por --dart-define
+|   |-- errors/
+|   |   `-- app_failure.dart          # Errores de dominio con mensaje en español
+|   |-- network/
+|   |   `-- supabase_providers.dart   # appEnvProvider y supabaseClientProvider
 |   `-- utils/
 |       `-- format_price.dart         # Formateo de precios en centavos
 |-- screens/
@@ -60,7 +66,7 @@ lib/
 
 ### Punto de entrada activo
 
-`main.dart` contiene `main()`, que ejecuta la app dentro de `ProviderScope`. Su parámetro `retry` devuelve `null`, desactivando reintentos automáticos en Riverpod 3.4.3. `NexusApp` configura el `MaterialApp`, usa `buildNexusTheme()` y define `NexusRoutes.login` como ruta inicial. Por tanto, al iniciar la app, la primera pantalla es el inicio de sesión. Las reglas de organización y uso de estado están en [docs/ARQUITECTURA.md](docs/ARQUITECTURA.md).
+`main.dart` contiene `main()`. Si la app se compiló con `SUPABASE_URL` y `SUPABASE_PUBLISHABLE_KEY` (por ejemplo `flutter run --dart-define-from-file=env.json`, ver [backend/README.md](backend/README.md)), primero llama a `Supabase.initialize`; si no, arranca sin backend. Después ejecuta la app dentro de `ProviderScope`. Su parámetro `retry` devuelve `null`, desactivando reintentos automáticos en Riverpod 3.4.3. `NexusApp` configura el `MaterialApp`, usa `buildNexusTheme()` y define `NexusRoutes.login` como ruta inicial. Por tanto, al iniciar la app, la primera pantalla es el inicio de sesión. Las reglas de organización y uso de estado están en [docs/ARQUITECTURA.md](docs/ARQUITECTURA.md).
 
 El mapa de rutas conecta estos nombres con sus pantallas principales y con las pantallas empujadas por encima del shell:
 
@@ -175,6 +181,9 @@ Pasos completados:
   `productId`.
 - **5C:** búsqueda con debounce, chips de categoría, total y grilla con
   `SliverGrid.builder` y paginación incremental conectados a `CatalogController`.
+- **Fase 0:** documentación alineada con el análisis v2 y contrato v0.3.
+- **Fase 1:** proyecto Supabase en `backend/` y `core/` con configuración,
+  cliente y errores. La UI no cambia.
 
 La hoja de ruta vigente está en [docs/PLAN_IMPLEMENTACION.md](docs/PLAN_IMPLEMENTACION.md).
 Los requisitos son los de [docs/REQUISITOS.md](docs/REQUISITOS.md) (análisis v2):

@@ -80,7 +80,7 @@ Cambio de archivos: `analysis_options.yaml` excluye `backend/**`.
 
 ## Fases
 
-Cada fase termina con `flutter analyze` sin hallazgos, `flutter test` en verde y, cuando toca el backend, `supabase db reset && supabase test db`. Además, la documentación se actualiza en la misma fase. Mantiene las reglas R1 a R10.
+Cada fase termina con `dart analyze` sin hallazgos (ver README: `flutter analyze` falla por la ruta con acento), `flutter test` en verde y, cuando toca el backend, `supabase db reset && supabase test db`. Además, la documentación se actualiza en la misma fase. Mantiene las reglas R1 a R10.
 
 ### Fase 0: alinear la documentación con el nuevo enfoque (sin código)
 - Copiar el análisis a `docs/REQUISITOS.md`.
@@ -207,7 +207,7 @@ Se avanza con estos supuestos provisionales y se marcan en el código cuando apl
 
 ## Verificación
 
-- **Por fase:** `flutter analyze`, `flutter test` (se mantiene el patrón de `test/support/*`), `supabase db reset && supabase test db` (pgTAP) y `deno test backend/supabase/functions`.
+- **Por fase:** `dart analyze`, `flutter test` (se mantiene el patrón de `test/support/*`), `supabase db reset && supabase test db` (pgTAP) y `deno test backend/supabase/functions`.
 - **End-to-end al cerrar las fases 3, 6, 7 y 8:** `supabase start` → `flutter run --dart-define=SUPABASE_URL=... ` en el emulador Android (`10.0.2.2`).
   - Recorrido: buscar → asistente → PC Builder → carrito → pago en sandbox → orden visible con su sub-orden.
 - **Fase 10:** `curl` contra `provider-api` con un lote que mezcla productos válidos, de una categoría fuera del alcance y reenviados con el mismo SKU. Se verifica el rechazo detallado, que no se creen duplicados y que el cambio aparezca en el catálogo.

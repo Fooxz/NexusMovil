@@ -9,10 +9,18 @@ flutter pub get
 flutter run
 ```
 
+Para conectar la app al backend local (Supabase), ver [backend/README.md](backend/README.md):
+
 ```powershell
-flutter analyze
+flutter run --dart-define-from-file=env.json
+```
+
+```powershell
+dart analyze
 flutter test
 ```
+
+`flutter analyze` (Flutter 3.47.2) falla en esta carpeta con `FormatException: Unexpected end of input`: el analysis server no maneja bien la `á` de `Práctica_dart` en la ruta. `dart analyze` aplica las mismas reglas de `analysis_options.yaml` y sí funciona. También funciona `flutter analyze` ejecutado desde una ruta solo ASCII, por ejemplo un junction (`New-Item -ItemType Junction`).
 
 Para inspección de rendimiento, usar un dispositivo físico y `flutter run --profile`; Chrome solo sirve para revisar lógica y aspecto, no fluidez.
 
