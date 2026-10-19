@@ -18,6 +18,9 @@ Para inspección de rendimiento, usar un dispositivo físico y `flutter run --pr
 
 ## Documentación
 
+- [Requisitos (análisis v2)](docs/REQUISITOS.md)
+- [Plan de implementación por fases](docs/PLAN_IMPLEMENTACION.md)
+- [Arquitectura](docs/ARQUITECTURA.md) y [contrato de API app–backend](docs/API_CONTRATO.md)
 - [Documentación del código y estado funcional](DOCUMENTACION_LIB.md)
 - [Reglas permanentes de rendimiento](REGLAS_RENDIMIENTO.md)
 - [Registro histórico de refactorización de los pasos 1 y 2](REFACTORIZACION_PASOS_1_Y_2.md)

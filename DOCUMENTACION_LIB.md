@@ -169,17 +169,19 @@ Otros widgets y utilidades compartidos:
 
 ## Siguientes pasos y límites actuales
 
-Los siguientes pasos vigentes son:
+Pasos completados:
 
 - **5B:** dominio y repositorio mock del catálogo, providers y detalle que recibe
-  `productId` — completado.
-- **5C:** parcial. El estado/controlador, el soporte de slivers, el estado vacío,
-  los precios COP y el estado de agotado están implementados y probados; falta
-  conectar la búsqueda, los chips y la grilla del catálogo al controlador/slivers.
-- **5D:** controlador del carrito.
-- **7:** PC Builder con estado fuera del árbol de widgets.
+  `productId`.
+- **5C:** búsqueda con debounce, chips de categoría, total y grilla con
+  `SliverGrid.builder` y paginación incremental conectados a `CatalogController`.
 
-Autenticación queda pendiente y fuera del camino crítico.
+La hoja de ruta vigente está en [docs/PLAN_IMPLEMENTACION.md](docs/PLAN_IMPLEMENTACION.md).
+Los requisitos son los de [docs/REQUISITOS.md](docs/REQUISITOS.md) (análisis v2):
+el catálogo se limita a computadores armados y piezas, el asistente de
+recomendación es el núcleo del producto y los proveedores publican por API.
+El antiguo paso 5D (carrito) es ahora la fase 5, y el paso 7 (PC Builder) es la
+fase 6. Autenticación pasa a ser la fase 4.
 
 ## Archivos y validación
 
