@@ -6,6 +6,7 @@
 import 'package:flutter/material.dart';
 import '../routes.dart';
 import '../theme/nexus_theme.dart';
+import 'nexus_cart_badge.dart';
 
 class NexusTopBar extends StatelessWidget {
   const NexusTopBar({
@@ -70,12 +71,36 @@ class NexusTopBar extends StatelessWidget {
               ],
             ),
           ),
-          if (showCart)
-            InkWell(
-              onTap: () => Navigator.of(context).pushNamed(NexusRoutes.cart),
-              child: const Icon(Icons.shopping_cart_outlined, color: NexusColors.text, size: 22),
-            ),
+          if (showCart) const _CartButton(),
         ],
+      ),
+    );
+  }
+}
+
+/// Ícono del carrito con el número de unidades (de [NexusCartBadge]).
+class _CartButton extends StatelessWidget {
+  const _CartButton();
+
+  @override
+  Widget build(BuildContext context) {
+    final count = NexusCartBadge.countOf(context);
+    return Semantics(
+      button: true,
+      label: count == 0 ? 'Carrito vacío' : 'Carrito con $count unidades',
+      child: InkWell(
+        onTap: () => Navigator.of(context).pushNamed(NexusRoutes.cart),
+        child: Badge(
+          isLabelVisible: count > 0,
+          label: Text(count > 99 ? '99+' : '$count'),
+          backgroundColor: NexusColors.pink,
+          textColor: Colors.white,
+          child: const Icon(
+            Icons.shopping_cart_outlined,
+            color: NexusColors.text,
+            size: 22,
+          ),
+        ),
       ),
     );
   }

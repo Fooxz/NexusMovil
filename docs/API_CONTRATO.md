@@ -1,6 +1,6 @@
-# Contrato de API: NEXUS Movil (v0.4, borrador)
+# Contrato de API: NEXUS Movil (v0.5, borrador)
 
-**Estado:** borrador. Parte 1: catalogo. Implementado en el backend (`backend/`) y consumido por el front desde la fase 3 de `docs/PLAN_IMPLEMENTACION.md`.
+**Estado:** borrador. Parte 1: catalogo (secciones 1 a 5). Parte 2: carrito (seccion 10). Implementado en el backend (`backend/`) y consumido por el front desde las fases 3 y 5 de `docs/PLAN_IMPLEMENTACION.md`.
 **Quien lo escribe:** el front, a partir de sus modelos reales (`lib/features/catalog/domain`).
 **Quien lo implementa:** el backend Supabase de `backend/`.
 **Regla de oro:** ninguno de los dos lados cambia el comportamiento sin editar este archivo primero. Si el codigo y este documento no coinciden, el documento gana hasta que se actualice.
@@ -38,6 +38,7 @@
   "priceCents": 799600000,
   "oldPriceCents": 919600000,
   "stockLevel": "stable",
+  "bestOfferId": "off-1001",
   "imageUrl": "https://cdn.example.com/products/gpu-rtx-5090/thumb.webp",
   "summary": "24 GB GDDR6X, 2.5K, Ray tracing",
   "quickSpecs": ["ADALACE", "16384 CORES", "24GB GDDR6X", "450W"],
@@ -68,6 +69,7 @@
 | `priceCents` | entero (64 bits) | si | Precio de la **mejor oferta disponible** (la mas barata con stock; si ninguna tiene stock, la mas barata), en centavos de COP, mayor o igual a 0 y multiplo de 100. |
 | `oldPriceCents` | entero o `null` | no | Precio anterior de esa misma oferta. Solo si hay descuento; si existe debe ser mayor que `priceCents`. |
 | `stockLevel` | string (enum) | si | Nivel agregado: el mejor nivel entre todas las ofertas. Ver tabla de stock. |
+| `bestOfferId` | string o `null` | no | Id de la mejor oferta (la que da `priceCents`). Es la que se agrega al carrito desde una lista (seccion 10). Viene en el listado y en el detalle. |
 | `imageUrl` | string o `null` | no | URL de la miniatura para listas y tarjetas. `null` si el producto no tiene imagen: el front muestra el icono de su categoria. |
 | `summary` | string o `null` | no | Una linea corta de especificaciones para la tarjeta. |
 | `quickSpecs` | lista de string | si (puede ser `[]`) | Etiquetas cortas del detalle. |
@@ -237,6 +239,7 @@ Ambos lados deben poder usar este JSON como dato de prueba: el back para comprob
       "priceCents": 799600000,
       "oldPriceCents": 919600000,
       "stockLevel": "stable",
+      "bestOfferId": "off-1001",
       "imageUrl": "https://cdn.example.com/products/gpu-rtx-5090/thumb.webp",
       "summary": "24 GB GDDR6X, 2.5K, Ray tracing",
       "quickSpecs": ["ADALACE", "16384 CORES", "24GB GDDR6X", "450W"],
@@ -255,6 +258,7 @@ Ambos lados deben poder usar este JSON como dato de prueba: el back para comprob
       "priceCents": 259600000,
       "oldPriceCents": 279600000,
       "stockLevel": "stable",
+      "bestOfferId": "off-2002",
       "imageUrl": null,
       "summary": "16 nucleos, 5.7 GHz, Zen 5",
       "quickSpecs": [],
@@ -282,7 +286,7 @@ Ambos lados deben poder usar este JSON como dato de prueba: el back para comprob
 | D4 | **Imagenes.** Campo `imageUrl` (string o `null`) con la miniatura para listas. La galeria del detalle se define en la fase 3. | **Cerrada (v0.3)** |
 | D5 | **Orden y `sort`.** `relevance`, `priceAsc` y `priceDesc` (seccion 3.1). Un puntaje real de relevancia para la busqueda queda para despues. | **Cerrada (v0.4)** |
 | D6 | **Ocultar agotados.** Hoy los `outOfStock` se listan. Opcion futura: parametro `availableOnly=true`. | Pendiente |
-| D7 | **Unidades disponibles.** Para limitar la cantidad en el carrito (paso 5D) el front podria necesitar `stockQuantity` (entero). Se decide al disenar el carrito. | Pendiente |
+| D7 | **Unidades disponibles.** El front no recibe las unidades: cada linea del carrito trae `maxQuantity` (el stock con un tope de 10 por linea) y el backend valida cada cambio (seccion 10). | **Cerrada (v0.5)** |
 | D8 | **Tipos de computador armado.** Si se aceptan escritorio, portatil o ambos, y equipos usados o reacondicionados (vacio de informacion del analisis v2). Hasta decidirlo, `prebuiltPc` es la unica categoria de la familia. | Pendiente (negocio) |
 | D9 | **Perifericos.** Si las piezas incluyen monitor, teclado o mouse. Supuesto S-10: no, solo componentes internos. | Pendiente (negocio) |
 
@@ -292,8 +296,7 @@ Ambos lados deben poder usar este JSON como dato de prueba: el back para comprob
 
 Estas partes se agregan a este mismo archivo cuando se necesiten. No implementar nada de esto todavia.
 
-- **Carrito** (agregar, quitar, cantidades, totales).
-- **Autenticacion** (registro, login con JWT).
+- **Autenticacion**: la hace Supabase Auth directamente (fase 4, `docs/MODELO_DATOS.md`); no tiene endpoints propios.
 - **PC Builder:** endpoint propio que devuelva producto **mas** su ficha con tipo, solo para piezas compatibles con el builder. Depende de las reglas de compatibilidad de negocio (RN-013) y se escribe antes de la fase 6 del plan.
 - **Asistente de recomendacion** (fase 7 del plan).
 - **Pedidos.**
@@ -318,6 +321,7 @@ Cambios compatibles (agregar un campo opcional, un endpoint nuevo): no rompen a 
 | 0.3 | Nuevo enfoque del analisis v2: se elimina `phone` y se agrega la categoria `prebuiltPc`. Nuevos campos en `Product`: `family`, `imageUrl` (cierra D4) y `offers` (modelo `Offer`, solo en el detalle). `priceCents`, `oldPriceCents` y `stockLevel` pasan a reflejar la mejor oferta. Nuevo parametro `family` en el listado. Fixture corregido (antes filtraba `gpu` y devolvia un CPU). Implementacion con RPC de Supabase. Nuevas decisiones D8 y D9. |
 | 0.3.1 | Seccion 3.4: nombres de las RPC y de sus parametros (`page_size`, `max_items`). Sin cambios en las respuestas. |
 | 0.4 | Listado: nuevos parametros `brand`, `minPriceCents`, `maxPriceCents` y `sort` (cierra D5). Nuevo endpoint 3.5 de marcas (`get_catalog_brands`). Cambios compatibles: los parametros son opcionales. |
+| 0.5 | Nuevo campo `bestOfferId` en `Product`. Parte 2: carrito (seccion 10), con nuevos codigos de error `OUT_OF_STOCK`, `QUANTITY_UNAVAILABLE`, `OFFER_NOT_FOUND` y `AUTH_REQUIRED`. `details` puede traer JSON en texto. Cierra D7. Cambios compatibles. |
 
 ---
 
@@ -326,3 +330,69 @@ Cambios compatibles (agregar un campo opcional, un endpoint nuevo): no rompen a 
 - Desde el **emulador de Android**, `localhost` apunta al propio emulador. Para llegar al backend que corre en tu PC se usa `http://10.0.2.2:<puerto>`.
 - Desde un **celular fisico**, usar la IP del PC en la red local (ambos en la misma red).
 - Android puede bloquear HTTP sin TLS. Eso se resuelve en el front en el paso de conexion real y **no afecta al contrato**.
+
+---
+
+## 10. Parte 2: carrito (v0.5)
+
+Una **linea** del carrito es una **oferta** (producto + proveedor), porque cada proveedor fija su precio y despacha por separado. El front guarda o envia `offerId` y cantidad; el backend devuelve siempre los datos vigentes.
+
+### 10.1 Modelo `CartLine`
+
+```json
+{
+  "offerId": "off-mp-z790hero",
+  "quantity": 2,
+  "maxQuantity": 3,
+  "available": true,
+  "priceCents": 599990000,
+  "oldPriceCents": 699990000,
+  "stockLevel": "critical",
+  "providerId": "prov-mundopc",
+  "providerName": "Mundo PC",
+  "productId": "rog-maximus-z790-hero",
+  "productName": "ROG MAXIMUS Z790 HERO",
+  "brand": "ASUS",
+  "category": "motherboard",
+  "imageUrl": null
+}
+```
+
+| Campo | Tipo | Notas |
+|---|---|---|
+| `quantity` | entero | Lo que hay en el carrito. Puede ser mayor que `maxQuantity` si el stock bajo despues de agregar. |
+| `maxQuantity` | entero | Unidades que se pueden comprar: el stock con un tope de **10 por linea**. `0` si no esta disponible. **Nunca se envian las unidades reales** cuando superan el tope. |
+| `available` | bool | `false` si la oferta se pauso, se retiro, se agoto o su proveedor no esta activo. |
+| `priceCents`, `oldPriceCents` | entero | Precio **vigente** de la oferta (RN-001). |
+| `stockLevel` | enum | Como en `Product`; `outOfStock` si `available` es `false`. |
+| `category` | enum o `null` | Como en `Product`. |
+
+Una linea se puede pagar si `available` y `quantity <= maxQuantity`. El front solo suma esas al total, y no permite confirmar si alguna linea no se puede pagar.
+
+### 10.2 Endpoints (RPC)
+
+Todas responden `200` con `{"items": [CartLine, ...]}`: el carrito completo, en el orden en que se agregaron las lineas.
+
+| RPC | Sesion | Parametros | Que hace |
+|---|---|---|---|
+| `preview_cart` | no | `items`: `[{"offerId", "quantity"}]`, maximo 50 | Vista vigente del carrito de invitado (que guarda el front). Omite ofertas inexistentes. No guarda nada. |
+| `get_cart` | si | — | Carrito guardado del usuario (RF-054). |
+| `add_cart_item` | si | `offer_id`, `quantity` (defecto 1) | Suma unidades a la linea (la crea si no existe). |
+| `set_cart_item` | si | `offer_id`, `quantity` | Fija la cantidad de la linea. |
+| `remove_cart_item` | si | `offer_id` | Quita la linea. |
+| `clear_cart` | si | — | Vacia el carrito. |
+| `merge_cart` | si | `items`: `[{"offerId", "quantity"}]` | Al iniciar sesion: suma el carrito de invitado al guardado. Cada linea queda limitada a `maxQuantity`; las no disponibles se descartan sin error. |
+
+Reglas (RN-028): la cantidad va de 1 a `maxQuantity`. Cada linea es una oferta distinta: la misma oferta no se repite.
+
+### 10.3 Errores del carrito
+
+| HTTP | `code` | Cuando | `details` |
+|---|---|---|---|
+| 401 | `AUTH_REQUIRED` | RPC con sesion llamada sin sesion. | — |
+| 404 | `OFFER_NOT_FOUND` | La oferta no existe. | — |
+| 409 | `OUT_OF_STOCK` | La oferta no esta disponible (pausada, agotada, proveedor inactivo). | — |
+| 409 | `QUANTITY_UNAVAILABLE` | La cantidad pedida supera `maxQuantity`. | **JSON en texto**: `"{\"maxQuantity\" : 3}"` |
+| 400 | `VALIDATION_ERROR` | `quantity` menor que 1 o `items` no es una lista. | — |
+
+`details` es siempre **texto** (asi lo exige PostgREST). Cuando trae datos, es un JSON serializado que el front decodifica.

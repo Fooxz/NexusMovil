@@ -272,6 +272,7 @@ class NexusPrimaryButton extends StatelessWidget {
     this.padding,
     this.borderRadius,
     this.loading = false,
+    this.enabled = true,
   });
 
   final String label;
@@ -287,6 +288,10 @@ class NexusPrimaryButton extends StatelessWidget {
   /// Muestra un indicador y bloquea el botón (por ejemplo, mientras se envía
   /// un formulario), para evitar envíos repetidos.
   final bool loading;
+
+  /// `false` deshabilita el botón de verdad (también para lectores de
+  /// pantalla), por ejemplo si el carrito tiene productos por revisar.
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
@@ -320,7 +325,9 @@ class NexusPrimaryButton extends StatelessWidget {
             style: TextStyle(fontSize: fontSize, fontWeight: FontWeight.bold),
           );
     // TODO: Pass null when disabled buttons should become truly disabled.
-    final VoidCallback? pressed = loading ? null : (onPressed ?? () {});
+    final VoidCallback? pressed = loading || !enabled
+        ? null
+        : (onPressed ?? () {});
     final button = icon == null || loading
         ? ElevatedButton(
             onPressed: pressed,

@@ -105,6 +105,18 @@ Los datos para PC Builder se modelarán por separado como `PcPartSpec` en la fas
   `AuthErrorBanner`. Las acciones de la lista de direcciones usan su propio provider,
   para que un error ahí no aparezca en el formulario.
 
+### Carrito (fase 5)
+
+- **`CartController`** (`features/cart/cart_providers.dart`) es el carrito visible:
+  - **Sin sesión:** muestra la vista previa (`preview`) de las líneas de `guestCartProvider`, que vive en memoria.
+  - **Con sesión:** muestra el guardado.
+  - **Al iniciar sesión:** suma el carrito de invitado al guardado (`merge`) y vacía el de invitado.
+- **Operaciones en serie:** las operaciones se encadenan en una cola, para que dos toques rápidos en "+" no calculen la cantidad sobre el mismo estado. Sin sesión, antes de cambiar una línea se pide la vista previa con la cantidad nueva y se aplican las mismas reglas que el backend (stock y tope).
+- **`CartState`** calcula una sola vez (R3): grupos por proveedor, unidades, subtotal de las líneas que se pueden pagar, si hay líneas con problemas y si se puede confirmar.
+- **Contador del ícono:** `NexusTopBar` lo lee de `NexusCartBadge`, un `InheritedWidget` de `widgets/`. Lo provee `CartBadgeHost` en `MaterialApp.builder`. Así los widgets compartidos no dependen de `features/` y solo se reconstruyen los íconos cuando cambia el número.
+- **Agregar desde cualquier pantalla:** con `addToCart()` (`features/cart/presentation/cart_actions.dart`), que muestra el aviso o el error del `AppFailure`. Las tarjetas del catálogo agregan `bestOfferId`; el detalle agrega la oferta elegida con la cantidad elegida.
+- **El repositorio del carrito va en pareja con los mocks:** con `MockProductRepository` y `MockAuthRepository` se usa `MockCartRepository`; si no, las RPC.
+
 ## Reglas de uso de Riverpod
 
 - Usar `Notifier` y `AsyncNotifier` con `NotifierProvider` y

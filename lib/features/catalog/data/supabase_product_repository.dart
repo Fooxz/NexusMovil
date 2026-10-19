@@ -94,7 +94,7 @@ class SupabaseProductRepository implements ProductRepository {
     try {
       return await _rpc(function, params);
     } on PostgrestException catch (error) {
-      throw AppFailure.fromApiError(code: error.code);
+      throw AppFailure.fromApiError(code: error.code, details: error.details);
     } on AppFailure {
       rethrow;
     } on Exception {

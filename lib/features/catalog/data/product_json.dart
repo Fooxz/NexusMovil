@@ -52,6 +52,7 @@ Product? productFromJson(Object? json) {
       priceCents: priceCents,
       oldPriceCents: _optional<int>(json, 'oldPriceCents'),
       stockLevel: _stockLevel(stockLevelName),
+      bestOfferId: _optional<String>(json, 'bestOfferId'),
       imageUrl: _optional<String>(json, 'imageUrl'),
       summary: _optional<String>(json, 'summary'),
       quickSpecs: [

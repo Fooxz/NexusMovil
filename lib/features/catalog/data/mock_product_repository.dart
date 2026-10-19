@@ -7,13 +7,15 @@ import '../domain/product_repository.dart';
 /// contrato: el listado no trae ofertas y el detalle sí.
 class MockProductRepository implements ProductRepository {
   MockProductRepository({this.latency = const Duration(milliseconds: 300)}) {
-    _products = _seedProducts();
+    _products = [for (final product in _seedProducts()) _withBestOffer(product)];
   }
 
   MockProductRepository.generated(
     int count, {
     this.latency = const Duration(milliseconds: 300),
-  }) : _products = _generateProducts(count);
+  }) : _products = [
+         for (final product in _generateProducts(count)) _withBestOffer(product),
+       ];
 
   final Duration latency;
   late final List<Product> _products;
@@ -197,7 +199,7 @@ class MockProductRepository implements ProductRepository {
     await Future<void>.delayed(latency);
     final product = _findById(id);
     if (product == null) return null;
-    return _withOffers(product, _offersByProductId[id] ?? const []);
+    return product.copyWith(offers: _offersByProductId[id] ?? const []);
   }
 
   @override
@@ -293,21 +295,49 @@ class MockProductRepository implements ProductRepository {
     return null;
   }
 
-  static Product _withOffers(Product product, List<ProductOffer> offers) =>
-      Product(
-        id: product.id,
-        name: product.name,
-        brand: product.brand,
-        category: product.category,
-        priceCents: product.priceCents,
-        oldPriceCents: product.oldPriceCents,
-        stockLevel: product.stockLevel,
-        imageUrl: product.imageUrl,
-        summary: product.summary,
-        quickSpecs: product.quickSpecs,
-        specs: product.specs,
-        offers: offers,
-      );
+  static Product _withBestOffer(Product product) => product.copyWith(
+    bestOfferId:
+        _offersByProductId[product.id]?.first.id ?? _syntheticOfferId(product.id),
+  );
+
+  static String _syntheticOfferId(String productId) => 'mock-offer-$productId';
+
+  /// Stock simulado según el nivel: el mock no maneja unidades reales.
+  static int _unitsFor(StockLevel level) => switch (level) {
+    StockLevel.stable => 20,
+    StockLevel.critical => 3,
+    StockLevel.outOfStock => 0,
+  };
+
+  /// Oferta con su producto y su stock simulado, para el carrito del mock.
+  /// Los productos sin ofertas explícitas tienen una sintética de "Tienda demo".
+  ({Product product, ProductOffer offer, int stockUnits})? offerById(
+    String offerId,
+  ) {
+    for (final product in _products) {
+      final offers = _offersByProductId[product.id] ??
+          [
+            ProductOffer(
+              id: _syntheticOfferId(product.id),
+              providerId: 'prov-demo',
+              providerName: 'Tienda demo',
+              priceCents: product.priceCents,
+              oldPriceCents: product.oldPriceCents,
+              stockLevel: product.stockLevel,
+            ),
+          ];
+      for (final offer in offers) {
+        if (offer.id == offerId) {
+          return (
+            product: product,
+            offer: offer,
+            stockUnits: _unitsFor(offer.stockLevel),
+          );
+        }
+      }
+    }
+    return null;
+  }
 
   static String _normalizeSearch(String value) =>
       value.trim().toLowerCase().replaceAllMapped(

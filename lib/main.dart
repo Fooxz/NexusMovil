@@ -14,8 +14,9 @@ import 'core/config/env.dart';
 import 'features/auth/presentation/forgot_password_screen.dart';
 import 'features/auth/presentation/login_screen.dart';
 import 'features/auth/presentation/signup_screen.dart';
+import 'features/cart/presentation/cart_actions.dart';
+import 'features/cart/presentation/cart_screen.dart';
 import 'routes.dart';
-import 'screens/cart/cart_screen.dart';
 import 'features/catalog/presentation/product_detail_screen.dart';
 import 'screens/shell/main_shell.dart';
 import 'theme/nexus_theme.dart';
@@ -51,12 +52,13 @@ class NexusApp extends StatelessWidget {
       title: 'NEXUS',
       debugShowCheckedModeBanner: false,
       theme: buildNexusTheme(),
+      // El contador del ícono del carrito, para todas las pantallas.
+      builder: (context, child) => CartBadgeHost(child: child!),
       // El catálogo se puede recorrer sin cuenta; la sesión se pide al
       // comprar (RN-027) o desde la pestaña PERFIL.
       initialRoute: NexusRoutes.home,
       routes: {
         NexusRoutes.home: (_) => const MainShell(),
-        NexusRoutes.cart: (_) => const CartScreen(),
       },
       onGenerateRoute: generateNexusRoute,
     );
@@ -80,6 +82,10 @@ Route<Object?>? generateNexusRoute(RouteSettings settings) {
     NexusRoutes.forgotPassword => MaterialPageRoute<bool>(
       settings: settings,
       builder: (_) => const ForgotPasswordScreen(),
+    ),
+    NexusRoutes.cart => MaterialPageRoute<void>(
+      settings: settings,
+      builder: (_) => const CartScreen(),
     ),
     NexusRoutes.productDetail => MaterialPageRoute<void>(
       settings: settings,

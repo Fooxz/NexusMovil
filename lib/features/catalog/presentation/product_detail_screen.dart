@@ -13,6 +13,7 @@ import '../../../widgets/nexus_quantity_stepper.dart';
 import '../../../widgets/nexus_widgets.dart';
 import '../catalog_providers.dart';
 import '../domain/product.dart';
+import '../../cart/presentation/cart_actions.dart';
 import 'product_visuals.dart';
 
 class ProductDetailScreen extends ConsumerWidget {
@@ -113,8 +114,12 @@ class _ProductDetailContent extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: 8),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
+        // Wrap: con precios de 8 cifras y pantallas angostas, el precio
+        // anterior y el descuento bajan de línea en vez de desbordarse.
+        Wrap(
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 8,
+          runSpacing: 4,
           children: [
             Text(
               formatPrice(product.priceCents),
@@ -125,7 +130,6 @@ class _ProductDetailContent extends ConsumerWidget {
               ),
             ),
             if (product.hasDiscount) ...[
-              const SizedBox(width: 8),
               Text(
                 formatPrice(product.oldPriceCents!),
                 style: const TextStyle(
@@ -134,15 +138,12 @@ class _ProductDetailContent extends ConsumerWidget {
                   decoration: TextDecoration.lineThrough,
                 ),
               ),
-              const SizedBox(width: 8),
               NexusDiscountBadge(label: '-${product.discountPercent}%'),
             ],
           ],
         ),
-        if (product.offers.isNotEmpty) ...[
-          const SizedBox(height: 18),
-          _ProductOffers(offers: product.offers),
-        ],
+        const SizedBox(height: 18),
+        _PurchasePanel(product: product),
         if (product.quickSpecs.isNotEmpty) ...[
           const SizedBox(height: 18),
           const NexusUnderlineTitle('SPECS RÁPIDAS'),
@@ -155,46 +156,6 @@ class _ProductDetailContent extends ConsumerWidget {
             ],
           ),
         ],
-        const SizedBox(height: 18),
-        Row(
-          children: [
-            NexusQuantityStepper(
-              value: 1,
-              onIncrement: () {},
-              onDecrement: () {},
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: NexusPrimaryButton(
-                label: 'COMPRAR AHORA',
-                onPressed: () {},
-                color: NexusColors.pink,
-                foregroundColor: Colors.white,
-                fullWidth: false,
-                fontSize: 10.5,
-                padding: const EdgeInsets.symmetric(vertical: 13),
-                borderRadius: 8,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: NexusPrimaryButton(
-                label: 'AGREGAR AL CARRITO',
-                onPressed: () {},
-                color: NexusColors.cyan,
-                foregroundColor: NexusColors.onCyan,
-                icon: Icons.shopping_cart,
-                fullWidth: false,
-                fontSize: 9,
-                padding: const EdgeInsets.symmetric(
-                  vertical: 13,
-                  horizontal: 4,
-                ),
-                borderRadius: 8,
-              ),
-            ),
-          ],
-        ),
         if (product.specs.isNotEmpty) ...[
           const SizedBox(height: 22),
           const NexusUnderlineTitle('ESPECIFICACIONES COMPLETAS'),
@@ -226,31 +187,138 @@ class _ProductDetailContent extends ConsumerWidget {
   }
 }
 
-/// Ofertas de cada proveedor (HU-005). NEXUS es intermediario: cada proveedor
-/// vende y despacha su oferta (RN-009).
-class _ProductOffers extends StatelessWidget {
-  const _ProductOffers({required this.offers});
+/// Compra (HU-005): oferta de qué proveedor, cuántas unidades y agregar al
+/// carrito. NEXUS es intermediario: cada proveedor vende y despacha su oferta
+/// (RN-009). Sin stock, los botones quedan deshabilitados.
+class _PurchasePanel extends ConsumerStatefulWidget {
+  const _PurchasePanel({required this.product});
 
-  final List<ProductOffer> offers;
+  final Product product;
+
+  @override
+  ConsumerState<_PurchasePanel> createState() => _PurchasePanelState();
+}
+
+class _PurchasePanelState extends ConsumerState<_PurchasePanel> {
+  /// Tope por línea del carrito (API_CONTRATO, parte 2). El backend valida
+  /// además contra el stock y responde cuántas quedan.
+  static const _maxQuantity = 10;
+
+  late String? _offerId =
+      widget.product.bestOfferId ??
+      widget.product.offers
+          .where((offer) => offer.stockLevel != StockLevel.outOfStock)
+          .firstOrNull
+          ?.id;
+  var _quantity = 1;
+  var _adding = false;
+
+  StockLevel get _stockLevel {
+    for (final offer in widget.product.offers) {
+      if (offer.id == _offerId) return offer.stockLevel;
+    }
+    return widget.product.stockLevel;
+  }
+
+  bool get _canBuy => _offerId != null && _stockLevel != StockLevel.outOfStock;
+
+  Future<void> _add({required bool openCart}) async {
+    final offerId = _offerId;
+    if (offerId == null || _adding) return;
+    setState(() => _adding = true);
+    await addToCart(
+      context,
+      ref,
+      offerId: offerId,
+      quantity: _quantity,
+      openCart: openCart,
+    );
+    if (mounted) setState(() => _adding = false);
+  }
 
   @override
   Widget build(BuildContext context) {
+    final offers = widget.product.offers;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        NexusUnderlineTitle(
-          offers.length == 1 ? 'VENDIDO POR' : 'OFERTAS DE PROVEEDORES',
-        ),
-        const SizedBox(height: 4),
-        NexusCard(
-          child: Column(
-            children: [
-              for (var index = 0; index < offers.length; index++) ...[
-                if (index > 0) const Divider(color: NexusColors.border, height: 1),
-                _OfferRow(offer: offers[index]),
-              ],
-            ],
+        if (offers.isNotEmpty) ...[
+          NexusUnderlineTitle(
+            offers.length == 1 ? 'VENDIDO POR' : 'ELIGE EL PROVEEDOR',
           ),
+          const SizedBox(height: 4),
+          NexusCard(
+            child: Column(
+              children: [
+                for (var index = 0; index < offers.length; index++) ...[
+                  if (index > 0)
+                    const Divider(color: NexusColors.border, height: 1),
+                  _OfferRow(
+                    offer: offers[index],
+                    selectable: offers.length > 1,
+                    selected: offers[index].id == _offerId,
+                    onSelect: () => setState(() {
+                      _offerId = offers[index].id;
+                      _quantity = 1;
+                    }),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+        ],
+        if (!_canBuy)
+          const Padding(
+            padding: EdgeInsets.only(bottom: 10),
+            child: Text(
+              'Agotado: por ahora no se puede agregar al carrito.',
+              style: TextStyle(fontSize: 11.5, color: NexusColors.pink),
+            ),
+          ),
+        Row(
+          children: [
+            NexusQuantityStepper(
+              value: _quantity,
+              onDecrement: _canBuy && _quantity > 1
+                  ? () => setState(() => _quantity--)
+                  : null,
+              onIncrement: _canBuy && _quantity < _maxQuantity
+                  ? () => setState(() => _quantity++)
+                  : null,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: NexusPrimaryButton(
+                label: 'COMPRAR AHORA',
+                enabled: _canBuy && !_adding,
+                onPressed: () => _add(openCart: true),
+                color: NexusColors.pink,
+                foregroundColor: Colors.white,
+                fullWidth: false,
+                fontSize: 10.5,
+                padding: const EdgeInsets.symmetric(vertical: 13),
+                borderRadius: 8,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: NexusPrimaryButton(
+                label: 'AGREGAR AL CARRITO',
+                enabled: _canBuy,
+                loading: _adding,
+                onPressed: () => _add(openCart: false),
+                color: NexusColors.cyan,
+                foregroundColor: NexusColors.onCyan,
+                icon: Icons.shopping_cart,
+                fullWidth: false,
+                fontSize: 9,
+                padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 4),
+                borderRadius: 8,
+              ),
+            ),
+          ],
         ),
       ],
     );
@@ -258,16 +326,37 @@ class _ProductOffers extends StatelessWidget {
 }
 
 class _OfferRow extends StatelessWidget {
-  const _OfferRow({required this.offer});
+  const _OfferRow({
+    required this.offer,
+    required this.selectable,
+    required this.selected,
+    required this.onSelect,
+  });
 
   final ProductOffer offer;
+  final bool selectable;
+  final bool selected;
+  final VoidCallback onSelect;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    final available = offer.stockLevel != StockLevel.outOfStock;
+    final row = Padding(
       padding: const EdgeInsets.symmetric(vertical: 10),
       child: Row(
         children: [
+          if (selectable) ...[
+            Icon(
+              selected ? Icons.radio_button_checked : Icons.radio_button_off,
+              size: 18,
+              color: !available
+                  ? NexusColors.textFaint
+                  : selected
+                  ? NexusColors.cyan
+                  : NexusColors.textDim,
+            ),
+            const SizedBox(width: 10),
+          ],
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -312,6 +401,14 @@ class _OfferRow extends StatelessWidget {
           ),
         ],
       ),
+    );
+
+    if (!selectable) return row;
+    return Semantics(
+      selected: selected,
+      enabled: available,
+      button: true,
+      child: InkWell(onTap: available ? onSelect : null, child: row),
     );
   }
 }

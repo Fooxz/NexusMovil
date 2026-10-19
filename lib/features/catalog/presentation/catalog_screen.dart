@@ -15,6 +15,7 @@ import '../../../widgets/nexus_widgets.dart';
 import '../catalog_providers.dart';
 import '../domain/product.dart';
 import '../domain/product_filters.dart';
+import '../../cart/presentation/cart_actions.dart';
 import 'product_visuals.dart';
 
 class CatalogScreen extends ConsumerWidget {
@@ -586,45 +587,63 @@ class _CatalogProductCard extends StatelessWidget {
       onTap: () =>
           Navigator.of(context)
               .pushNamed(NexusRoutes.productDetail, arguments: product.id),
-      actions: _productActions(context, product.id),
+      actions: _CardActions(product: product),
     );
   }
 }
 
-Widget _productActions(BuildContext context, String productId) {
-  return Row(
-    children: [
-      Expanded(
-        child: NexusOutlineButton(
-          label: 'Ver',
-          onPressed: () =>
-              Navigator.of(context)
-                  .pushNamed(NexusRoutes.productDetail, arguments: productId),
-          color: NexusColors.text,
-          borderColor: NexusColors.border,
-          compact: true,
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          fontSize: 10.5,
-          borderRadius: 6,
-          bold: false,
-        ),
-      ),
-      const SizedBox(width: 6),
-      InkWell(
-        onTap: () {},
-        child: Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: NexusColors.cyan,
-            borderRadius: BorderRadius.circular(6),
-          ),
-          child: const Icon(
-            Icons.shopping_cart,
-            size: 15,
-            color: NexusColors.onCyan,
+/// "Ver" y agregar al carrito la mejor oferta (`bestOfferId`). Sin stock o
+/// sin oferta, el botón del carrito queda deshabilitado.
+class _CardActions extends ConsumerWidget {
+  const _CardActions({required this.product});
+
+  final Product product;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final offerId = product.bestOfferId;
+    final canAdd =
+        offerId != null && product.stockLevel != StockLevel.outOfStock;
+
+    return Row(
+      children: [
+        Expanded(
+          child: NexusOutlineButton(
+            label: 'Ver',
+            onPressed: () => Navigator.of(
+              context,
+            ).pushNamed(NexusRoutes.productDetail, arguments: product.id),
+            color: NexusColors.text,
+            borderColor: NexusColors.border,
+            compact: true,
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            fontSize: 10.5,
+            borderRadius: 6,
+            bold: false,
           ),
         ),
-      ),
-    ],
-  );
+        const SizedBox(width: 6),
+        Tooltip(
+          message: canAdd ? 'Agregar al carrito' : 'Sin stock',
+          child: InkWell(
+            onTap: canAdd
+                ? () => addToCart(context, ref, offerId: offerId)
+                : null,
+            child: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: canAdd ? NexusColors.cyan : NexusColors.border,
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Icon(
+                Icons.shopping_cart,
+                size: 15,
+                color: canAdd ? NexusColors.onCyan : NexusColors.textFaint,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 }

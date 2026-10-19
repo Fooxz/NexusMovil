@@ -95,6 +95,20 @@ La cuenta (correo y contraseña) vive en `auth.users`, que administra Supabase A
 - Supresión de la cuenta a pedido del usuario (RNF-008).
 - Retención de los consentimientos cuando se borra una cuenta: hoy se borran en cascada con ella.
 
+## Carrito (fase 5)
+
+| Tabla | Para qué | Acceso de clientes |
+|---|---|---|
+| `cart_items` | Carrito guardado del usuario con sesión (RF-054): `user_id`, `offer_id`, `quantity` (1 a 99) y fecha de agregado. Clave `(user_id, offer_id)`: una línea por oferta. | Cada usuario lee las suyas. **No escribe directo**: insertar, cambiar y borrar va por las RPC del carrito (API_CONTRATO, sección 10), que validan el stock. |
+
+- **Una línea es una oferta, no un producto.** Cada proveedor fija su precio y despacha por separado (RN-001, S-06).
+- **Máximo comprable:** `private.offer_max_quantity()` devuelve el stock de una oferta visible (publicada y de proveedor activo), con el tope de `app_settings.cart_max_quantity_per_item`, que vale 10. Si la oferta no se puede comprar, devuelve 0. Las RPC rechazan cantidades mayores con `QUANTITY_UNAVAILABLE` y responden el máximo, sin exponer las unidades reales.
+- **Datos vigentes:** las líneas se arman en `private.cart_lines()` con el precio y la disponibilidad del momento. Si una oferta se pausa o se agota, la línea sigue en el carrito con `available = false`, para que el usuario la vea y la quite.
+- **Carrito de invitado:** no se guarda en la base. La app lo lleva en memoria, lo muestra con `preview_cart` y, al iniciar sesión, lo suma con `merge_cart`.
+- El catálogo expone `bestOfferId`, el id de la mejor oferta, para agregarla desde una tarjeta: es una columna nueva al final de `private.catalog_products`.
+
+**Pendiente (fase 8):** reservar stock durante el checkout (RF-067, Could) y revalidar el precio antes de pagar (RF-055).
+
 ## Datos de desarrollo
 
 `backend/supabase/seed.sql` (lo carga `npx supabase db reset`) contiene:

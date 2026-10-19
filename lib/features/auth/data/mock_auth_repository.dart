@@ -55,10 +55,21 @@ class MockAuthRepository implements AuthRepository {
   @override
   AuthUser? get currentUser => _currentUser;
 
+  /// Al escuchar recibe el usuario actual y queda suscrito en el mismo
+  /// instante a los cambios: un `async*` con `yield*` se suscribía recién
+  /// después del primer valor y perdía un inicio de sesión inmediato.
   @override
-  Stream<AuthUser?> authStateChanges() async* {
-    yield _currentUser;
-    yield* _changes.stream;
+  Stream<AuthUser?> authStateChanges() {
+    late final StreamController<AuthUser?> controller;
+    StreamSubscription<AuthUser?>? subscription;
+    controller = StreamController<AuthUser?>(
+      onListen: () {
+        controller.add(_currentUser);
+        subscription = _changes.stream.listen(controller.add);
+      },
+      onCancel: () => subscription?.cancel(),
+    );
+    return controller.stream;
   }
 
   @override

@@ -45,7 +45,8 @@ select is(
   (select i from jsonb_array_elements(public.get_products(search => 'zztest') -> 'items') i
    where i ->> 'id' = 'zz-gpu') - array['name', 'brand', 'summary', 'quickSpecs', 'specs'],
   '{"id": "zz-gpu", "family": "part", "category": "gpu", "priceCents": 500000,
-    "oldPriceCents": 600000, "stockLevel": "stable", "imageUrl": null, "offers": []}'::jsonb,
+    "oldPriceCents": 600000, "stockLevel": "stable", "imageUrl": null, "offers": [],
+    "bestOfferId": "zz-o2"}'::jsonb,
   'la mejor oferta es la más barata con stock y el listado no trae ofertas');
 
 select is(

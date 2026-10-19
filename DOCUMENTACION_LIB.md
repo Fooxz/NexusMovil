@@ -4,12 +4,13 @@ Este documento describe el código Dart actual de `lib/`, el punto de entrada, l
 
 ## Estado general
 
-NEXUS es una app Flutter de un marketplace de computadores armados y piezas. Con Supabase configurado, tres partes usan datos reales:
+NEXUS es una app Flutter de un marketplace de computadores armados y piezas. Con Supabase configurado, cuatro partes usan datos reales:
 - el catálogo (fase 3);
 - las cuentas: registro con consentimiento, inicio de sesión y recuperación (fase 4);
-- el perfil con direcciones de entrega (fase 4).
+- el perfil con direcciones de entrega (fase 4);
+- el carrito (fase 5).
 
-Sin configuración, las mismas pantallas usan repositorios mock en memoria. Inicio, carrito y PC Builder todavía muestran datos de ejemplo escritos en el código. "Confirmar pedido" ya exige sesión, pero el pago llega en la fase 8.
+Sin configuración, las mismas pantallas usan repositorios mock en memoria. Inicio y PC Builder todavía muestran datos de ejemplo escritos en el código. "Confirmar pedido" ya exige sesión, pero el pago llega en la fase 8.
 
 ## Estructura de `lib/`
 
@@ -30,14 +31,19 @@ lib/
 |-- screens/
 |   |-- home/
 |   |   `-- home_screen.dart          # Inicio, productos destacados y accesos al shell
-|   |-- cart/
-|   |   `-- cart_screen.dart          # Carrito y resumen de ejemplo
 |   |-- pc_builder/
 |   |   `-- pc_builder_screen.dart    # Configuración de PC de ejemplo
 |   `-- shell/
 |       |-- main_shell.dart           # Shell de pestañas con LazyIndexedStack y back handling
 |       `-- main_shell_scope.dart     # Scope para cambiar de pestaña desde los widgets hijos
 |-- features/
+|   |-- cart/
+|   |   |-- cart_providers.dart       # Repositorio, carrito de invitado, CartController y contador
+|   |   |-- domain/                   # CartEntry, CartItem, CartState (grupos y totales), CartRepository
+|   |   |-- data/                     # RPC del carrito, lectura del JSON y mock en memoria
+|   |   `-- presentation/
+|   |       |-- cart_screen.dart      # Carrito por proveedor con cantidades, avisos y resumen
+|   |       `-- cart_actions.dart     # addToCart, CartBadgeHost y mensajes de error
 |   |-- auth/
 |   |   |-- auth_providers.dart       # Repositorio, sesión (currentUserProvider) y acciones de formulario
 |   |   |-- domain/                   # AuthUser, LegalDocument, SignUpResult, AuthRepository
@@ -80,7 +86,8 @@ lib/
     |-- nexus_page.dart               # Scaffold y estructura para páginas
     |-- nexus_product_card.dart       # Tarjeta de producto configurable
     |-- nexus_product_image.dart      # Imagen con caché (cached_network_image) o icono de respaldo
-    |-- nexus_quantity_stepper.dart   # Control visual de cantidad
+    |-- nexus_cart_badge.dart         # Contador del carrito para NexusTopBar (InheritedWidget)
+    |-- nexus_quantity_stepper.dart   # Control de cantidad; null deshabilita + o -
     |-- nexus_top_bar.dart            # Barra superior y acceso al carrito
     |-- nexus_loading.dart            # Indicador de carga cian
     |-- nexus_error_state.dart        # Mensaje de error y acción de reintento
@@ -96,7 +103,7 @@ lib/
 | Ruta | Pantalla | Cómo se resuelve |
 |---|---|---|
 | `/home` | `MainShell` | tabla `routes` |
-| `/cart` | `CartScreen` | tabla `routes` |
+| `/cart` | `CartScreen` | `generateNexusRoute` |
 | `/login` | `LoginScreen` | `generateNexusRoute`. Argumento opcional: un `String` con el motivo. Devuelve `bool`. |
 | `/signup` | `SignupScreen` | `generateNexusRoute`, devuelve `bool` |
 | `/forgot-password` | `ForgotPasswordScreen` | `generateNexusRoute`, devuelve `bool` |
@@ -157,7 +164,16 @@ Todas usan `AuthScaffold` (tarjeta centrada con botón de cerrar), validan antes
 
 ### Carrito
 
-`screens/cart/cart_screen.dart` muestra dos líneas fijas, cantidades, subtotales, envío y total precalculados en el código. Los precios mock se convierten a COP con tasa 4.000 y redondeo unitario al millar; el total fijo es la suma de los subtotales convertidos. Los botones para cambiar cantidad, eliminar y vaciar el carrito no lo modifican. "Confirmar pedido" exige sesión (`ensureSignedIn`) y, con sesión, avisa que el pago llega pronto (fase 8).
+`features/cart/presentation/cart_screen.dart` (HU-009):
+- **Agrupación:** las líneas van por proveedor ("Vendido y despachado por …") y, si hay varios, se avisa que llegarán en envíos separados.
+- **Cada línea** muestra imagen, nombre, precio unitario vigente, subtotal y un selector de cantidad que se detiene en el máximo disponible. También tiene un botón para quitarla.
+- **Líneas con problemas:** las agotadas y las que superan el stock se marcan, con un botón "Ajustar a N", y no entran en el total.
+- **Resumen:** artículos, subtotal y envío "Se calcula al confirmar".
+- **Sin sesión:** se avisa que el carrito no se guarda.
+- **"Confirmar pedido":** queda deshabilitado si hay líneas por revisar y exige sesión (`ensureSignedIn`). Con sesión avisa que el pago llega pronto (fase 8).
+- **"Vaciar carrito":** pide confirmación.
+
+Se agrega desde el ícono de carrito de las tarjetas del catálogo (la mejor oferta) y desde el detalle (oferta del proveedor elegido, cantidad, "Agregar al carrito" y "Comprar ahora"). El ícono de la barra superior muestra cuántas unidades hay.
 
 ### PC Builder
 
@@ -174,8 +190,8 @@ Todas usan `AuthScaffold` (tarjeta centrada con botón de cerrar), validan antes
 | Catálogo inicial | Primera página de productos | `catalogControllerProvider` obtiene 20 productos por página, de Supabase o del mock (ocho productos). |
 | Búsqueda del catálogo | Texto de producto, marca o categoría | El campo usa el controlador, que aplica debounce y búsqueda normalizada en el repositorio. |
 | Filtros y orden | Familia, tipo de pieza, marca, precio y orden | Chips de familia y de tipo de pieza; hoja "Filtros" con marcas del repositorio y rangos de precio; menú de orden (relevancia, menor y mayor precio). Todo se envía al repositorio. |
-| Cantidad de producto | Unidades en detalle | Valor fijo `01`; los controles `+`/`-` no lo alteran. |
-| Carrito | Producto, cantidad y totales | Datos fijos en los constructores; no hay estado de carrito compartido. |
+| Cantidad de producto | Unidades en detalle | De 1 a 10; el backend valida contra el stock y responde cuántas quedan. |
+| Carrito | Ofertas, cantidades y totales | Guardado en Supabase con sesión; en memoria sin sesión, y se suma al guardado al iniciar sesión. |
 | PC Builder | Piezas, compatibilidad y precio | Componentes, progreso, compatibilidad y total fijos; no se recalculan. |
 
 `NexusTextField`, en `widgets/nexus_widgets.dart`, usa `TextFormField` y conserva `hint`, `obscure` y `prefixIcon`. También acepta opcionalmente `controller`, `onChanged`, `onSubmitted`, `validator`, `keyboardType`, `textInputAction` y `enabled`. Los errores de validación usan el rosa de la paleta NEXUS. Sigue siendo `StatelessWidget` y no crea controladores propios; quien proporciona un controlador externo es responsable de destruirlo. No implementa debounce: esa lógica debe vivir en el controlador de búsqueda, no en el campo.
@@ -206,8 +222,8 @@ Otros widgets y utilidades compartidos:
 - `screens/shell/main_shell.dart`: shell de navegación principal con `LazyIndexedStack`, `PopScope` y `MainShellScope`.
 - `widgets/nexus_product_card.dart`: tarjeta de producto con precio en centavos y acciones provistas por la pantalla.
 - `widgets/nexus_loading.dart` y `widgets/nexus_error_state.dart`: estados compartidos de carga y error con reintento.
-- `widgets/nexus_quantity_stepper.dart`: control visual de cantidad reutilizado en detalle y carrito.
-- `widgets/nexus_top_bar.dart`: barra superior con navegación y acceso opcional al carrito.
+- `widgets/nexus_quantity_stepper.dart`: control de cantidad reutilizado en detalle y carrito; un callback `null` deshabilita su botón.
+- `widgets/nexus_top_bar.dart`: barra superior con navegación y acceso opcional al carrito, con el número de unidades de `NexusCartBadge`.
 - `core/utils/format_price.dart`: función `formatPrice` para presentar centavos de COP en pesos enteros, con puntos como separadores de miles y redondeo al peso.
 
 ## Tema
@@ -234,6 +250,11 @@ Pasos completados:
   política de datos (exigida también por el backend), inicio de sesión,
   recuperación con código de 6 dígitos, perfil y direcciones de entrega con
   RLS. La app abre en Inicio y pide la sesión solo para comprar.
+- **Fase 5:** carrito real (contrato v0.5, parte 2): líneas por oferta y
+  proveedor, cantidades validadas contra el stock sin exponer unidades,
+  carrito guardado con sesión y de invitado en memoria que se fusiona al
+  iniciar sesión, contador en el ícono y "Agregar"/"Comprar ahora" desde
+  el catálogo y el detalle.
 
 La hoja de ruta vigente está en [docs/PLAN_IMPLEMENTACION.md](docs/PLAN_IMPLEMENTACION.md).
 Los requisitos son los de [docs/REQUISITOS.md](docs/REQUISITOS.md) (análisis v2):
@@ -244,4 +265,17 @@ fase 6. Autenticación pasa a ser la fase 4.
 
 ## Archivos y validación
 
-El árbol anterior refleja los archivos Dart actuales bajo `lib/`. Las pruebas de `test/` cubren el catálogo (formato COP, stock, filtros, búsqueda, paginación, JSON del contrato, repositorio de Supabase con RPC falsas, widgets y 360 px), los validadores, el mapeo de errores de Supabase Auth, los mocks de cuentas y perfil, y los flujos de login, registro, recuperación, `ensureSignedIn`, perfil y direcciones. `test/integration/` prueba los repositorios reales contra el Supabase local: catálogo, registro con consentimiento, perfil, direcciones con RLS entre dos usuarios y recuperación leyendo el código en Mailpit con PKCE. Se salta sin configuración. Validación de la fase 4: `dart analyze` sin hallazgos; `flutter test` con 141 pruebas aprobadas y 9 de integración saltadas; esas 9 pasan contra el backend local; pgTAP con 65 pruebas. Se compiló para web; no se probó en un dispositivo. Para mediciones de rendimiento, usar un teléfono físico con `flutter run --profile`, según `REGLAS_RENDIMIENTO.md`.
+El árbol anterior refleja los archivos Dart actuales bajo `lib/`. Las pruebas de `test/` cubren:
+- **catálogo:** formato COP, stock, filtros, búsqueda, paginación, JSON del contrato, repositorio con RPC falsas, widgets y 360 px;
+- **cuentas:** validadores, mapeo de errores de Supabase Auth, mocks de cuentas y perfil, y flujos de login, registro, recuperación, `ensureSignedIn`, perfil y direcciones;
+- **carrito:** totales y grupos, JSON de líneas, controlador con y sin sesión (incluida la fusión y los toques rápidos), pantalla del carrito, agregar desde el detalle y la tarjeta, y el contador;
+- **Inicio:** de 32 a 412 px.
+
+`test/integration/` prueba los repositorios reales contra el Supabase local y se salta sin configuración.
+
+**Validación de la fase 5:**
+- `dart analyze` sin hallazgos.
+- `flutter test`: 169 pruebas aprobadas y 13 de integración saltadas; esas 13 pasan contra el backend local.
+- pgTAP: 87 pruebas.
+
+No se probó en un dispositivo. Para mediciones de rendimiento, usar un teléfono físico con `flutter run --profile`, según `REGLAS_RENDIMIENTO.md`.

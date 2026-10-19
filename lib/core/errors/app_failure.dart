@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 /// Errores que los repositorios devuelven a los controladores.
 ///
 /// Los repositorios de `data/` traducen las excepciones de red o de Supabase a
@@ -11,13 +13,41 @@ sealed class AppFailure implements Exception {
   /// Convierte el cuerpo de error del contrato (`docs/API_CONTRATO.md`,
   /// sección 4) en un `AppFailure`. Depende del código HTTP y de `code`;
   /// `message` es solo informativo y no se muestra al usuario.
-  factory AppFailure.fromApiError({int? statusCode, String? code}) {
+  ///
+  /// [details] es el texto `details` del cuerpo: para `QUANTITY_UNAVAILABLE`
+  /// trae el JSON `{"maxQuantity": n}` (API_CONTRATO, parte 2).
+  factory AppFailure.fromApiError({
+    int? statusCode,
+    String? code,
+    Object? details,
+  }) {
     return switch ((statusCode, code)) {
-      (_, 'PRODUCT_NOT_FOUND') || (404, _) => const NotFoundFailure(),
+      (_, 'OUT_OF_STOCK') => const OutOfStockFailure(),
+      (_, 'QUANTITY_UNAVAILABLE') => QuantityUnavailableFailure(
+        _maxQuantityFrom(details),
+      ),
+      (_, 'AUTH_REQUIRED') => const UnauthorizedFailure(),
+      (_, 'PRODUCT_NOT_FOUND') ||
+      (_, 'OFFER_NOT_FOUND') ||
+      (404, _) => const NotFoundFailure(),
       (_, 'VALIDATION_ERROR') || (400, _) => const ValidationFailure(),
       (401, _) || (403, _) => const UnauthorizedFailure(),
       _ => const UnexpectedFailure(),
     };
+  }
+
+  static int? _maxQuantityFrom(Object? details) {
+    Object? value = details;
+    if (value is String) {
+      try {
+        value = jsonDecode(value);
+      } on FormatException {
+        return null;
+      }
+    }
+    return value is Map && value['maxQuantity'] is int
+        ? value['maxQuantity'] as int
+        : null;
   }
 
   @override
@@ -45,6 +75,27 @@ class UnauthorizedFailure extends AppFailure {
 class UnexpectedFailure extends AppFailure {
   const UnexpectedFailure()
     : super('Ocurrió un error inesperado. Inténtalo de nuevo.');
+}
+
+// --- Carrito (fase 5) ---
+
+class OutOfStockFailure extends AppFailure {
+  const OutOfStockFailure() : super('Este producto ya no está disponible.');
+}
+
+/// La cantidad pedida supera lo disponible. [maxQuantity] es cuánto se puede
+/// llevar, si el backend lo informó.
+class QuantityUnavailableFailure extends AppFailure {
+  QuantityUnavailableFailure(this.maxQuantity)
+    : super(
+        maxQuantity == null
+            ? 'No hay suficientes unidades disponibles.'
+            : maxQuantity == 1
+            ? 'Solo puedes llevar 1 unidad de este producto.'
+            : 'Solo puedes llevar $maxQuantity unidades de este producto.',
+      );
+
+  final int? maxQuantity;
 }
 
 // --- Cuentas (fase 4) ---

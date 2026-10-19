@@ -25,6 +25,7 @@ void main() {
     expect(gpu.imageUrl, startsWith('https://'));
     expect(gpu.specs.first.label, 'VRAM');
     expect(gpu.offers, isEmpty);
+    expect(gpu.bestOfferId, 'off-1001');
 
     final cpu = page.items.last;
     expect(cpu.imageUrl, isNull);

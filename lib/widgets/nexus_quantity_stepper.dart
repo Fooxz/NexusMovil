@@ -12,8 +12,10 @@ class NexusQuantityStepper extends StatelessWidget {
   });
 
   final int value;
-  final VoidCallback onIncrement;
-  final VoidCallback onDecrement;
+
+  /// `null` deshabilita el botón (por ejemplo, en el máximo o en el mínimo).
+  final VoidCallback? onIncrement;
+  final VoidCallback? onDecrement;
   final bool compact;
 
   @override
@@ -31,10 +33,11 @@ class NexusQuantityStepper extends StatelessWidget {
             padding: compact ? EdgeInsets.zero : null,
             constraints: compact ? const BoxConstraints() : null,
             onPressed: onDecrement,
+            tooltip: 'Quitar una unidad',
             icon: Icon(
               Icons.remove,
               size: compact ? 14 : 16,
-              color: NexusColors.textDim,
+              color: _iconColor(onDecrement),
             ),
           ),
           Padding(
@@ -52,14 +55,19 @@ class NexusQuantityStepper extends StatelessWidget {
             padding: compact ? EdgeInsets.zero : null,
             constraints: compact ? const BoxConstraints() : null,
             onPressed: onIncrement,
+            tooltip: 'Agregar una unidad',
             icon: Icon(
               Icons.add,
               size: compact ? 14 : 16,
-              color: NexusColors.textDim,
+              color: _iconColor(onIncrement),
             ),
           ),
         ],
       ),
     );
   }
+
+  static Color _iconColor(VoidCallback? onPressed) => onPressed == null
+      ? NexusColors.textFaint.withValues(alpha: 0.4)
+      : NexusColors.textDim;
 }

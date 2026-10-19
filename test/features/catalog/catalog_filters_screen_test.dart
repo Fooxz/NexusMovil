@@ -102,7 +102,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('OFERTAS DE PROVEEDORES'), findsOneWidget);
+    expect(find.text('ELIGE EL PROVEEDOR'), findsOneWidget);
     expect(find.text('Proveedor A'), findsOneWidget);
     expect(find.text('Proveedor B'), findsOneWidget);
     expect(find.text('\$1.500'), findsOneWidget);
@@ -116,7 +116,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('OFERTAS DE PROVEEDORES'), findsNothing);
+    expect(find.text('ELIGE EL PROVEEDOR'), findsNothing);
     expect(find.text('VENDIDO POR'), findsNothing);
   });
 }

@@ -72,6 +72,7 @@ class ProductOffer {
 ///
 /// `priceCents`, `oldPriceCents` y `stockLevel` son los de la mejor oferta.
 /// `offers` solo viene lleno en el detalle; en listas es `[]`.
+/// `bestOfferId` es la oferta que se agrega al carrito desde una lista.
 class Product {
   const Product({
     required this.id,
@@ -81,6 +82,7 @@ class Product {
     required this.priceCents,
     this.oldPriceCents,
     required this.stockLevel,
+    this.bestOfferId,
     this.imageUrl,
     this.summary,
     this.quickSpecs = const [],
@@ -95,6 +97,7 @@ class Product {
   final int priceCents;
   final int? oldPriceCents;
   final StockLevel stockLevel;
+  final String? bestOfferId;
   final String? imageUrl;
   final String? summary;
   final List<String> quickSpecs;
@@ -102,6 +105,22 @@ class Product {
   final List<ProductOffer> offers;
 
   ProductFamily get family => category.family;
+
+  Product copyWith({String? bestOfferId, List<ProductOffer>? offers}) => Product(
+    id: id,
+    name: name,
+    brand: brand,
+    category: category,
+    priceCents: priceCents,
+    oldPriceCents: oldPriceCents,
+    stockLevel: stockLevel,
+    bestOfferId: bestOfferId ?? this.bestOfferId,
+    imageUrl: imageUrl,
+    summary: summary,
+    quickSpecs: quickSpecs,
+    specs: specs,
+    offers: offers ?? this.offers,
+  );
 
   bool get hasDiscount =>
       oldPriceCents != null && oldPriceCents! > priceCents;
