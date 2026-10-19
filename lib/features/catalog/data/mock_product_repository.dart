@@ -309,6 +309,12 @@ class MockProductRepository implements ProductRepository {
     StockLevel.outOfStock => 0,
   };
 
+  /// Productos de una categoría, sin latencia (para el armador del mock).
+  List<Product> productsIn(ProductCategory category) => [
+    for (final product in _products)
+      if (product.category == category) product,
+  ];
+
   /// Oferta con su producto y su stock simulado, para el carrito del mock.
   /// Los productos sin ofertas explícitas tienen una sintética de "Tienda demo".
   ({Product product, ProductOffer offer, int stockUnits})? offerById(

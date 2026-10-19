@@ -109,11 +109,72 @@ La cuenta (correo y contraseña) vive en `auth.users`, que administra Supabase A
 
 **Pendiente (fase 8):** reservar stock durante el checkout (RF-067, Could) y revalidar el precio antes de pagar (RF-055).
 
+## PC Builder (fase 6)
+
+| Tabla | Para qué | Acceso de clientes |
+|---|---|---|
+| `builder_slots` | Ranuras del armador: categoría, etiqueta, si es obligatoria y orden (RF-046, RF-048). | Lectura pública. |
+| `compat_rules` | Catálogo de reglas: código y nombre. | Ninguno (las aplican las RPC). |
+| `compat_rule_versions` | Cada versión de una regla: tipo, categorías y atributos que compara, parámetros, severidad, mensaje, quién y cuándo la creó, y si está activa. Una sola activa por regla (RF-050). | Ninguno. |
+
+**Motor determinista (RN-013).** `private.evaluate_rules` recorre las reglas activas y compara los **atributos tipados** de las piezas (`product_attributes`). Tipos de regla:
+
+| Tipo | Compara | Regla del seed |
+|---|---|---|
+| `equals` | A.attr = B.attr | Socket CPU = socket placa; tipo de RAM = tipo que acepta la placa |
+| `containedIn` | A.attr está en la lista B.attr | Formato de placa ⊂ formatos del gabinete; socket del CPU ⊂ sockets del disipador |
+| `atMost` | A.attr ≤ B.attr | Largo de GPU, altura del disipador, módulos y capacidad de RAM |
+| `powerBudget` | Fuente ≥ (consumo de `sources`) × `factor` + `baseWatts`, redondeado a `roundTo` | (TDP CPU + TDP GPU) × 1,3 + 100 W, en múltiplos de 50 |
+| `requiredUnless` | Falta la pieza A salvo que B.attr sea verdadero | Gráfica obligatoria si el CPU no tiene gráficos integrados |
+
+- **Si falta un dato obligatorio** de la plantilla para verificar una regla, el resultado es un `warning` ("no pudimos verificar"): no se supone compatibilidad. Si el dato que falta es opcional, la regla no aplica. Por ejemplo, un disipador líquido no tiene altura.
+- **Agregar o cambiar una regla no requiere código.** Se inserta una versión nueva, se desactiva la anterior y se activa la nueva. Un trigger valida que los atributos existan en la plantilla de la categoría, y las dos tablas se auditan.
+- **RPC:** `get_builder_slots`, `validate_build` y `get_builder_candidates` (API_CONTRATO, sección 11). El asistente de la fase 7 usará `validate_build` para proponer configuraciones de piezas (RF-040).
+
+**Decisión:** el motor se implementó en PostgreSQL y no en una Edge Function de TypeScript, como decía el plan. Así las reglas, los datos y su evaluación viven juntos, las pruebas usan pgTAP y no hace falta Deno. El asistente llama a la misma RPC.
+
+## Vista 3D (fase 6.1)
+
+| Tabla | Para qué | Acceso de clientes |
+|---|---|---|
+| `component_models` | Qué archivo `.glb` usa una pieza: categoría, producto (nulo para el genérico de la categoría), ruta en el bucket, rotación, título, autor, licencia y enlace. Un solo modelo activo por producto y uno genérico por categoría. | Ninguno (lo entrega `get_build_scene`). |
+
+- **Archivos:** bucket público `component-models` de Storage, máximo 5 MiB por archivo. Se define en `config.toml`; en local se suben los de `backend/supabase/models` al iniciar o al hacer `db reset`.
+- **Validaciones:** solo archivos `.glb`, rotación de tres ángulos, el producto debe ser de la categoría y CC BY exige el enlace a la obra. La tabla se audita.
+- **Sin modelo**, la app genera la pieza con su forma y las medidas de sus atributos (largo de la GPU, formato de la placa...). Cómo agregar modelos: `backend/MODELOS_3D.md`.
+
+### Componentes de los armados
+
+| Tabla | Para qué | Acceso de clientes |
+|---|---|---|
+| `prebuilt_components` | Qué componente ocupa cada sección del PC Builder en un computador armado: nombre, pieza del catálogo si se vende suelta y medidas para la vista 3D. | Ninguno (lo entrega `get_prebuilt_scene`). |
+
+- **Validaciones:**
+  - solo computadores armados;
+  - una fila por sección;
+  - la pieza enlazada debe ser de esa sección;
+  - `attributes` solo admite los atributos visuales (`private.visual_attribute_keys`).
+- **Bitácora:** la tabla se audita.
+- **Pendiente para la fase 10:** que los proveedores envíen los componentes por la API. Hoy se cargan en `seed.sql`.
+
+## Asistente (fase 7)
+
+| Tabla | Para qué | Acceso de clientes |
+|---|---|---|
+| `assistant_interactions` | Cada pregunta y su respuesta: sesión, usuario (si había sesión), hash del cliente, mensaje, tipo y cuerpo de la respuesta, productos y ofertas recomendados, modelo, herramientas usadas y latencia (RF-043, RNF-034). | Ninguno. Solo la Edge Function, con el rol de servicio. |
+
+- **RPC `get_product_attributes(product_ids)`:** atributos tipados de productos visibles, con etiqueta y unidad (por ejemplo, "Memoria de video: 16 GB"). La usa el asistente para justificar con datos reales (RF-038).
+- **Privacidad (Ley 1581):**
+  - se guarda un hash del cliente y no la IP;
+  - si se borra la cuenta, `user_id` queda nulo;
+  - el mensaje puede contener datos que el cliente escriba. **Pendiente para la fase 12:** fijar cuánto tiempo se conservan las interacciones y borrar las vencidas con `pg_cron`.
+
 ## Datos de desarrollo
 
 `backend/supabase/seed.sql` (lo carga `npx supabase db reset`) contiene:
 - **3 proveedores:** 2 activos y 1 pendiente.
 - **15 productos:** los 6 del mock de la app con los mismos ids, 6 piezas más y 3 computadores armados, con sus atributos tipados.
 - **18 ofertas:** incluyen un producto con dos proveedores, niveles `stable`, `critical` y `outOfStock`, una oferta de un proveedor pendiente y una en borrador. Estas dos últimas no deben verse.
+- **3 modelos 3D genéricos:** CPU, RAM y gráfica, descargados de Poly Pizza (ver `backend/MODELOS_3D.md`).
 
 No trae usuarios: las cuentas se crean desde la app, que pasa por el trigger de consentimiento.

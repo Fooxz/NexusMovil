@@ -67,7 +67,9 @@ Estas reglas aplican a todos los pasos de desarrollo desde el paso 3. Deben guia
 | 3 | Sin cambios visuales en las pantallas. R10: el creador libera los controladores. R6: el campo no implementa debounce. |
 | 4 | Pestañas perezosas en `MainShell` y estado fuera del árbol de widgets. |
 | 5 | Aplicar R1, R2, R6 y R7 al catálogo. R3-R5 se aplican según corresponda al trabajo del feature. |
-| 7 | Aplicar R9 al visor 3D, incluyendo `RepaintBoundary` y carga diferida del modelo. |
+| 7 (fase 6) | El selector de piezas usa `SliverList.builder` (R1). El ícono fijo del visor se retiró; el visor real llega en la fase 6.1. |
+| Fase 6.1 | Visor 3D. R9: `RepaintBoundary` alrededor del visor. El visor dibuja solo cuando algo cambia (un toque o una escena nueva): no hay bucle de animación que gaste batería. Los modelos se piden al abrir el armador (la pestaña se crea al visitarla), se guardan en memoria y Storage los sirve con una hora de caché. Resolución limitada a 2× y sin sombras. Los modelos actuales pesan entre 21 y 63 KB. Pendiente: medir en un teléfono físico con `--profile`. |
+| Fase 7 | Asistente. R1: el chat usa `ListView.builder` invertido. R4: la lista, el aviso y el campo observan solo su parte del estado (`select`). R10: el campo de texto libera su controlador y detiene el dictado al cerrarse. La espera la marca el modelo, no la app: entre 1 y 9 s por respuesta. |
 
 ### Catálogo (5C)
 

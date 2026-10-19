@@ -52,6 +52,11 @@ class NexusBottomNav extends StatelessWidget {
               label: 'CATÁLOGO',
             ),
             BottomNavigationBarItem(
+              icon: Icon(Icons.auto_awesome_outlined, size: 18),
+              activeIcon: Icon(Icons.auto_awesome, size: 18),
+              label: 'ASISTENTE',
+            ),
+            BottomNavigationBarItem(
               icon: Icon(Icons.dvr_outlined, size: 18),
               label: 'PC BUILDER',
             ),

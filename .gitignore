@@ -51,3 +51,6 @@ app.*.map.json
 env.json
 env.*.json
 !env.*example.json
+
+# Dependencias del visor 3D (tool/viewer: npm install)
+tool/viewer/node_modules/

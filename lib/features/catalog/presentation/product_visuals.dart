@@ -41,6 +41,19 @@ class ProductVisuals {
     ProductCategory.cooling => 'Refrigeración',
   };
 
+  /// Nombre en singular de una pieza, como las ranuras del PC Builder.
+  static String partLabel(ProductCategory category) => switch (category) {
+    ProductCategory.prebuiltPc => 'Computador armado',
+    ProductCategory.cpu => 'Procesador',
+    ProductCategory.gpu => 'Tarjeta gráfica',
+    ProductCategory.ram => 'Memoria RAM',
+    ProductCategory.motherboard => 'Placa madre',
+    ProductCategory.storage => 'Almacenamiento',
+    ProductCategory.psu => 'Fuente de poder',
+    ProductCategory.pcCase => 'Gabinete',
+    ProductCategory.cooling => 'Refrigeración',
+  };
+
   static ProductVisuals forCategory(ProductCategory? category) =>
       switch (category) {
         ProductCategory.prebuiltPc => const ProductVisuals(

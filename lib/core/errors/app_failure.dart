@@ -27,6 +27,8 @@ sealed class AppFailure implements Exception {
         _maxQuantityFrom(details),
       ),
       (_, 'AUTH_REQUIRED') => const UnauthorizedFailure(),
+      (_, 'ASSISTANT_UNAVAILABLE') || (503, _) => const AssistantUnavailableFailure(),
+      (_, 'RATE_LIMITED') || (429, _) => const RateLimitedFailure(),
       (_, 'PRODUCT_NOT_FOUND') ||
       (_, 'OFFER_NOT_FOUND') ||
       (404, _) => const NotFoundFailure(),
@@ -128,4 +130,16 @@ class InvalidCodeFailure extends AppFailure {
 class RateLimitedFailure extends AppFailure {
   const RateLimitedFailure()
     : super('Hiciste demasiados intentos. Espera un momento e inténtalo de nuevo.');
+}
+
+// --- Asistente (fase 7) ---
+
+/// El modelo de IA no respondió (caído o sin cuota). La app sigue funcionando:
+/// se ofrece el catálogo y el PC Builder (RNF-018).
+class AssistantUnavailableFailure extends AppFailure {
+  const AssistantUnavailableFailure()
+    : super(
+        'El asistente no está disponible en este momento. Mientras tanto, '
+        'puedes buscar en el catálogo o armar tu equipo en el PC Builder.',
+      );
 }

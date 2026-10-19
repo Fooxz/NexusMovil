@@ -162,3 +162,49 @@ values
   -- No visibles: proveedor pendiente y oferta en borrador.
   ('off-cn-vengeance32', 'corsair-vengeance-ddr5-32gb', 'prov-norte', 'CN-77', 49990000, null, 50, 'published', now()),
   ('off-mp-990pro2tb', 'samsung-990-pro-2tb', 'prov-mundopc', 'MP-0008', 75990000, null, 3, 'draft', now());
+
+-- Modelos 3D genéricos (fase 6.1). Los archivos están en ./models y se suben
+-- al bucket component-models al iniciar Supabase local. Créditos y licencias
+-- en backend/MODELOS_3D.md. Las demás categorías se generan en la app.
+insert into public.component_models
+  (category_code, product_id, file_path, rotation_deg, title, author, license, source_url) values
+  ('cpu', null, 'generic/cpu.glb', '{0,0,0}', 'CPU', 'iPoly3D', 'CC0-1.0',
+    'https://poly.pizza/m/oF0cAyddAI'),
+  ('ram', null, 'generic/ram.glb', '{0,0,0}', 'RAM', 'iPoly3D', 'CC0-1.0',
+    'https://poly.pizza/m/obBMPOGYvy'),
+  -- El soporte de este modelo está en -X: se gira para dejarlo en +X.
+  ('gpu', null, 'generic/gpu.glb', '{0,180,0}', 'Graphics card', 'pgonarg', 'CC-BY-3.0',
+    'https://poly.pizza/m/i45v5trpyR');
+
+-- Componentes de los computadores armados (vista 3D en el PC Builder). Las
+-- piezas que también se venden sueltas se enlazan y aportan sus medidas.
+insert into public.prebuilt_components (prebuilt_id, category_code, name, part_product_id, attributes) values
+  ('pc-gamer-pro-r7-5070', 'cpu', 'AMD Ryzen 7 9700X', null, '{}'),
+  ('pc-gamer-pro-r7-5070', 'motherboard', 'Placa madre B650 ATX', null, '{"form_factor": "ATX", "ram_slots": 4}'),
+  ('pc-gamer-pro-r7-5070', 'ram', 'DDR5 32 GB (2 x 16 GB)', null, '{"modules": 2}'),
+  ('pc-gamer-pro-r7-5070', 'gpu', 'NVIDIA GeForce RTX 5070 12 GB', null, '{"length_mm": 242}'),
+  ('pc-gamer-pro-r7-5070', 'storage', 'SSD NVMe 1 TB', null, '{"storage_type": "NVMe"}'),
+  ('pc-gamer-pro-r7-5070', 'psu', 'Fuente 750 W 80 Plus Gold', null, '{}'),
+  ('pc-gamer-pro-r7-5070', 'pcCase', 'Gabinete ATX con vidrio templado', null,
+    '{"max_gpu_length_mm": 380, "max_cooler_height_mm": 165}'),
+  ('pc-gamer-pro-r7-5070', 'cooling', 'Disipador por aire de torre', null,
+    '{"cooling_type": "air", "height_mm": 155}'),
+  -- La oficina usa los gráficos integrados del procesador: sin tarjeta gráfica.
+  ('pc-oficina-i5-14400', 'cpu', 'Intel Core i5-14400', null, '{}'),
+  ('pc-oficina-i5-14400', 'motherboard', 'Placa madre B760M microATX', null,
+    '{"form_factor": "microATX", "ram_slots": 2}'),
+  ('pc-oficina-i5-14400', 'ram', 'DDR4 16 GB (2 x 8 GB)', null, '{"modules": 2}'),
+  ('pc-oficina-i5-14400', 'storage', 'SSD NVMe 512 GB', null, '{"storage_type": "NVMe"}'),
+  ('pc-oficina-i5-14400', 'psu', 'Fuente 500 W 80 Plus Bronze', null, '{}'),
+  ('pc-oficina-i5-14400', 'pcCase', 'Gabinete microATX', null,
+    '{"max_gpu_length_mm": 330, "max_cooler_height_mm": 150}'),
+  ('pc-oficina-i5-14400', 'cooling', 'Disipador Intel de serie', null,
+    '{"cooling_type": "air", "height_mm": 60}'),
+  ('pc-workstation-r9-5080', 'cpu', 'AMD Ryzen 9 9950X', 'ryzen-9-9950x', '{}'),
+  ('pc-workstation-r9-5080', 'motherboard', 'Placa madre X870E ATX', null, '{"form_factor": "ATX", "ram_slots": 4}'),
+  ('pc-workstation-r9-5080', 'ram', 'DDR5 64 GB (2 x 32 GB)', null, '{"modules": 2}'),
+  ('pc-workstation-r9-5080', 'gpu', 'NVIDIA GeForce RTX 5080 16 GB', 'rtx-5080', '{}'),
+  ('pc-workstation-r9-5080', 'storage', 'Samsung 990 Pro 2 TB', 'samsung-990-pro-2tb', '{}'),
+  ('pc-workstation-r9-5080', 'psu', 'Fuente 1000 W 80 Plus Platinum', null, '{}'),
+  ('pc-workstation-r9-5080', 'pcCase', 'Lian Li O11 Dynamic EVO', 'lian-li-o11-dynamic-evo', '{}'),
+  ('pc-workstation-r9-5080', 'cooling', 'NZXT Kraken Elite 360', 'kraken-elite-360', '{}');

@@ -2,6 +2,10 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>NEXUS usa el micrófono para que le dictes al asistente el computador que necesitas.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>NEXUS convierte tu voz en texto para que el asistente entienda qué computador necesitas.</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>

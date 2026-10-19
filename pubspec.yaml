@@ -37,6 +37,9 @@ dependencies:
   flutter_riverpod: ^3.4.3
   supabase_flutter: ^2.18.3
   cached_network_image: ^4.0.4
+  webview_flutter: ^4.14.1
+  web: ^1.1.1
+  speech_to_text: ^7.5.0
 
 dev_dependencies:
   flutter_test:
@@ -59,6 +62,10 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+
+  # Visor 3D del PC Builder, generado por tool/viewer (npm run build).
+  assets:
+    - assets/viewer/viewer.html
 
   # To add assets to your application, add an assets section, like this:
   # assets:

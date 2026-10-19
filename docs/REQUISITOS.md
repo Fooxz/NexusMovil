@@ -775,6 +775,7 @@ NEXUS – Análisis de requisitos · Versión 2
 |RF-043|Registrar las interacciones del asistente para trazabilidad**[Inferida]**|Should|
 |RF-044|Permitir escalar a atención humana cuando el asistente no pueda resolver**[Inferida]**|Could|
 |RF-045|Generar la descripción funcional de un computador armado o de una configuración válida a partir<br>de atributos reales|Should|
+|RF-089|Permitir expresar la necesidad al asistente por voz, además de por texto, y que el asistente llene<br>el PC Builder con la configuración propuesta**[Agregado por el equipo, 2026-10]**|Should|
 |**PC Builder**|||
 |RF-046|Permitir seleccionar piezas por tipo (procesador, placa base, memoria, almacenamiento, gráfica,<br>fuente, gabinete, refrigeración, etc.)|Must|
 |RF-047|Validar la compatibilidad mediante un motor de reglas técnicas e informar la causa de cada<br>incompatibilidad|Must|
@@ -783,6 +784,7 @@ NEXUS – Análisis de requisitos · Versión 2
 |RF-050|Permitir al administrador crear, modificar, versionar y activar reglas de compatibilidad|Must|
 |RF-051|Calcular el precio total y la disponibilidad de la configuración y permitir agregarla al carrito|Must|
 |RF-052|Permitir guardar configuraciones**[Inferida]**|Could|
+|RF-090|Mostrar una vista 3D de cómo se vería el computador con las piezas elegidas, o de un computador<br>armado con sus componentes por sección, a partir de un modelo 3D por componente**[Agregado por el equipo, 2026-10]**|Should|
 |**Comercio**|||
 |RF-053|Permitir agregar, modificar cantidad y eliminar ítems del carrito, y consultar subtotales|Must|
 |RF-054|Conservar el carrito del cliente autenticado entre sesiones**[Inferida]**|Should|

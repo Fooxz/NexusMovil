@@ -118,12 +118,16 @@ enabled = true
 # The maximum file size allowed (e.g. "5MB", "500KB").
 file_size_limit = "50MiB"
 
-# Uncomment to configure local storage buckets
-# [storage.buckets.images]
-# public = false
-# file_size_limit = "50MiB"
-# allowed_mime_types = ["image/png", "image/jpeg"]
-# objects_path = "./images"
+# Modelos 3D del visor del PC Builder (fase 6.1, backend/MODELOS_3D.md).
+# Público: la app los descarga sin sesión. Al iniciar Supabase local se suben
+# los archivos de ./models.
+[storage.buckets.component-models]
+public = true
+file_size_limit = "5MiB"
+# La CLI sube los .glb como application/octet-stream. Solo el rol de servicio
+# puede subir archivos: no hay políticas de escritura en storage.objects.
+allowed_mime_types = ["model/gltf-binary", "application/octet-stream"]
+objects_path = "./models"
 
 # Allow connections via S3 compatible clients
 [storage.s3_protocol]
@@ -392,6 +396,13 @@ deno_version = 2
 
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
+
+# Asistente (fase 7). Sin verificación de JWT en la puerta: la app llama con
+# la clave publicable, que no es un JWT, y se puede usar sin cuenta. La función
+# limita el uso por cliente y, si llega el token de una sesión, la asocia.
+# GEMINI_API_KEY va en supabase/functions/.env (ignorado por git).
+[functions.assistant]
+verify_jwt = false
 
 [analytics]
 enabled = true

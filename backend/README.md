@@ -37,10 +37,23 @@ La URL depende de dónde corre la app, así que hay un archivo por destino. Todo
 |---|---|---|
 | Chrome o Windows | `env.json` (`env.example.json`) | `http://127.0.0.1:54321` |
 | Emulador de Android | `env.android.json` (`env.android.example.json`) | `http://10.0.2.2:54321` |
-| Celular físico | uno propio, por ejemplo `env.device.json` | `http://<IP del PC en la red local>:54321` |
+| Celular físico por USB (recomendado) | `env.json`, después de `adb reverse tcp:54321 tcp:54321` | `http://127.0.0.1:54321` |
+| Celular físico por Wi-Fi | uno propio, por ejemplo `env.device.json` | `http://<IP del PC en la red local>:54321` |
 
-`10.0.2.2` solo existe dentro del emulador de Android, donde apunta al PC. En Chrome produce
-`ERR_CONNECTION_TIMED_OUT`.
+`10.0.2.2` solo existe dentro del emulador de Android, donde apunta al PC. En Chrome o en un celular físico produce
+`ERR_CONNECTION_TIMED_OUT`: la app abre, pero sin datos.
+
+**Celular por USB:** `adb reverse` hace que el puerto 54321 del celular llegue al PC por el cable, sin depender del
+Wi-Fi ni del firewall. La configuración "NEXUS – Teléfono por USB" de VS Code lo ejecuta antes de lanzar
+(`.vscode/tasks.json`). Hay que repetirlo si se desconecta el cable. A mano:
+
+```powershell
+& "$env:LOCALAPPDATAAndroidSdkplatform-toolsadb.exe" reverse tcp:54321 tcp:54321
+flutter run -d <id del celular> --dart-define-from-file=env.json
+```
+
+**Celular por Wi-Fi:** usar la IP del PC (`ipconfig`). El firewall de Windows debe permitir conexiones entrantes
+al puerto 54321 en la red privada.
 
 1. Copiar el ejemplo que corresponda.
 2. Poner en `SUPABASE_PUBLISHABLE_KEY` la *Publishable key* que muestra `npx supabase status` (en `backend/`).
@@ -86,7 +99,10 @@ backend/supabase/
 ├── migrations/      # esquema versionado (ver docs/MODELO_DATOS.md)
 ├── seed.sql         # datos de desarrollo
 ├── tests/           # pruebas pgTAP
-└── functions/       # Edge Functions (fase 6 en adelante)
+├── models/          # modelos 3D que se suben al bucket component-models (MODELOS_3D.md)
+└── functions/
+    ├── .env         # secretos locales (GEMINI_API_KEY); ignorado por git
+    └── assistant/   # asistente de recomendación con Gemini (fase 7)
 ```
 
 Las carpetas se crean en la fase que las usa. El modelo de datos está descrito en
@@ -99,6 +115,37 @@ npx supabase db reset
 npx supabase db lint --local --level warning   # sin hallazgos
 npx supabase test db                            # pgTAP en verde
 ```
+
+## Asistente (Edge Function, fase 7)
+
+El asistente usa Gemini. La clave **solo** vive en el servidor:
+- en local, en `supabase/functions/.env` como `GEMINI_API_KEY=...`, guardado sin BOM;
+- en producción, con `npx supabase secrets set GEMINI_API_KEY=...`.
+
+Nunca va en la app ni en `env.json`.
+
+Para servir la función en local, desde `backend/`:
+
+```powershell
+npx supabase functions serve --env-file supabase/functions/.env
+```
+
+Queda en `http://127.0.0.1:54321/functions/v1/assistant` y recarga sola al cambiar el código.
+
+**Pruebas del núcleo**, sin red ni Deno, con Node 22 o más reciente:
+
+```powershell
+node --test supabase/functions/assistant/core.test.ts
+```
+
+**Modelos y cuota:**
+- El nivel gratuito de Gemini tiene una cuota **por modelo**, y `gemini-3.5-flash` solo permite 20 llamadas al día.
+- Cada respuesta del asistente usa entre 1 y 8 llamadas.
+- Por eso la función prueba los modelos en orden (`gemini-3.5-flash`, `gemini-3.5-flash-lite`, `gemini-3.1-flash-lite`): si uno responde 429, repite la respuesta con el siguiente.
+- El orden se cambia con `GEMINI_MODELS=modelo1,modelo2` en el `.env`.
+- Si ninguno responde, la app muestra que el asistente no está disponible y ofrece el catálogo y el PC Builder.
+
+Cada pregunta queda en `assistant_interactions` (ver docs/MODELO_DATOS.md).
 
 ## Probar la API a mano
 

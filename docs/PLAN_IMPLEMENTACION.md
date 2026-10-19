@@ -27,8 +27,8 @@ Elijo Supabase en lugar de Firebase porque el dominio es relacional (órdenes, s
 |---|---|---|---|
 | Cuentas y cumplimiento | Registro con términos y consentimiento, login, recuperación, perfil y direcciones (RF-001 a 007) | Must | App + Supabase Auth |
 | Catálogo | Dos familias (armado / pieza por tipo), plantillas de atributos tipados, varias ofertas por producto, imágenes, búsqueda y filtros (RF-012 a 016, RF-032 a 035) | Must | App + BD |
-| Asistente | Necesidad en lenguaje natural, repreguntas, recomendación de armados con justificación por atributos reales, propuesta de piezas si ningún armado sirve, sin compra automática (RF-036 a 045) | Must (diferenciador) | App + Edge Function + LLM |
-| PC Builder | Slots por tipo de pieza, motor de reglas determinista y versionado, faltantes, sugerencias, total y paso al carrito (RF-046 a 052) | Must | App + Edge Function + BD |
+| Asistente | Necesidad en lenguaje natural, repreguntas, recomendación de armados con justificación por atributos reales, propuesta de piezas si ningún armado sirve, sin compra automática (RF-036 a 045); entrada por voz y llenado del PC Builder (RF-089) | Must (diferenciador) | App + Edge Function + LLM |
+| PC Builder | Slots por tipo de pieza, motor de reglas determinista y versionado, faltantes, sugerencias, total y paso al carrito (RF-046 a 052); visor 3D con un modelo por componente (RF-090) | Must (visor: Should) | App + BD + Storage |
 | Comercio | Carrito persistente, checkout con revalidación de precio y stock, pasarela, sub-órdenes por proveedor, descuento de stock, seguimiento (RF-053 a 070) | Must | App + Edge Functions |
 | Comisiones y liquidación | Comisión por proveedor o producto con vigencia (prevalece la del producto, S-05), snapshot por ítem, liquidaciones (RF-071 a 079) | Must | Solo backend |
 | Integración de proveedores | API keys, upsert idempotente por SKU externo, validación contra plantilla y categoría, rechazos detallados, logs, inventario desactualizado, webhooks de órdenes (RF-018 a 031, RF-062, 063) | Must | Solo backend |
@@ -128,30 +128,79 @@ Cada fase termina con `dart analyze` sin hallazgos (ver README: `flutter analyze
 - `CartController` con totales derivados (R3). La cantidad va de 1 al máximo disponible, que da una RPC; así se cierra D7 sin exponer las unidades en el listado.
 - Migrar `screens/cart` a `features/cart`.
 
-### Fase 6: PC Builder y motor de compatibilidad (paso 7)
-- Tablas `compat_rules` y `compat_rule_versions` (quién y cuándo, activación; RF-050), más los slots obligatorios por tipo.
-- `functions/_shared/compat-engine.ts` es determinista (RN-013). Reglas iniciales:
-  - socket CPU–placa;
-  - tipo de RAM–placa;
-  - factor de forma placa–gabinete;
-  - potencia de la fuente frente a la suma de TDP con margen;
-  - largo de la GPU frente al gabinete;
-  - socket del disipador.
-- `validate-build` devuelve incompatibilidades con la causa en lenguaje no técnico (RNF-023), las piezas faltantes y las sin stock, junto con alternativas compatibles (RF-049).
-- Flutter: `features/pc_builder` con `PcPartSpec` y estado fuera del árbol de widgets, y paso de la configuración al carrito (RF-051). R9 en el visor.
-- Pruebas: `deno test` del motor, más pruebas del controlador.
+### Fase 6: PC Builder y motor de compatibilidad (paso 7) — hecha
+- Tablas `builder_slots`, `compat_rules` y `compat_rule_versions` (versionadas, con quién y cuándo, y una sola versión activa; RF-050).
+- Motor determinista (RN-013) en **PostgreSQL**, con las RPC `validate_build` y `get_builder_candidates`. Reglas iniciales:
+  - socket CPU–placa y CPU–disipador;
+  - tipo, módulos y capacidad de RAM frente a la placa;
+  - formato placa–gabinete;
+  - largo de la GPU y altura del disipador frente al gabinete;
+  - potencia de la fuente;
+  - salida de video.
+- **Cambio frente al plan original:** el motor iba a ser una Edge Function en TypeScript probada con `deno test`. Se hizo en SQL para que las reglas, los datos y la evaluación vivan juntos, para probarlo con pgTAP sin instalar Deno y para que el asistente reutilice la misma RPC.
+- Flutter: `features/pc_builder` con estado fuera del árbol de widgets, selector de piezas con compatibilidad y causa, y paso de la configuración al carrito (RF-051). No se creó `PcPartSpec`: la app no necesita los atributos tipados, porque el backend evalúa. El ícono fijo que hacía de visor 3D se retiró; el visor real es la fase 6.1.
 
-### Fase 7: asistente de recomendación
-- Edge Function `assistant`: un LLM con herramientas sobre la BD (`search_catalog`, `get_product_attributes` y `validate_build`, que reutiliza el motor de la fase 6).
-  - La clave del modelo vive solo en el servidor.
-  - Al implementar se carga el skill `claude-api` para elegir el modelo y el patrón de uso de herramientas.
-- Salida estructurada con `productIds` y una justificación por atributos.
-  - El servidor revalida que cada producto exista, esté publicado y tenga stock antes de responder (RF-041, RN-015).
-  - Se repregunta si falta el uso o el presupuesto (RF-037).
-  - Si ningún armado sirve, se propone una configuración de piezas validada (RF-040).
-- Tabla `assistant_interactions` para la trazabilidad (RF-043, RNF-034).
-- Mitigación de la manipulación de instrucciones: el contexto se limita al catálogo y no hay datos de otros usuarios (RNF-009).
-- Flutter: `features/assistant` con chat, tarjetas de recomendación que llevan al detalle, al PC Builder o al carrito (RF-042), aviso de contenido generado (RNF-025) y degradación si la IA cae (RNF-018).
+### Fase 6.1: visor 3D de la configuración (RF-090) — hecha
+Objetivo: ver cómo se vería el computador con las piezas elegidas, ya sea a mano o por el asistente.
+- **Modelos:** archivos `.glb` en el bucket público `component-models` de Storage. La tabla `component_models` guarda el modelo de un producto o el genérico de su categoría, con su licencia y autor. Los datos de la escena los entrega la RPC `get_build_scene`.
+  - Hay tres modelos genéricos, con licencia libre y descargados de Poly Pizza: CPU, RAM y gráfica.
+  - Gabinete, placa, fuente, refrigeración y almacenamiento se generan en el visor con las medidas reales de los atributos. Cómo agregar modelos: `backend/MODELOS_3D.md`.
+- **Ensamblado:** `scene_layout.dart` (Dart puro, con pruebas) define una caja en milímetros para cada pieza.
+  - Se basa en el formato de la placa (socket, ranuras de RAM, PCIe, M.2) y en los atributos: largo de la GPU, módulos de RAM, altura del disipador, radiador y tipo de almacenamiento.
+  - El visor escala cada modelo sin deformarlo hasta que quepa en su caja, y lo alinea.
+- **Render:** three.js empaquetado en un único HTML (`tool/viewer` → `assets/viewer/viewer.html`).
+  - En Android e iOS va en un WebView (`webview_flutter`) y en la web en un iframe.
+  - En escritorio no hay visor; la pantalla lo explica.
+- **En la app:**
+  - el visor va arriba del armador; se puede girar y acercar;
+  - las piezas con incompatibilidades se marcan en rosa;
+  - tocar una pieza abre su selector;
+  - un botón muestra los créditos de los modelos.
+- **Cambios frente al diseño inicial:**
+  - Los puntos de montaje iban a ser nodos dentro de cada modelo, hechos en Blender. Los modelos gratuitos no los traen, así que la posición sale de `scene_layout.dart` y cada modelo solo guarda una rotación de corrección.
+  - `flutter_scene` se descartó porque exige el canal master de Flutter.
+- **Pruebas:**
+  - pgTAP de la tabla y la RPC;
+  - pruebas del cálculo de la escena, del JSON y del widget con un visor falso;
+  - integración, que incluye la descarga del `.glb`;
+  - revisión del render con capturas de Chrome sin interfaz.
+  - Falta medir en un teléfono físico (R9).
+
+### Fase 7: asistente de recomendación — hecha
+- **Edge Function `assistant`** (TypeScript, `backend/supabase/functions/assistant`) con **Google Gemini** (decisión del equipo, 2026-10-19) y llamadas a funciones.
+  - **Herramientas de consulta:**
+    - `search_catalog`;
+    - `list_compatible_parts`, varias categorías por llamada;
+    - `validate_build`, el motor SQL de la fase 6.
+  - **Herramientas que cierran el turno:** `ask_user`, `recommend` y `no_match`. El modelo siempre termina con una de ellas, así que la respuesta llega como datos que se pueden validar.
+  - **La clave vive solo en el servidor:** `GEMINI_API_KEY` en `backend/supabase/functions/.env` (ignorado por git) o en `supabase secrets set`.
+- **El servidor revalida antes de responder** (RF-041, RN-015): cada producto debe existir, estar publicado y tener stock, y la configuración debe ser válida y comprable. Si no, se le pide al modelo que corrija (hasta 2 veces) y lo que no sirve se descarta.
+- **Conversación:** se repregunta si falta el uso o el presupuesto (RF-037). Se prefieren los armados; si ninguno sirve, se arma una configuración de piezas (RF-040).
+- **Trazabilidad:** tabla `assistant_interactions` con la pregunta, la respuesta, los productos, el modelo, las herramientas usadas y la latencia (RF-043, RNF-034). Guarda un hash del cliente, no la IP.
+- **Seguridad y costo:**
+  - Límite de 20 preguntas cada 10 minutos por cliente.
+  - El contexto se limita al catálogo público, sin datos de otros usuarios (RNF-009).
+  - Las instrucciones del sistema ignoran los intentos de cambiar las reglas.
+- **Degradación (RNF-018):**
+  - un reintento ante errores 5xx o conexiones cortadas;
+  - una cadena de modelos, porque cada uno tiene su propia cuota gratuita (`gemini-3.5-flash` solo permite 20 llamadas al día);
+  - si ninguno responde, un `503` que la app muestra con atajos al catálogo y al PC Builder.
+- **Flutter** (`features/assistant`):
+  - pestaña ASISTENTE en el centro de la barra;
+  - chat con sugerencias y aviso de contenido generado (RNF-025);
+  - tarjetas de producto con motivo, "Ver detalle" y "Agregar" (RF-042);
+  - la configuración por piezas con "Ver en el PC Builder (3D)", que la carga en el armador y en el visor (RF-089). Nunca compra sola (RF-088).
+- **Voz (RF-089):** `speech_to_text`, en español de Colombia si el dispositivo lo tiene. El texto queda en el campo para que el cliente lo revise antes de enviarlo.
+  - El reconocedor es el del sistema (Android, iOS o el navegador) y puede usar servicios de Google o Apple según la configuración del teléfono.
+  - NEXUS no recibe ni guarda el audio.
+- **Pruebas:**
+  - núcleo de la función con `node --test`, con modelo y RPC falsos;
+  - pgTAP;
+  - JSON, controlador y pantalla en Flutter;
+  - integración contra la función. La que llama a Gemini es opcional (`ASSISTANT_LIVE=true`) porque gasta cuota.
+  - El flujo completo se revisó en la app web: pregunta, presupuesto, configuración, PC Builder y 3D.
+- **Visualizar en 3D un armado recomendado** (RF-090): tabla `prebuilt_components` y RPC `get_prebuilt_scene`. Muestra sus componentes en las secciones del PC Builder y en la vista 3D, sin tocar la configuración del cliente. El armado se compra completo.
+- **Cambio frente al plan:** no hay una herramienta `get_product_attributes` separada. Las búsquedas ya traen los atributos legibles (RPC `get_product_attributes`), así se ahorran llamadas al modelo.
 
 ### Fase 8: checkout, pagos y comisión
 - Tablas `orders`, `sub_orders` (una por proveedor, S-06), `order_items` (snapshot de precio, cantidad, % de comisión y neto; RN-026), `payments` y `commission_rules` (proveedor o producto con vigencia; prevalece la del producto).

@@ -1,0 +1,16 @@
+{
+    // Tareas de apoyo para .vscode/launch.json.
+    "version": "2.0.0",
+    "tasks": [
+        {
+            // Hace que 127.0.0.1:54321 en el teléfono (USB) llegue al Supabase del PC.
+            // Hay que repetirlo si se desconecta el cable.
+            "label": "adb reverse Supabase",
+            "type": "process",
+            "command": "${env:LOCALAPPDATA}/Android/Sdk/platform-tools/adb.exe",
+            "args": ["reverse", "tcp:54321", "tcp:54321"],
+            "presentation": { "reveal": "silent" },
+            "problemMatcher": []
+        }
+    ]
+}

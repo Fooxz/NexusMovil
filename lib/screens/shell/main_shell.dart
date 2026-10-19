@@ -1,17 +1,19 @@
 import 'package:flutter/material.dart';
 
+import '../../features/assistant/presentation/assistant_screen.dart';
 import '../../features/catalog/presentation/catalog_screen.dart';
 import '../../features/profile/presentation/profile_screen.dart';
 import '../home/home_screen.dart';
-import '../pc_builder/pc_builder_screen.dart';
+import '../../features/pc_builder/presentation/pc_builder_screen.dart';
 import '../../widgets/lazy_indexed_stack.dart';
 import '../../widgets/nexus_bottom_nav.dart';
 
 enum NexusTab {
   home(0),
   catalog(1),
-  pcBuilder(2),
-  profile(3);
+  assistant(2),
+  pcBuilder(3),
+  profile(4);
 
   const NexusTab(this.tabIndex);
 
@@ -26,6 +28,10 @@ class MainShellScope extends InheritedWidget {
   });
 
   final void Function(NexusTab) selectTab;
+
+  /// Nulo fuera del shell (por ejemplo, en una pantalla abierta encima).
+  static MainShellScope? maybeOf(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<MainShellScope>();
 
   static MainShellScope of(BuildContext context) {
     final scope = context.dependOnInheritedWidgetOfExactType<MainShellScope>();
@@ -52,6 +58,7 @@ class _MainShellState extends State<MainShell> {
   static const List<Widget> _tabScreens = [
     HomeScreen(),
     CatalogScreen(),
+    AssistantScreen(),
     PcBuilderScreen(),
     ProfileScreen(),
   ];

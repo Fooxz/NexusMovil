@@ -30,6 +30,8 @@ Aquí `env.json` debe tener `SUPABASE_URL` = `http://127.0.0.1:54321`.
 
 `flutter analyze` (Flutter 3.47.2) falla en esta carpeta con `FormatException: Unexpected end of input`: el analysis server no maneja bien la `á` de `Práctica_dart` en la ruta. `dart analyze` aplica las mismas reglas de `analysis_options.yaml` y sí funciona. También funciona `flutter analyze` ejecutado desde una ruta solo ASCII, por ejemplo un junction (`New-Item -ItemType Junction`).
 
+Por la misma tilde, el plugin de Android para Gradle se niega a compilar ("Your project path contains non-ASCII characters"). `android/gradle.properties` lo desactiva con `android.overridePathCheck=true`, y la compilación funciona. Si algún día falla un paso nativo (por ejemplo, con el NDK), la solución definitiva es mover el proyecto a una carpeta sin tildes.
+
 Para inspección de rendimiento, usar un dispositivo físico y `flutter run --profile`; Chrome solo sirve para revisar lógica y aspecto, no fluidez.
 
 ## Documentación

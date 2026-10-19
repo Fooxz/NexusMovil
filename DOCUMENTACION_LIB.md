@@ -4,13 +4,15 @@ Este documento describe el código Dart actual de `lib/`, el punto de entrada, l
 
 ## Estado general
 
-NEXUS es una app Flutter de un marketplace de computadores armados y piezas. Con Supabase configurado, cuatro partes usan datos reales:
+NEXUS es una app Flutter de un marketplace de computadores armados y piezas. Con Supabase configurado, estas partes usan datos reales:
 - el catálogo (fase 3);
 - las cuentas: registro con consentimiento, inicio de sesión y recuperación (fase 4);
 - el perfil con direcciones de entrega (fase 4);
-- el carrito (fase 5).
+- el carrito (fase 5);
+- el PC Builder con el motor de compatibilidad (fase 6) y la vista 3D (fase 6.1);
+- el asistente de recomendación con Gemini, por texto o por voz (fase 7).
 
-Sin configuración, las mismas pantallas usan repositorios mock en memoria. Inicio y PC Builder todavía muestran datos de ejemplo escritos en el código. "Confirmar pedido" ya exige sesión, pero el pago llega en la fase 8.
+Sin configuración, las mismas pantallas usan repositorios mock en memoria (sin backend, el PC Builder avisa que no verifica compatibilidad y el asistente avisa que necesita el servidor). Inicio todavía muestra datos de ejemplo escritos en el código. "Confirmar pedido" ya exige sesión, pero el pago llega en la fase 8.
 
 ## Estructura de `lib/`
 
@@ -31,12 +33,26 @@ lib/
 |-- screens/
 |   |-- home/
 |   |   `-- home_screen.dart          # Inicio, productos destacados y accesos al shell
-|   |-- pc_builder/
-|   |   `-- pc_builder_screen.dart    # Configuración de PC de ejemplo
 |   `-- shell/
 |       |-- main_shell.dart           # Shell de pestañas con LazyIndexedStack y back handling
 |       `-- main_shell_scope.dart     # Scope para cambiar de pestaña desde los widgets hijos
 |-- features/
+|   |-- assistant/
+|   |   |-- assistant_providers.dart  # Repositorio, dictado y AssistantController (la conversación)
+|   |   |-- domain/                   # ChatTurn, AssistantReply (pregunta, recomendación, sin resultados), ProposedBuild
+|   |   |-- data/                     # Edge Function, lectura del JSON, mock sin backend y dictado (speech_to_text)
+|   |   `-- presentation/
+|   |       |-- assistant_screen.dart # Chat: sugerencias, tarjetas de producto y "Ver en el PC Builder (3D)"
+|   |       `-- voice_composer.dart  # Campo de texto con micrófono
+|   |-- pc_builder/
+|   |   |-- pc_builder_providers.dart # Repositorio, ranuras, PcBuilderController, candidatos y escena 3D
+|   |   |-- domain/                   # BuilderSlot, BuildPart, BuildIssue, BuildValidation, BuilderCandidate, BuildScene
+|   |   |-- data/                     # RPC del motor y de la escena, lectura del JSON y mock que no verifica compatibilidad
+|   |   `-- presentation/
+|   |       |-- pc_builder_screen.dart # Ranuras, estado, avisos por pieza, resumen y "Agregar todo"
+|   |       |-- part_picker_screen.dart # Piezas de una ranura: compatibles primero, con la causa si no
+|   |       |-- prebuilt_preview.dart # Un computador armado por secciones y en 3D (solo para ver)
+|   |       `-- viewer/               # Vista 3D: posición de cada pieza (scene_layout), widget y host por plataforma
 |   |-- cart/
 |   |   |-- cart_providers.dart       # Repositorio, carrito de invitado, CartController y contador
 |   |   |-- domain/                   # CartEntry, CartItem, CartState (grupos y totales), CartRepository
@@ -117,7 +133,8 @@ Las rutas de cuenta son `MaterialPageRoute<bool>`: al cerrarse devuelven si el u
 Inicio de app -> Inicio (sin cuenta)
   -> Catálogo -> Detalle del producto
   -> Carrito -> Confirmar pedido -> (sin sesión) Login -> vuelve al carrito
-  -> PC Builder
+  -> Asistente (texto o voz) -> producto, carrito o "Ver en el PC Builder (3D)"
+  -> PC Builder (con vista 3D)
   -> Perfil
       -> sin sesión: Iniciar sesión / Crear cuenta
       -> con sesión: datos personales, direcciones, cerrar sesión
@@ -175,9 +192,31 @@ Todas usan `AuthScaffold` (tarjeta centrada con botón de cerrar), validan antes
 
 Se agrega desde el ícono de carrito de las tarjetas del catálogo (la mejor oferta) y desde el detalle (oferta del proveedor elegido, cantidad, "Agregar al carrito" y "Comprar ahora"). El ícono de la barra superior muestra cuántas unidades hay.
 
+### Asistente
+
+`features/assistant/presentation/assistant_screen.dart` (HU-006), pestaña ASISTENTE en el centro de la barra:
+- **Inicio:** sugerencias que se envían con un toque, y un aviso fijo de que las respuestas las genera la IA a partir del catálogo (RNF-025).
+- **Respuestas:**
+  - preguntas cuando falta el uso o el presupuesto;
+  - tarjetas de producto con el motivo, "Ver detalle" y "Agregar";
+  - configuración por piezas con su total y "Ver en el PC Builder (3D)", que la carga en el armador y cambia de pestaña;
+  - en los computadores armados, "Visualizar en 3D", que abre el armado en el PC Builder (`prebuilt_preview.dart`): sus componentes por sección y en 3D, el botón para agregarlo completo al carrito y "Volver a mi configuración".
+- **Errores:** "Reintentar". Si la IA no está disponible, atajos al catálogo y al PC Builder (RNF-018).
+- **Voz** (`voice_composer.dart`): el micrófono dicta en el campo y el cliente revisa el texto antes de enviarlo.
+
 ### PC Builder
 
-`screens/pc_builder/pc_builder_screen.dart` presenta componentes fijos, un gabinete vacío, un progreso fijo de 8/9, estado compatible, desglose y total fijo. Los precios mock se convierten a COP con tasa 4.000 y redondeo unitario al millar; el total fijo suma los componentes convertidos. Las acciones de editar, eliminar, seleccionar, comprar y agregar al carrito no cambian la configuración. El cálculo de compatibilidad descrito en comentarios todavía no está implementado.
+`features/pc_builder/presentation/pc_builder_screen.dart` (HU-008):
+- **Estado:** un aviso dice qué hacer (empezar por el procesador, qué falta, cuántas incompatibilidades hay, piezas sin stock o "Configuración compatible y completa") y cuántas piezas obligatorias van.
+- **Ranuras:** cada una muestra la pieza elegida con su proveedor y precio, sus incompatibilidades en lenguaje simple, "Cambiar" o "Ver alternativas", y "Quitar". Las vacías dicen si son obligatorias u opcionales.
+- **Resumen:** precio por pieza, total, "Agregar todo al carrito" (solo si la configuración es válida y tiene stock) y "Empezar de nuevo".
+- **Selector** (`part_picker_screen.dart`): lista las piezas de la ranura con COMPATIBLE o NO COMPATIBLE y el motivo; las agotadas no se pueden elegir.
+- **Vista 3D** (`viewer/pc_viewer.dart`, RF-090): el gabinete con las piezas elegidas.
+  - Se gira y se acerca; las piezas incompatibles se ven en rosa y tocar una pieza abre su selector.
+  - Usa los modelos `.glb` del backend y genera las piezas que no tienen modelo. "Créditos de los modelos 3D" muestra los autores y las licencias.
+  - Funciona en Android, iOS y la web. En escritorio explica que no está disponible.
+
+La compatibilidad la decide el motor del backend; la app solo la muestra.
 
 ## Entrada y origen de datos
 
@@ -192,13 +231,13 @@ Se agrega desde el ícono de carrito de las tarjetas del catálogo (la mejor ofe
 | Filtros y orden | Familia, tipo de pieza, marca, precio y orden | Chips de familia y de tipo de pieza; hoja "Filtros" con marcas del repositorio y rangos de precio; menú de orden (relevancia, menor y mayor precio). Todo se envía al repositorio. |
 | Cantidad de producto | Unidades en detalle | De 1 a 10; el backend valida contra el stock y responde cuántas quedan. |
 | Carrito | Ofertas, cantidades y totales | Guardado en Supabase con sesión; en memoria sin sesión, y se suma al guardado al iniciar sesión. |
-| PC Builder | Piezas, compatibilidad y precio | Componentes, progreso, compatibilidad y total fijos; no se recalculan. |
+| PC Builder | Una pieza por ranura | Cada cambio se valida con el motor de reglas del backend; la selección vive en memoria mientras la app está abierta. |
 
 `NexusTextField`, en `widgets/nexus_widgets.dart`, usa `TextFormField` y conserva `hint`, `obscure` y `prefixIcon`. También acepta opcionalmente `controller`, `onChanged`, `onSubmitted`, `validator`, `keyboardType`, `textInputAction` y `enabled`. Los errores de validación usan el rosa de la paleta NEXUS. Sigue siendo `StatelessWidget` y no crea controladores propios; quien proporciona un controlador externo es responsable de destruirlo. No implementa debounce: esa lógica debe vivir en el controlador de búsqueda, no en el campo.
 
 Los formularios de cuenta y perfil (fase 4) usan `controller`, `validator`, `keyboardType`, `textInputAction` y `autofillHints`, este último agregado en esa fase; el catálogo usa `onChanged`. La suite del campo cubre controlador, `onChanged`, validación dentro de `Form`, uso sin `Form`, texto oculto y campo deshabilitado.
 
-El catálogo es la única parte conectada a un servicio: con Supabase configurado lee las RPC del contrato; sin configuración usa el mock. La navegación al detalle conserva el id seleccionado. No hay almacenamiento local. Home, carrito y PC Builder todavía usan datos locales; la navegación no conserva formularios enviados.
+Con Supabase configurado, catálogo, cuentas, perfil, carrito y PC Builder usan el backend; sin configuración, sus mocks. No hay almacenamiento local propio: la sesión la guarda Supabase.
 
 ## Componentes visuales compartidos
 
@@ -255,6 +294,19 @@ Pasos completados:
   carrito guardado con sesión y de invitado en memoria que se fusiona al
   iniciar sesión, contador en el ícono y "Agregar"/"Comprar ahora" desde
   el catálogo y el detalle.
+- **Fase 6:** PC Builder (contrato v0.6, parte 3): motor de compatibilidad
+  determinista en PostgreSQL con reglas versionadas, avisos en lenguaje
+  simple, faltantes, piezas sin stock, alternativas compatibles y paso de la
+  configuración al carrito.
+- **Fase 6.1:** vista 3D de la configuración (contrato v0.7, `get_build_scene`):
+  modelos `.glb` en Storage con su licencia, piezas generadas con sus medidas
+  reales cuando no hay modelo, incompatibilidades marcadas y selector al tocar
+  una pieza.
+- **Fase 7:** asistente de recomendación (contrato v0.8, parte 4). Edge Function con Gemini
+  y herramientas de solo lectura sobre el catálogo, validación de cada
+  recomendación en el servidor, cadena de modelos por cuota, registro de
+  interacciones, chat con dictado por voz y paso de la configuración al PC
+  Builder y a la vista 3D.
 
 La hoja de ruta vigente está en [docs/PLAN_IMPLEMENTACION.md](docs/PLAN_IMPLEMENTACION.md).
 Los requisitos son los de [docs/REQUISITOS.md](docs/REQUISITOS.md) (análisis v2):
@@ -268,14 +320,18 @@ fase 6. Autenticación pasa a ser la fase 4.
 El árbol anterior refleja los archivos Dart actuales bajo `lib/`. Las pruebas de `test/` cubren:
 - **catálogo:** formato COP, stock, filtros, búsqueda, paginación, JSON del contrato, repositorio con RPC falsas, widgets y 360 px;
 - **cuentas:** validadores, mapeo de errores de Supabase Auth, mocks de cuentas y perfil, y flujos de login, registro, recuperación, `ensureSignedIn`, perfil y direcciones;
+- **PC Builder:** JSON del motor, parámetros de las RPC, mock que avisa que no verifica, selector, incompatibilidades por pieza, "Agregar todo" y 360 px;
+- **vista 3D:** posición de cada pieza según la placa y los atributos, JSON de la escena, eventos del visor, sincronía con la selección, piezas marcadas, toque que abre el selector, créditos y plataformas sin visor;
+- **asistente:** JSON de la función, errores (IA caída, límite de uso, red), controlador (historial, reintento, conversación nueva, envíos cruzados), pantalla (sugerencias, tarjetas, carrito, "Ver en el PC Builder", atajos, dictado, 360 px) y pestaña;
 - **carrito:** totales y grupos, JSON de líneas, controlador con y sin sesión (incluida la fusión y los toques rápidos), pantalla del carrito, agregar desde el detalle y la tarjeta, y el contador;
 - **Inicio:** de 32 a 412 px.
 
 `test/integration/` prueba los repositorios reales contra el Supabase local y se salta sin configuración.
 
-**Validación de la fase 5:**
+**Validación de la fase 7:**
 - `dart analyze` sin hallazgos.
-- `flutter test`: 169 pruebas aprobadas y 13 de integración saltadas; esas 13 pasan contra el backend local.
-- pgTAP: 87 pruebas.
+- `flutter test`: 235 pruebas aprobadas y 22 de integración saltadas. Contra el backend local pasan 21; la que llama a Gemini se corre aparte con `ASSISTANT_LIVE=true`.
+- pgTAP: 157 pruebas. Edge Function: 21 pruebas con `node --test`.
+- El flujo pregunta → presupuesto → configuración → PC Builder → vista 3D se revisó en la app web con Chrome sin interfaz.
 
 No se probó en un dispositivo. Para mediciones de rendimiento, usar un teléfono físico con `flutter run --profile`, según `REGLAS_RENDIMIENTO.md`.

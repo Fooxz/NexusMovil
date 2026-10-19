@@ -20,6 +20,15 @@
             "args": ["--dart-define-from-file=env.android.json"]
         },
         {
+            // Teléfono físico conectado por USB: "adb reverse" lleva el puerto
+            // 54321 del teléfono al PC, así que sirve el mismo env.json (127.0.0.1).
+            "name": "NEXUS – Teléfono por USB + Supabase local",
+            "request": "launch",
+            "type": "dart",
+            "preLaunchTask": "adb reverse Supabase",
+            "args": ["--dart-define-from-file=env.json"]
+        },
+        {
             "name": "NEXUS – sin backend (mock)",
             "request": "launch",
             "type": "dart"

@@ -1,6 +1,6 @@
-# Contrato de API: NEXUS Movil (v0.5, borrador)
+# Contrato de API: NEXUS Movil (v0.9, borrador)
 
-**Estado:** borrador. Parte 1: catalogo (secciones 1 a 5). Parte 2: carrito (seccion 10). Implementado en el backend (`backend/`) y consumido por el front desde las fases 3 y 5 de `docs/PLAN_IMPLEMENTACION.md`.
+**Estado:** borrador. Parte 1: catalogo (secciones 1 a 5). Parte 2: carrito (seccion 10). Parte 3: PC Builder y vista 3D (seccion 11). Parte 4: asistente (seccion 12). Implementado en el backend (`backend/`) y consumido por el front desde las fases 3, 5, 6, 6.1 y 7 de `docs/PLAN_IMPLEMENTACION.md`.
 **Quien lo escribe:** el front, a partir de sus modelos reales (`lib/features/catalog/domain`).
 **Quien lo implementa:** el backend Supabase de `backend/`.
 **Regla de oro:** ninguno de los dos lados cambia el comportamiento sin editar este archivo primero. Si el codigo y este documento no coinciden, el documento gana hasta que se actualice.
@@ -215,6 +215,8 @@ Todo error usa el mismo cuerpo:
 |---|---|---|
 | 400 | `VALIDATION_ERROR` | Parametro invalido (`page` negativo, `category` desconocida...). |
 | 404 | `PRODUCT_NOT_FOUND` | El id no existe. |
+| 429 | `RATE_LIMITED` | Demasiadas preguntas seguidas al asistente (seccion 12). |
+| 503 | `ASSISTANT_UNAVAILABLE` | El modelo de IA no respondio o no tiene cuota (seccion 12). |
 | 500 | `INTERNAL_ERROR` | Error no esperado. No exponer trazas ni detalles internos en `message`. |
 
 El front depende del **codigo HTTP** y del campo `code`. `message` es solo informativo.
@@ -297,7 +299,6 @@ Ambos lados deben poder usar este JSON como dato de prueba: el back para comprob
 Estas partes se agregan a este mismo archivo cuando se necesiten. No implementar nada de esto todavia.
 
 - **Autenticacion**: la hace Supabase Auth directamente (fase 4, `docs/MODELO_DATOS.md`); no tiene endpoints propios.
-- **PC Builder:** endpoint propio que devuelva producto **mas** su ficha con tipo, solo para piezas compatibles con el builder. Depende de las reglas de compatibilidad de negocio (RN-013) y se escribe antes de la fase 6 del plan.
 - **Asistente de recomendacion** (fase 7 del plan).
 - **Pedidos.**
 
@@ -322,6 +323,10 @@ Cambios compatibles (agregar un campo opcional, un endpoint nuevo): no rompen a 
 | 0.3.1 | Seccion 3.4: nombres de las RPC y de sus parametros (`page_size`, `max_items`). Sin cambios en las respuestas. |
 | 0.4 | Listado: nuevos parametros `brand`, `minPriceCents`, `maxPriceCents` y `sort` (cierra D5). Nuevo endpoint 3.5 de marcas (`get_catalog_brands`). Cambios compatibles: los parametros son opcionales. |
 | 0.5 | Nuevo campo `bestOfferId` en `Product`. Parte 2: carrito (seccion 10), con nuevos codigos de error `OUT_OF_STOCK`, `QUANTITY_UNAVAILABLE`, `OFFER_NOT_FOUND` y `AUTH_REQUIRED`. `details` puede traer JSON en texto. Cierra D7. Cambios compatibles. |
+| 0.6 | Parte 3: PC Builder (seccion 11): ranuras, validacion con el motor de reglas y piezas candidatas. Endpoints nuevos; sin cambios en los existentes. |
+| 0.7 | Seccion 11.4: `get_build_scene`, modelos 3D y atributos visuales de una configuracion (RF-090). Endpoint nuevo; sin cambios en los existentes. |
+| 0.9 | Seccion 11.5: `get_prebuilt_scene`, componentes de un computador armado para verlo en 3D. Endpoint nuevo; sin cambios en los existentes. |
+| 0.8 | Parte 4: asistente (seccion 12), la Edge Function `assistant`. Nuevos codigos `RATE_LIMITED` y `ASSISTANT_UNAVAILABLE`. Endpoint nuevo; sin cambios en los existentes. |
 
 ---
 
@@ -396,3 +401,193 @@ Reglas (RN-028): la cantidad va de 1 a `maxQuantity`. Cada linea es una oferta d
 | 400 | `VALIDATION_ERROR` | `quantity` menor que 1 o `items` no es una lista. | — |
 
 `details` es siempre **texto** (asi lo exige PostgREST). Cuando trae datos, es un JSON serializado que el front decodifica.
+
+---
+
+## 11. Parte 3: PC Builder (v0.6)
+
+La compatibilidad la decide **el backend** con reglas tecnicas versionadas (RN-013). El front no la calcula ni la supone: envia las ofertas elegidas y muestra lo que el backend responde.
+
+### 11.1 Ranuras: `get_builder_slots`
+
+`200`: lista de `{"category", "label", "required"}` en el orden del armador. Hoy son `cpu`, `motherboard`, `ram`, `gpu` (opcional), `storage`, `psu`, `pcCase` y `cooling` (opcional). La grafica pasa a ser obligatoria si el procesador no tiene graficos integrados: lo dice la regla `video_output`.
+
+### 11.2 Validar una configuracion: `validate_build`
+
+Parametro: `offer_ids`, una lista de 0 a 12 ids de oferta, con una sola pieza por ranura. No requiere sesion.
+
+```json
+{
+  "valid": false,
+  "purchasable": false,
+  "parts": [
+    { "offerId": "off-tp-9950x", "category": "cpu", "productId": "ryzen-9-9950x",
+      "productName": "RYZEN 9 9950X", "brand": "AMD", "providerName": "TecnoPartes",
+      "priceCents": 259600000, "available": true, "imageUrl": null }
+  ],
+  "issues": [
+    { "ruleCode": "cpu_motherboard_socket", "severity": "error",
+      "message": "El procesador usa el socket AM5 y la placa madre el LGA1700: no encajan entre si.",
+      "offerIds": ["off-tp-9950x", "off-mp-z790hero"] }
+  ],
+  "missingSlots": [ { "category": "ram", "label": "Memoria RAM" } ],
+  "totalCents": 859590000
+}
+```
+
+| Campo | Notas |
+|---|---|
+| `valid` | Sin incompatibilidades (`issues` con `severity: "error"`) y sin ranuras obligatorias vacias (RN-031). |
+| `purchasable` | `valid` y, ademas, todas las piezas disponibles. Solo entonces el front ofrece llevar la configuracion al carrito. |
+| `issues[].severity` | `error`: incompatibilidad. `warning`: **no se pudo verificar** una regla porque a una pieza le falta un dato tecnico obligatorio. El backend nunca supone compatibilidad. Un valor desconocido se trata como `error`. |
+| `issues[].message` | Texto listo para mostrar, en lenguaje simple (RNF-023). |
+| `issues[].offerIds` | Piezas que causan el problema. En la falta de potencia incluye la fuente y las piezas que consumen. Puede ser `[]` para avisos generales. |
+| `parts[].available` | `false` si la oferta ya no se puede comprar. |
+
+Errores: `400 VALIDATION_ERROR` (mas de 12 ofertas, dos piezas de la misma ranura o un computador armado) y `404 OFFER_NOT_FOUND`.
+
+### 11.3 Piezas para una ranura: `get_builder_candidates`
+
+Parametros: `category` (una ranura), `offer_ids` (la configuracion actual; la pieza de esa ranura se ignora) y `max_items` (defecto 30, maximo 50).
+
+`200`: lista de `Product` (seccion 2) con dos campos mas:
+- `compatible` (bool): si al ponerla en la ranura no aparece ninguna incompatibilidad que la involucre;
+- `incompatibilityReason` (string o `null`): el primer motivo, si no es compatible.
+
+Orden: primero las compatibles, luego las que tienen stock, luego por precio. La pieza se agrega con su `bestOfferId`.
+
+Errores: `400 VALIDATION_ERROR` si `category` no es una ranura del armador.
+
+### 11.4 Escena para la vista 3D: `get_build_scene` (v0.7)
+
+Parametro: `offer_ids`, con las mismas reglas y errores que `validate_build`.
+
+`200`:
+
+```json
+{
+  "parts": [
+    {
+      "offerId": "off-tp-rtx5080",
+      "category": "gpu",
+      "productName": "NVIDIA RTX 5080",
+      "attributes": { "length_mm": 304 },
+      "model": {
+        "path": "generic/gpu.glb",
+        "rotation": [0, 180, 0],
+        "generic": true,
+        "title": "Graphics card",
+        "author": "pgonarg",
+        "license": "CC-BY-3.0",
+        "sourceUrl": "https://poly.pizza/m/i45v5trpyR"
+      }
+    },
+    {
+      "offerId": "off-mp-rm850x",
+      "category": "psu",
+      "productName": "CORSAIR RM850x",
+      "attributes": {},
+      "model": null
+    }
+  ]
+}
+```
+
+- `parts` va en el orden de las ranuras.
+- `attributes` trae solo los atributos que cambian como se ve la pieza, si el producto los tiene: `form_factor`, `ram_slots`, `modules`, `length_mm`, `storage_type`, `cooling_type`, `height_mm`, `radiator_mm`, `max_gpu_length_mm` y `max_cooler_height_mm`.
+- `model` es el modelo del producto exacto o, si no hay, el generico de la categoria (`generic: true`). Es `null` si no hay ninguno: la app genera la pieza.
+  - `path` es la ruta del archivo `.glb` en el bucket publico `component-models` de Storage. La app arma la direccion con el cliente de Supabase, para que sirva igual en el emulador (`10.0.2.2`) y en el PC.
+  - `rotation` son los grados (X, Y, Z) que dejan el modelo en la orientacion de su categoria.
+  - `license` es `CC0-1.0`, `CC-BY-3.0`, `CC-BY-4.0` o `propia`. Con CC BY, la app muestra titulo, autor, licencia y `sourceUrl`.
+
+### 11.5 Computador armado en 3D: `get_prebuilt_scene` (v0.9)
+
+Parametro: `product_id` de un computador armado visible.
+
+`200`:
+
+```json
+{
+  "product": { "id": "pc-gamer-pro-r7-5070", "...": "Product (seccion 2)" },
+  "parts": [
+    {
+      "componentId": "pc-gamer-pro-r7-5070:gpu",
+      "category": "gpu",
+      "name": "NVIDIA GeForce RTX 5070 12 GB",
+      "partProductId": null,
+      "attributes": { "length_mm": 242 },
+      "model": { "path": "generic/gpu.glb", "rotation": [0, 180, 0], "generic": true,
+                 "title": "Graphics card", "author": "pgonarg", "license": "CC-BY-3.0",
+                 "sourceUrl": "https://poly.pizza/m/i45v5trpyR" }
+    }
+  ]
+}
+```
+
+- Un componente por seccion del PC Builder, en el orden de las ranuras. Una seccion sin componente no viene; por ejemplo, la grafica de un equipo con graficos integrados.
+- `componentId` es estable y reemplaza a `offerId` en la vista 3D. Los componentes **no se compran por separado**: el armado se compra completo con su `bestOfferId`.
+- `partProductId` enlaza la pieza del catalogo si tambien se vende suelta. En ese caso, `attributes` suma sus medidas.
+- `attributes` y `model` tienen el mismo significado que en 11.4.
+- `parts` vacio: el armado aun no tiene sus componentes registrados.
+
+Errores: `404 PRODUCT_NOT_FOUND` si no existe o no esta visible; `400 VALIDATION_ERROR` si no es un computador armado.
+
+---
+
+## 12. Parte 4: asistente (v0.8)
+
+Asistente de recomendacion (HU-006, RF-036 a RF-045, RF-089). Es una Edge Function, no una RPC: `POST /functions/v1/assistant`. No exige sesion; si la app envia el token de una sesion, la interaccion queda asociada a la cuenta.
+
+### 12.1 Pregunta
+
+```json
+{
+  "sessionId": "9f1c2a7be0d34c55a1f0b2c3d4e5f607",
+  "messages": [
+    { "role": "user", "text": "Necesito un computador de oficina para trabajar y editar videos" },
+    { "role": "assistant", "text": "¿Cual es tu presupuesto aproximado?" },
+    { "role": "user", "text": "Unos 8 millones de pesos" }
+  ]
+}
+```
+
+- `messages`: la conversacion, de 1 a 12 turnos (se usan los ultimos 12). Cada texto tiene de 1 a 1000 caracteres. El ultimo turno es del cliente (`user`).
+- Los turnos `assistant` resumen lo que respondio antes, incluidos los productos y las ofertas que recomendo, para que pueda seguir la conversacion.
+- `sessionId`: de 8 a 64 caracteres (letras, numeros, `_` o `-`), generado por la app. Agrupa los turnos para la trazabilidad (RF-043).
+
+### 12.2 Respuesta `200`
+
+```json
+{
+  "type": "recommendation",
+  "message": "Para editar video dentro de tu presupuesto te recomiendo este equipo.",
+  "products": [
+    { "product": { "id": "pc-gamer-pro-r7-5070", "...": "Product (seccion 2)" },
+      "reason": "Tiene 8 nucleos y 32 GB de RAM DDR5, de sobra para editar video." }
+  ],
+  "build": null,
+  "interactionId": "f7b369de-20e2-4a23-ab7a-896e450fb762",
+  "sessionId": "9f1c2a7be0d34c55a1f0b2c3d4e5f607"
+}
+```
+
+| `type` | Significado | Campos |
+|---|---|---|
+| `question` | Falta informacion, por ejemplo el uso o el presupuesto (RF-037). | `message` es la pregunta. |
+| `recommendation` | Recomendacion (RF-038 a RF-040). | `products` (hasta 3) y/o `build`. |
+| `noMatch` | No hay nada adecuado o la peticion no es sobre computadores (RF-041). | `message` explica que si puede hacer. |
+
+- `products[].product` es un `Product` completo (seccion 2) y `reason` explica por que le sirve, con sus atributos reales.
+- `build` es una configuracion de piezas: `{ "reason": "...", "validation": <respuesta de validate_build> }`. Las piezas de la configuracion no se repiten en `products`.
+- **Garantia del servidor (RF-041, RN-015):** antes de responder, la funcion comprueba que cada producto exista, este publicado y tenga stock, y que `build` sea valido y comprable.
+  - Si el modelo propone algo que no cumple, se le pide corregir.
+  - Si al final no queda nada valido, responde `noMatch`.
+- El asistente nunca agrega al carrito ni compra (RF-088). La app ofrece ver el producto, agregarlo o abrir la configuracion en el PC Builder (RF-042).
+
+### 12.3 Errores
+
+| HTTP | `code` | Cuando |
+|---|---|---|
+| 400 | `VALIDATION_ERROR` | La conversacion no cumple 12.1. |
+| 429 | `RATE_LIMITED` | Mas de 20 preguntas en 10 minutos desde el mismo cliente. |
+| 503 | `ASSISTANT_UNAVAILABLE` | Ningun modelo respondio (caido o sin cuota). La app ofrece el catalogo y el PC Builder (RNF-018). |
