@@ -10,7 +10,7 @@
 ## 1. Convenciones generales
 
 - REST sobre HTTP, cuerpos en **JSON UTF-8**.
-- Prefijo de rutas: `/api/v1`. Con Supabase, cada endpoint de este documento se implementa como una funcion RPC de PostgREST (por ejemplo `GET /api/v1/products` → `rpc/get_products`). La ruta es el nombre logico; **la forma del JSON, los parametros y los errores de este documento no cambian**.
+- Prefijo de rutas: `/api/v1`. Con Supabase, cada endpoint de este documento se implementa como una funcion RPC de PostgREST (por ejemplo `GET /api/v1/products` → `rpc/get_products`). La ruta es el nombre logico; **la forma del JSON, los parametros y los errores de este documento no cambian**. Ver la seccion 3.4 para los nombres de los parametros de cada RPC.
 - Nombres de campos en **camelCase**.
 - **Dinero: enteros en centavos, moneda unica COP (peso colombiano).** Nunca decimales ni texto. Ejemplo: 9.200.000 COP se envia como `920000000`.
   - Los precios son siempre **multiplos de 100** (no existen fracciones de peso en los precios de la tienda).
@@ -161,6 +161,19 @@
 - `404` si `{id}` no existe.
 - **Quien decide que es "relacionado" es el backend.** Regla sugerida: primero la misma categoria, despues el resto. El front solo muestra lo que llega, en el orden recibido.
 
+### 3.4 Implementacion con Supabase (RPC)
+
+Cada endpoint es un `POST /rest/v1/rpc/<funcion>` con los parametros en un cuerpo JSON. Desde Flutter: `supabase.rpc('<funcion>', params: {...})`. Las respuestas y los errores son los de las secciones 3.1 a 3.3 y 4.
+
+| Endpoint | RPC | Parametros (cuerpo JSON) |
+|---|---|---|
+| 3.1 Listar | `get_products` | `page`, `page_size`, `search`, `family`, `category` |
+| 3.2 Detalle | `get_product` | `id` |
+| 3.3 Relacionados | `get_related` | `id`, `max_items` (equivale a `limit`, palabra reservada de SQL) |
+
+- Los nombres de parametro de las RPC van en snake_case porque son argumentos de funciones SQL. Los campos de las respuestas siguen en camelCase.
+- Los errores llegan con el codigo HTTP del contrato y un cuerpo `{"code", "message", "details", "hint"}`. El front ignora `details` y `hint`.
+
 ---
 
 ## 4. Errores
@@ -278,6 +291,7 @@ Cambios compatibles (agregar un campo opcional, un endpoint nuevo): no rompen a 
 | 0.1 | Primer borrador: catalogo (listar, detalle, relacionados). |
 | 0.2 | Moneda fijada en COP (centavos, enteros de 64 bits, multiplos de 100). Nuevo valor `outOfStock` en `stockLevel` (0 unidades = no disponible). `critical` = de 1 a N unidades. Los agotados se listan. Precios de los ejemplos pasados a COP. |
 | 0.3 | Nuevo enfoque del analisis v2: se elimina `phone` y se agrega la categoria `prebuiltPc`. Nuevos campos en `Product`: `family`, `imageUrl` (cierra D4) y `offers` (modelo `Offer`, solo en el detalle). `priceCents`, `oldPriceCents` y `stockLevel` pasan a reflejar la mejor oferta. Nuevo parametro `family` en el listado. Fixture corregido (antes filtraba `gpu` y devolvia un CPU). Implementacion con RPC de Supabase. Nuevas decisiones D8 y D9. |
+| 0.3.1 | Seccion 3.4: nombres de las RPC y de sus parametros (`page_size`, `max_items`). Sin cambios en las respuestas. |
 
 ---
 

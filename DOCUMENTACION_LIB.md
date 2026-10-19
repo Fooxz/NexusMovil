@@ -184,6 +184,9 @@ Pasos completados:
 - **Fase 0:** documentación alineada con el análisis v2 y contrato v0.3.
 - **Fase 1:** proyecto Supabase en `backend/` y `core/` con configuración,
   cliente y errores. La UI no cambia.
+- **Fase 2:** esquema del catálogo, bitácora de auditoría y RPC del contrato
+  en el backend ([docs/MODELO_DATOS.md](docs/MODELO_DATOS.md)). La app todavía
+  usa el mock; se conecta en la fase 3.
 
 La hoja de ruta vigente está en [docs/PLAN_IMPLEMENTACION.md](docs/PLAN_IMPLEMENTACION.md).
 Los requisitos son los de [docs/REQUISITOS.md](docs/REQUISITOS.md) (análisis v2):

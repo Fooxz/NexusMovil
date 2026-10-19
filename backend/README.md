@@ -59,10 +59,37 @@ Las migraciones son la única fuente del esquema: no se cambian tablas a mano de
 ```text
 backend/supabase/
 ├── config.toml      # configuración del entorno local
-├── migrations/      # fase 2 en adelante
-├── seed.sql         # datos de desarrollo (fase 2)
-├── tests/           # pgTAP (fase 2)
+├── migrations/      # esquema versionado (ver docs/MODELO_DATOS.md)
+├── seed.sql         # datos de desarrollo
+├── tests/           # pruebas pgTAP
 └── functions/       # Edge Functions (fase 6 en adelante)
 ```
 
-Las carpetas se crean en la fase que las usa.
+Las carpetas se crean en la fase que las usa. El modelo de datos está descrito en
+[../docs/MODELO_DATOS.md](../docs/MODELO_DATOS.md).
+
+Antes de dar por terminada una fase con cambios de base de datos:
+
+```powershell
+npx supabase db reset
+npx supabase db lint --local --level warning   # sin hallazgos
+npx supabase test db                            # pgTAP en verde
+```
+
+## Probar la API a mano
+
+```powershell
+$key = (npx supabase status -o json | ConvertFrom-Json).PUBLISHABLE_KEY
+Invoke-RestMethod -Method Post -Uri http://127.0.0.1:54321/rest/v1/rpc/get_products `
+  -Headers @{ apikey = $key } -ContentType 'application/json' `
+  -Body '{"page":0,"page_size":5,"family":"part"}'
+```
+
+Las búsquedas con tildes necesitan el cuerpo en UTF-8. En Git Bash, los argumentos de `curl` con tildes
+no llegan así. En PowerShell, enviar los bytes:
+
+```powershell
+Invoke-RestMethod -Method Post -Uri http://127.0.0.1:54321/rest/v1/rpc/get_products `
+  -Headers @{ apikey = $key } -ContentType 'application/json; charset=utf-8' `
+  -Body ([Text.Encoding]::UTF8.GetBytes('{"search":"refrigeración"}'))
+```
