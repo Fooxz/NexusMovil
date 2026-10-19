@@ -2,10 +2,25 @@
     // Use IntelliSense to learn about possible attributes.
     // Hover to view descriptions of existing attributes.
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    //
+    // Las configuraciones con Supabase necesitan el backend levantado
+    // (backend/README.md) y su archivo env*.json (copiar del *.example.json).
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "prueba01",
+            "name": "NEXUS – Chrome/Windows + Supabase local",
+            "request": "launch",
+            "type": "dart",
+            "args": ["--dart-define-from-file=env.json"]
+        },
+        {
+            "name": "NEXUS – Emulador Android + Supabase local",
+            "request": "launch",
+            "type": "dart",
+            "args": ["--dart-define-from-file=env.android.json"]
+        },
+        {
+            "name": "NEXUS – sin backend (mock)",
             "request": "launch",
             "type": "dart"
         },

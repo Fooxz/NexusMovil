@@ -20,4 +20,15 @@ class AppEnv {
 
   bool get hasSupabase =>
       supabaseUrl.isNotEmpty && supabasePublishableKey.isNotEmpty;
+
+  /// Errores de configuración frecuentes, para avisar al arrancar en debug.
+  /// [isAndroid] indica si la app corre en Android (emulador o teléfono).
+  List<String> warnings({required bool isAndroid}) => [
+    if (supabasePublishableKey.contains('reemplazar'))
+      'SUPABASE_PUBLISHABLE_KEY es la de ejemplo: copia la "Publishable key" '
+          'de `npx supabase status` (en backend/).',
+    if (!isAndroid && supabaseUrl.contains('10.0.2.2'))
+      'SUPABASE_URL usa 10.0.2.2, que solo existe en el emulador de Android. '
+          'En Chrome o Windows usa http://127.0.0.1:54321 (env.json).',
+  ];
 }

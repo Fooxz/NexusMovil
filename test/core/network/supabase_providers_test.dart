@@ -17,6 +17,21 @@ void main() {
     );
   });
 
+  test('warns about the example key and the emulator host outside Android', () {
+    const exampleOnWeb = AppEnv(
+      supabaseUrl: 'http://10.0.2.2:54321',
+      supabasePublishableKey: 'sb_publishable_reemplazar_con_la_de_supabase_status',
+    );
+    const realOnAndroid = AppEnv(
+      supabaseUrl: 'http://10.0.2.2:54321',
+      supabasePublishableKey: 'sb_publishable_abc',
+    );
+
+    expect(exampleOnWeb.warnings(isAndroid: false), hasLength(2));
+    expect(exampleOnWeb.warnings(isAndroid: true), hasLength(1));
+    expect(realOnAndroid.warnings(isAndroid: true), isEmpty);
+  });
+
   test('tests run without Supabase configured', () {
     expect(const AppEnv.fromEnvironment().hasSupabase, isFalse);
   });

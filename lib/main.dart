@@ -5,6 +5,7 @@
 // SUPABASE_PUBLISHABLE_KEY (ver env.example.json); sin ellos, la app usa los
 // repositorios mock. Este archivo también define las rutas.
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -22,6 +23,11 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   const env = AppEnv.fromEnvironment();
   if (env.hasSupabase) {
+    final isAndroid =
+        !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+    for (final warning in env.warnings(isAndroid: isAndroid)) {
+      debugPrint('[NEXUS] Configuración: $warning');
+    }
     await Supabase.initialize(
       url: env.supabaseUrl,
       publishableKey: env.supabasePublishableKey,

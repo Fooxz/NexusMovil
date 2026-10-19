@@ -49,3 +49,5 @@ app.*.map.json
 
 # Configuracion local de entorno (ver env.example.json)
 env.json
+env.*.json
+!env.*example.json
