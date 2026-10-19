@@ -11,9 +11,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'core/config/env.dart';
+import 'features/auth/presentation/forgot_password_screen.dart';
+import 'features/auth/presentation/login_screen.dart';
+import 'features/auth/presentation/signup_screen.dart';
 import 'routes.dart';
-import 'screens/auth/login_screen.dart';
-import 'screens/auth/signup_screen.dart';
 import 'screens/cart/cart_screen.dart';
 import 'features/catalog/presentation/product_detail_screen.dart';
 import 'screens/shell/main_shell.dart';
@@ -50,23 +51,42 @@ class NexusApp extends StatelessWidget {
       title: 'NEXUS',
       debugShowCheckedModeBanner: false,
       theme: buildNexusTheme(),
-      initialRoute: NexusRoutes.login,
+      // El catálogo se puede recorrer sin cuenta; la sesión se pide al
+      // comprar (RN-027) o desde la pestaña PERFIL.
+      initialRoute: NexusRoutes.home,
       routes: {
-        NexusRoutes.login: (_) => const LoginScreen(),
-        NexusRoutes.signup: (_) => const SignupScreen(),
         NexusRoutes.home: (_) => const MainShell(),
         NexusRoutes.cart: (_) => const CartScreen(),
       },
-      onGenerateRoute: (settings) {
-        if (settings.name != NexusRoutes.productDetail) return null;
-        final productId = settings.arguments;
-        return MaterialPageRoute<void>(
-          settings: settings,
-          builder: (_) => ProductDetailScreen(
-            productId: productId is String ? productId : '',
-          ),
-        );
-      },
+      onGenerateRoute: generateNexusRoute,
     );
   }
+}
+
+/// Rutas con argumentos o con resultado. Las de cuenta son
+/// `MaterialPageRoute<bool>` para que `pushNamed<bool>` reciba si el usuario
+/// quedó con sesión (la tabla `routes` crea rutas `<dynamic>` y fallaría).
+Route<Object?>? generateNexusRoute(RouteSettings settings) {
+  final arguments = settings.arguments;
+  return switch (settings.name) {
+    NexusRoutes.login => MaterialPageRoute<bool>(
+      settings: settings,
+      builder: (_) => LoginScreen(reason: arguments is String ? arguments : null),
+    ),
+    NexusRoutes.signup => MaterialPageRoute<bool>(
+      settings: settings,
+      builder: (_) => const SignupScreen(),
+    ),
+    NexusRoutes.forgotPassword => MaterialPageRoute<bool>(
+      settings: settings,
+      builder: (_) => const ForgotPasswordScreen(),
+    ),
+    NexusRoutes.productDetail => MaterialPageRoute<void>(
+      settings: settings,
+      builder: (_) => ProductDetailScreen(
+        productId: arguments is String ? arguments : '',
+      ),
+    ),
+    _ => null,
+  };
 }

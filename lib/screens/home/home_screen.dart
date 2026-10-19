@@ -4,6 +4,8 @@
 // ahora cada elemento (productos, categorías, tendencias, PC Builder y
 // carrito) navega a su pantalla correspondiente.
 
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../core/utils/format_price.dart';
@@ -155,7 +157,11 @@ class _Hero extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          Row(
+          // Wrap y no Row: en pantallas angostas o con texto grande el segundo
+          // botón baja a otra línea en vez de desbordarse.
+          Wrap(
+            spacing: 10,
+            runSpacing: 8,
             children: [
               NexusPrimaryButton(
                 label: 'EXPLORAR CATÁLOGO',
@@ -169,7 +175,6 @@ class _Hero extends StatelessWidget {
                 ),
                 borderRadius: 7,
               ),
-              const SizedBox(width: 10),
               NexusOutlineButton(
                 label: 'VER CATEGORÍAS',
                 onPressed: () =>
@@ -336,12 +341,36 @@ class _CategoryGrid extends StatelessWidget {
     'REFRIGERACIÓN',
   ];
 
+  static const _spacing = 8.0;
+
+  /// Tres columnas en un teléfono normal; menos si el espacio no alcanza
+  /// (ventana angosta del navegador, pantalla dividida).
+  static int _columnsFor(double width) => width >= 300
+      ? 3
+      : width >= 180
+      ? 2
+      : 1;
+
   @override
   Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: _categories.map((c) => _CategoryChip(label: c)).toList(),
+    // Un solo LayoutBuilder para toda la grilla: el ancho de cada chip se
+    // calcula una vez y nunca es negativo, aunque el espacio sea mínimo.
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = _columnsFor(constraints.maxWidth);
+        final itemWidth = math.max(
+          0.0,
+          (constraints.maxWidth - _spacing * (columns - 1)) / columns,
+        );
+        return Wrap(
+          spacing: _spacing,
+          runSpacing: _spacing,
+          children: [
+            for (final label in _categories)
+              SizedBox(width: itemWidth, child: _CategoryChip(label: label)),
+          ],
+        );
+      },
     );
   }
 }
@@ -353,34 +382,27 @@ class _CategoryChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        return SizedBox(
-          width: (constraints.maxWidth - 16) / 3,
-          child: InkWell(
-            onTap: () => MainShellScope.of(context).selectTab(NexusTab.catalog),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-              decoration: BoxDecoration(
-                color: NexusColors.card,
-                border: Border.all(color: NexusColors.border),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                label,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 0.3,
-                  color: NexusColors.text,
-                ),
-              ),
-            ),
+    return InkWell(
+      onTap: () => MainShellScope.of(context).selectTab(NexusTab.catalog),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+        decoration: BoxDecoration(
+          color: NexusColors.card,
+          border: Border.all(color: NexusColors.border),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          label,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            fontSize: 10.5,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 0.3,
+            color: NexusColors.text,
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 }

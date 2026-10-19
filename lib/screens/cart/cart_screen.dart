@@ -4,8 +4,10 @@
 // cálculo real vendrá cuando el carrito se conecte al estado de la app.
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/utils/format_price.dart';
+import '../../features/auth/presentation/auth_guard.dart';
 import '../../theme/nexus_theme.dart';
 import '../../widgets/nexus_page.dart';
 import '../../widgets/nexus_quantity_stepper.dart';
@@ -63,7 +65,7 @@ class CartScreen extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 18),
-        const NexusPrimaryButton(label: 'Confirmar pedido'),
+        const _ConfirmOrderButton(),
         const SizedBox(height: 10),
         const NexusOutlineButton(
           label: 'Vaciar carrito',
@@ -189,6 +191,32 @@ class _CartItemCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Solo un cliente con sesión confirma una compra (RN-027). El checkout real
+/// llega en la fase 8; por ahora, con sesión, solo se informa.
+class _ConfirmOrderButton extends ConsumerWidget {
+  const _ConfirmOrderButton();
+
+  Future<void> _confirm(BuildContext context, WidgetRef ref) async {
+    final signedIn = await ensureSignedIn(
+      context,
+      ref,
+      reason: 'para confirmar tu pedido',
+    );
+    if (!signedIn || !context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('El pago estará disponible muy pronto.')),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return NexusPrimaryButton(
+      label: 'Confirmar pedido',
+      onPressed: () => _confirm(context, ref),
     );
   }
 }

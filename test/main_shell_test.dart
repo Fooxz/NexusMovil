@@ -249,27 +249,24 @@ void main() {
     expect(find.byType(NexusBottomNav), findsNothing);
   });
 
-  testWidgets('PERFIL replaces MainShell with the /login route', (
+  testWidgets('PERFIL is a tab of the shell, not a route replacement', (
     WidgetTester tester,
   ) async {
     final observer = _RecordingNavigatorObserver();
 
     await tester.pumpWidget(
       _withProviderScope(
-        MaterialApp(
-          navigatorObservers: [observer],
-          routes: {'/login': (_) => const Scaffold(body: Text('login route'))},
-          home: const MainShell(),
-        ),
+        MaterialApp(navigatorObservers: [observer], home: const MainShell()),
       ),
     );
 
     await tester.tap(find.text('PERFIL'));
     await tester.pumpAndSettle();
 
-    expect(observer.replacedRouteName, '/login');
-    expect(find.text('login route'), findsOneWidget);
-    expect(find.text('TIENDA DE\nTECNOLOGÍA'), findsNothing);
+    expect(observer.replacedRouteName, isNull);
+    expect(find.text('MI CUENTA'), findsOneWidget);
+    expect(find.text('INICIAR SESIÓN'), findsOneWidget);
+    expect(find.byType(NexusBottomNav), findsOneWidget);
   });
 
   testWidgets('NexusBottomNav emits the correct tab for taps', (

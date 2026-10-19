@@ -9,18 +9,28 @@ lib/
 |-- widgets/                 # widgets visuales compartidos (como hoy)
 |-- theme/
 `-- features/
-    `-- catalog/
-        |-- catalog_providers.dart
-        |-- domain/               # Product, ProductOffer, ProductFilters, ProductPage, ProductRepository
-        |-- data/                 # Mock, Supabase y lectura del JSON del contrato
-        `-- presentation/         # catálogo, filtros, detalle y recursos visuales
+    |-- catalog/
+    |   |-- catalog_providers.dart
+    |   |-- domain/               # Product, ProductOffer, ProductFilters, ProductPage, ProductRepository
+    |   |-- data/                 # Mock, Supabase y lectura del JSON del contrato
+    |   `-- presentation/         # catálogo, filtros, detalle y recursos visuales
+    |-- auth/
+    |   |-- auth_providers.dart   # repositorio, sesión y controladores de formulario
+    |   |-- domain/               # AuthUser, LegalDocument, AuthRepository
+    |   |-- data/                 # Supabase Auth y mock en memoria
+    |   `-- presentation/         # login, registro, recuperación y ensureSignedIn
+    `-- profile/
+        |-- profile_providers.dart
+        |-- domain/               # UserProfile, Address, ProfileRepository
+        |-- data/                 # tablas profiles y addresses, y mock
+        `-- presentation/         # pestaña PERFIL, editar datos y formulario de dirección
 ```
 
-El catálogo es la primera feature migrada y la primera conectada al backend
-(fase 3). Las pantallas que aún no tienen una implementación basada en
-repositorios permanecen en `lib/screens/`; el carrito se migra en la fase 5 y
-PC Builder en la 6 (`docs/PLAN_IMPLEMENTACION.md`). No se crean carpetas vacías
-por adelantado.
+El catálogo fue la primera feature migrada y la primera conectada al backend
+(fase 3). La fase 4 agregó cuentas y perfil. Las pantallas que aún no tienen una
+implementación basada en repositorios permanecen en `lib/screens/`; el carrito
+se migra en la fase 5 y PC Builder en la 6 (`docs/PLAN_IMPLEMENTACION.md`). No
+se crean carpetas vacías por adelantado.
 
 ## Regla de dependencias
 
@@ -69,8 +79,31 @@ catálogo con un repositorio falso y pueden cambiar `catalogPageSizeProvider`
 para recorrer la paginación con pocas filas.
 
 `ProductSpec` contiene texto de presentación, no datos tipados de compatibilidad.
-Los datos para PC Builder se modelarán por separado como `PcPartSpec` en el paso
-7, sin acoplar el dominio del catálogo al builder.
+Los datos para PC Builder se modelarán por separado como `PcPartSpec` en la fase
+6, sin acoplar el dominio del catálogo al builder.
+
+### Sesión y navegación (fase 4)
+
+- **Se puede navegar sin cuenta.** La app abre en Inicio. La pestaña PERFIL invita a
+  iniciar sesión o muestra la cuenta.
+- **Acciones protegidas** (RN-027, por ejemplo confirmar un pedido): llaman a
+  `ensureSignedIn(context, ref, reason: ...)` (`features/auth/presentation/auth_guard.dart`).
+  Si no hay sesión, abre el login con el motivo y devuelve `true` solo si el usuario
+  terminó con sesión.
+- **Rutas de cuenta** (login, registro, recuperación): son `MaterialPageRoute<bool>`
+  generadas en `generateNexusRoute` (`main.dart`). Al cerrarse devuelven si hay sesión.
+  No van en la tabla `routes`, porque esta crea rutas `<dynamic>` y `pushNamed<bool>`
+  falla.
+- **`currentUserProvider`** se recalcula con el stream de sesión, pero lee el usuario del
+  repositorio. Justo después de iniciar sesión, el aviso del stream puede llegar un
+  instante tarde; por eso `ensureSignedIn` consulta el repositorio directamente.
+- **El perfil va en pareja con la autenticación:** con `MockAuthRepository` se usa
+  `MockProfileRepository`; con Supabase Auth, las tablas de Supabase.
+- **Errores de formulario:** cada formulario tiene su `AsyncNotifier` de acción
+  (`signInControllerProvider`, `addressFormControllerProvider`...). Su `loading` bloquea
+  el botón (`NexusPrimaryButton.loading`) y su `error` (un `AppFailure`) se muestra en
+  `AuthErrorBanner`. Las acciones de la lista de direcciones usan su propio provider,
+  para que un error ahí no aparezca en el formulario.
 
 ## Reglas de uso de Riverpod
 
@@ -100,5 +133,11 @@ Los datos para PC Builder se modelarán por separado como `PcPartSpec` en el pas
   independiente de los widgets.
 - **Sin generación de código:** menos herramientas y conceptos mientras se
   aprende Riverpod.
-- **Sin `go_router` por ahora:** la navegación actual alcanza hasta el paso 6.
+- **Sin `go_router` por ahora** (revisado en la fase 4). Las rutas con nombre más
+  `ensureSignedIn` cubren la sesión, y la recuperación por código no necesita
+  deep links. Se vuelve a evaluar en la fase 8, por el retorno desde la pasarela
+  de pago.
+- **Mocks sin latencia en pruebas:** con `latency: Duration.zero` los mocks no
+  llaman a `Future.delayed`, porque dentro de `testWidgets` solo avanza con `pump`
+  y las pruebas que preparan datos se quedarían esperando.
 - **Sin `Navigator` anidado:** añade una complejidad que no se necesita.

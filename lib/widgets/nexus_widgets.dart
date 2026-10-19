@@ -112,9 +112,18 @@ class NexusBracketTitle extends StatelessWidget {
     return Row(
       children: [
         const Expanded(child: Divider(color: NexusColors.border, height: 1)),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          child: Text('[ $label ]', style: NexusText.sectionLabel),
+        // Flexible: en pantallas angostas el título pasa a dos líneas en vez
+        // de desbordar la fila.
+        Flexible(
+          flex: 4,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: Text(
+              '[ $label ]',
+              style: NexusText.sectionLabel,
+              textAlign: TextAlign.center,
+            ),
+          ),
         ),
         const Expanded(child: Divider(color: NexusColors.border, height: 1)),
       ],
@@ -262,6 +271,7 @@ class NexusPrimaryButton extends StatelessWidget {
     this.fontSize = 13,
     this.padding,
     this.borderRadius,
+    this.loading = false,
   });
 
   final String label;
@@ -274,11 +284,17 @@ class NexusPrimaryButton extends StatelessWidget {
   final EdgeInsets? padding;
   final double? borderRadius;
 
+  /// Muestra un indicador y bloquea el botón (por ejemplo, mientras se envía
+  /// un formulario), para evitar envíos repetidos.
+  final bool loading;
+
   @override
   Widget build(BuildContext context) {
     final buttonStyle = ElevatedButton.styleFrom(
       backgroundColor: color,
       foregroundColor: foregroundColor,
+      disabledBackgroundColor: color.withValues(alpha: 0.6),
+      disabledForegroundColor: foregroundColor,
       padding:
           padding ??
           (fullWidth
@@ -291,13 +307,21 @@ class NexusPrimaryButton extends StatelessWidget {
       ),
       elevation: 0,
     );
-    final labelWidget = Text(
-      label,
-      style: TextStyle(fontSize: fontSize, fontWeight: FontWeight.bold),
-    );
+    final Widget labelWidget = loading
+        ? SizedBox.square(
+            dimension: fontSize + 3,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: foregroundColor,
+            ),
+          )
+        : Text(
+            label,
+            style: TextStyle(fontSize: fontSize, fontWeight: FontWeight.bold),
+          );
     // TODO: Pass null when disabled buttons should become truly disabled.
-    final VoidCallback pressed = onPressed ?? () {};
-    final button = icon == null
+    final VoidCallback? pressed = loading ? null : (onPressed ?? () {});
+    final button = icon == null || loading
         ? ElevatedButton(
             onPressed: pressed,
             style: buttonStyle,
@@ -351,10 +375,12 @@ class NexusTextField extends StatelessWidget {
     this.keyboardType,
     this.textInputAction,
     this.enabled = true,
+    this.autofillHints,
   });
 
   final String hint;
   final bool obscure;
+  final Iterable<String>? autofillHints;
   final IconData? prefixIcon;
   final TextEditingController? controller;
   final ValueChanged<String>? onChanged;
@@ -376,6 +402,7 @@ class NexusTextField extends StatelessWidget {
       keyboardType: keyboardType,
       textInputAction: textInputAction,
       enabled: enabled,
+      autofillHints: autofillHints,
       style: const TextStyle(fontSize: 13, color: NexusColors.text),
       decoration: InputDecoration(
         hintText: hint,

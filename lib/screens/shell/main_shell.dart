@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../../routes.dart';
 import '../../features/catalog/presentation/catalog_screen.dart';
+import '../../features/profile/presentation/profile_screen.dart';
 import '../home/home_screen.dart';
 import '../pc_builder/pc_builder_screen.dart';
 import '../../widgets/lazy_indexed_stack.dart';
@@ -53,23 +53,19 @@ class _MainShellState extends State<MainShell> {
     HomeScreen(),
     CatalogScreen(),
     PcBuilderScreen(),
+    ProfileScreen(),
   ];
 
   @override
   void initState() {
     super.initState();
     _currentTab = NexusTab.values.firstWhere(
-      (tab) => tab != NexusTab.profile && tab.tabIndex == widget.initialIndex,
+      (tab) => tab.tabIndex == widget.initialIndex,
       orElse: () => NexusTab.home,
     );
   }
 
   void _selectTab(NexusTab tab) {
-    if (tab == NexusTab.profile) {
-      Navigator.of(context).pushReplacementNamed(NexusRoutes.login);
-      return;
-    }
-
     if (tab == _currentTab) return;
     setState(() => _currentTab = tab);
   }

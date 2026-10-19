@@ -59,6 +59,15 @@ raíz, agregar `--workdir backend`.
 **Nunca** poner la `service_role` key ni otros secretos en `env.json` ni en el código de la app: van solo
 en las Edge Functions (`npx supabase secrets set`).
 
+## Cuentas y correos en local
+
+- Los correos que manda Supabase Auth, como el código de recuperación, no salen a internet: se ven en
+  **Mailpit**, `http://127.0.0.1:54324`.
+- Las contraseñas exigen 8 caracteres con letras y números. La confirmación de correo está desactivada en local,
+  así que al registrarse la sesión queda abierta de inmediato.
+- Después de cambiar la sección `[auth]` de `config.toml` o algo en `supabase/templates/`, reiniciar para
+  asegurarse de que se apliquen: `npx supabase stop` y luego `npx supabase start`.
+
 ## Base de datos
 
 ```powershell

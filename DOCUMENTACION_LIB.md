@@ -4,7 +4,12 @@ Este documento describe el código Dart actual de `lib/`, el punto de entrada, l
 
 ## Estado general
 
-NEXUS es actualmente un prototipo Flutter navegable de una tienda de computadoras y componentes. El catálogo ya usa un dominio y un repositorio mock con carga asíncrona; las demás pantallas aún presentan datos de ejemplo escritos directamente en el código. La app ya puede inicializar Supabase (fase 1), pero ningún feature lo usa todavía: no hay conexión a datos reales, autenticación ni persistencia local. La mayoría de los controles muestran el flujo esperado, pero todavía no ejecutan operaciones de negocio. Búsqueda y filtros del catálogo actualizan el repositorio mock.
+NEXUS es una app Flutter de un marketplace de computadores armados y piezas. Con Supabase configurado, tres partes usan datos reales:
+- el catálogo (fase 3);
+- las cuentas: registro con consentimiento, inicio de sesión y recuperación (fase 4);
+- el perfil con direcciones de entrega (fase 4).
+
+Sin configuración, las mismas pantallas usan repositorios mock en memoria. Inicio, carrito y PC Builder todavía muestran datos de ejemplo escritos en el código. "Confirmar pedido" ya exige sesión, pero el pago llega en la fase 8.
 
 ## Estructura de `lib/`
 
@@ -20,11 +25,9 @@ lib/
 |   |-- network/
 |   |   `-- supabase_providers.dart   # appEnvProvider y supabaseClientProvider
 |   `-- utils/
-|       `-- format_price.dart         # Formateo de precios en centavos
+|       |-- format_price.dart         # Formateo de precios en centavos
+|       `-- validators.dart           # Validadores de formulario con las reglas del backend
 |-- screens/
-|   |-- auth/
-|   |   |-- login_screen.dart         # Inicio de sesión visual
-|   |   `-- signup_screen.dart        # Registro visual
 |   |-- home/
 |   |   `-- home_screen.dart          # Inicio, productos destacados y accesos al shell
 |   |-- cart/
@@ -35,6 +38,24 @@ lib/
 |       |-- main_shell.dart           # Shell de pestañas con LazyIndexedStack y back handling
 |       `-- main_shell_scope.dart     # Scope para cambiar de pestaña desde los widgets hijos
 |-- features/
+|   |-- auth/
+|   |   |-- auth_providers.dart       # Repositorio, sesión (currentUserProvider) y acciones de formulario
+|   |   |-- domain/                   # AuthUser, LegalDocument, SignUpResult, AuthRepository
+|   |   |-- data/                     # SupabaseAuthRepository (+ mapAuthError) y MockAuthRepository
+|   |   `-- presentation/
+|   |       |-- login_screen.dart     # Inicio de sesión; devuelve true si hay sesión
+|   |       |-- signup_screen.dart    # Registro con aceptación de términos y política de datos
+|   |       |-- forgot_password_screen.dart # Recuperación con código de 6 dígitos
+|   |       |-- auth_guard.dart       # ensureSignedIn para acciones que exigen sesión
+|   |       `-- auth_widgets.dart     # Marco, campos, enlaces, aviso de error y documento legal
+|   |-- profile/
+|   |   |-- profile_providers.dart    # Perfil, direcciones y acciones de formulario
+|   |   |-- domain/                   # UserProfile, Address, AddressInput, departamentos, ProfileRepository
+|   |   |-- data/                     # Tablas profiles y addresses, y mock en memoria
+|   |   `-- presentation/
+|   |       |-- profile_screen.dart   # Pestaña PERFIL: invitación o cuenta con direcciones
+|   |       |-- edit_profile_screen.dart # Nombre y teléfono
+|   |       `-- address_form_screen.dart # Crear o editar una dirección
 |   `-- catalog/
 |       |-- catalog_providers.dart    # Elige Supabase o mock y expone providers
 |       |-- domain/
@@ -70,43 +91,57 @@ lib/
 
 ### Punto de entrada activo
 
-`main.dart` contiene `main()`. Si la app se compiló con `SUPABASE_URL` y `SUPABASE_PUBLISHABLE_KEY` (por ejemplo `flutter run --dart-define-from-file=env.json`, ver [backend/README.md](backend/README.md)), primero llama a `Supabase.initialize`; si no, arranca sin backend. Después ejecuta la app dentro de `ProviderScope`. Su parámetro `retry` devuelve `null`, desactivando reintentos automáticos en Riverpod 3.4.3. `NexusApp` configura el `MaterialApp`, usa `buildNexusTheme()` y define `NexusRoutes.login` como ruta inicial. Por tanto, al iniciar la app, la primera pantalla es el inicio de sesión. Las reglas de organización y uso de estado están en [docs/ARQUITECTURA.md](docs/ARQUITECTURA.md).
+`main.dart` contiene `main()`. Si la app se compiló con `SUPABASE_URL` y `SUPABASE_PUBLISHABLE_KEY` (por ejemplo `flutter run --dart-define-from-file=env.json`, ver [backend/README.md](backend/README.md)), primero llama a `Supabase.initialize`; si no, arranca sin backend. Después ejecuta la app dentro de `ProviderScope`. Su parámetro `retry` devuelve `null`, desactivando reintentos automáticos en Riverpod 3.4.3. `NexusApp` configura el `MaterialApp`, usa `buildNexusTheme()` y define `NexusRoutes.home` (`MainShell`) como ruta inicial: el catálogo se puede recorrer sin cuenta. Las reglas de organización y uso de estado están en [docs/ARQUITECTURA.md](docs/ARQUITECTURA.md).
 
-El mapa de rutas conecta estos nombres con sus pantallas principales y con las pantallas empujadas por encima del shell:
+| Ruta | Pantalla | Cómo se resuelve |
+|---|---|---|
+| `/home` | `MainShell` | tabla `routes` |
+| `/cart` | `CartScreen` | tabla `routes` |
+| `/login` | `LoginScreen` | `generateNexusRoute`. Argumento opcional: un `String` con el motivo. Devuelve `bool`. |
+| `/signup` | `SignupScreen` | `generateNexusRoute`, devuelve `bool` |
+| `/forgot-password` | `ForgotPasswordScreen` | `generateNexusRoute`, devuelve `bool` |
+| `/product-detail` | `ProductDetailScreen` | `generateNexusRoute`. Argumento: el `String` `productId`; si no es `String`, el detalle muestra "Producto no encontrado". |
 
-| Ruta | Pantalla |
-|---|---|
-| `/login` | `LoginScreen` |
-| `/signup` | `SignupScreen` |
-| `/home` | `MainShell` |
-| `/cart` | `CartScreen` |
-
-`/product-detail` se resuelve mediante `onGenerateRoute`: la pantalla recibe el `String` `productId` desde `settings.arguments`. Si el argumento no es un `String`, se pasa un id vacío y el detalle presenta "Producto no encontrado". El catálogo y PC Builder viven dentro de `MainShell`, que mantiene una sola barra inferior y conserva el estado de la interfaz al cambiar entre pestañas.
+Las rutas de cuenta son `MaterialPageRoute<bool>`: al cerrarse devuelven si el usuario quedó con sesión. Catálogo, PC Builder y Perfil viven dentro de `MainShell`, que mantiene una sola barra inferior y conserva el estado al cambiar de pestaña.
 
 ### Recorrido principal
 
 ```text
-Inicio de app
-  -> Login
-      -> Crear cuenta -> Registro
-      -> Ingresar -> Inicio
-  -> Inicio
-      -> Catálogo
-          -> Detalle del producto
-      -> Carrito
-      -> PC Builder
-  -> Navegación inferior
-      -> Inicio / Catálogo / PC Builder / Perfil
+Inicio de app -> Inicio (sin cuenta)
+  -> Catálogo -> Detalle del producto
+  -> Carrito -> Confirmar pedido -> (sin sesión) Login -> vuelve al carrito
+  -> PC Builder
+  -> Perfil
+      -> sin sesión: Iniciar sesión / Crear cuenta
+      -> con sesión: datos personales, direcciones, cerrar sesión
+Login -> Crear cuenta -> Registro
+      -> ¿Olvidaste tu contraseña? -> código por correo -> contraseña nueva
 ```
 
-La barra inferior ya no conoce rutas. `MainShell` conserva el tab activo con `LazyIndexedStack`, y `NexusBottomNav` emite un `NexusTab` al `onTap`. El destino `PERFIL` sigue abriendo `/login` mediante `pushReplacementNamed`, pero el shell mantiene las 4 pestañas principales sin destruir el árbol de widgets. El botón atrá de Android, si no se está en `Inicio`, vuelve a `Inicio` y no sale de la ruta; las pantallas empujadas como detalle y carrito conservan la barra oculta.
+La barra inferior no conoce rutas: `MainShell` conserva la pestaña activa con `LazyIndexedStack`, y `NexusBottomNav` emite un `NexusTab`. `PERFIL` es una pestaña más (`ProfileScreen`). El botón atrás de Android, si no se está en Inicio, vuelve a Inicio; las pantallas empujadas, como el detalle, el carrito y las de cuenta, ocultan la barra.
 
 ## Pantallas y responsabilidades
 
-### Autenticación
+### Cuentas (fase 4)
 
-- `screens/auth/login_screen.dart`: muestra campos de correo y contraseña. El botón `INGRESAR` navega al inicio sin validar credenciales. El enlace para crear cuenta abre `/signup`.
-- `screens/auth/signup_screen.dart`: muestra nombre, correo, contraseña y confirmación. `CREAR CUENTA` navega al inicio sin crear ni guardar una cuenta. El enlace `Ingresar` vuelve a `/login`.
+Todas usan `AuthScaffold` (tarjeta centrada con botón de cerrar), validan antes de enviar con `Validators` (las mismas reglas que el backend), bloquean el botón mientras envían y muestran los errores de `AppFailure` en español.
+
+- **`login_screen.dart`.** Correo y contraseña. Muestra el motivo si lo hay ("Inicia sesión para confirmar tu pedido."). Enlaza a registro y recuperación; si esas pantallas terminan con sesión, el login también se cierra con `true`.
+- **`signup_screen.dart`.** Nombre, correo, contraseña de 8 caracteres o más con letras y números, y confirmación. Además, una casilla obligatoria "He leído y acepto los Términos y condiciones y la Política de tratamiento de datos personales", con enlaces que muestran cada texto. Envía las versiones vigentes que se aceptaron. Si el backend exige otra versión, recarga los documentos y desmarca la casilla. Si el proyecto pidiera confirmar el correo, lo avisa en lugar de abrir sesión.
+- **`forgot_password_screen.dart`.**
+  - Paso 1: correo, para enviar el código.
+  - Paso 2: código de 6 dígitos y contraseña nueva, con la opción de reenviar el código.
+  - Sin backend, indica el código del mock (`123456`).
+- **`auth_guard.dart`.** `ensureSignedIn` abre el login si no hay sesión. Lo usa "Confirmar pedido" en el carrito.
+
+### Perfil (fase 4)
+
+- **`profile_screen.dart`, la pestaña PERFIL.**
+  - Sin sesión: invita a iniciar sesión o crear cuenta.
+  - Con sesión: datos personales (nombre, correo y teléfono, con "Editar datos") y direcciones de entrega. La predeterminada va primero con la etiqueta PREDETERMINADA. Cada dirección se puede editar, marcar como predeterminada o eliminar, previa confirmación.
+  - Al final, el botón "Cerrar sesión".
+- **`address_form_screen.dart`.** Nombre de la dirección, quién recibe, teléfono, departamento (lista de Colombia), ciudad, dirección, detalles opcionales y "Usar como predeterminada". Marca los campos inválidos antes de enviar.
+- **`edit_profile_screen.dart`.** Nombre y teléfono opcional.
 
 ### Inicio
 
@@ -122,7 +157,7 @@ La barra inferior ya no conoce rutas. `MainShell` conserva el tab activo con `La
 
 ### Carrito
 
-`screens/cart/cart_screen.dart` muestra dos líneas fijas, cantidades, subtotales, envío y total precalculados en el código. Los precios mock se convierten a COP con tasa 4.000 y redondeo unitario al millar; el total fijo es la suma de los subtotales convertidos. Los botones para cambiar cantidad, eliminar, confirmar pedido y vaciar carrito no modifican el carrito ni disparan una compra.
+`screens/cart/cart_screen.dart` muestra dos líneas fijas, cantidades, subtotales, envío y total precalculados en el código. Los precios mock se convierten a COP con tasa 4.000 y redondeo unitario al millar; el total fijo es la suma de los subtotales convertidos. Los botones para cambiar cantidad, eliminar y vaciar el carrito no lo modifican. "Confirmar pedido" exige sesión (`ensureSignedIn`) y, con sesión, avisa que el pago llega pronto (fase 8).
 
 ### PC Builder
 
@@ -132,8 +167,10 @@ La barra inferior ya no conoce rutas. `MainShell` conserva el tab activo con `La
 
 | Superficie | Dato que se muestra o solicita | Comportamiento actual |
 |---|---|---|
-| Login | Correo y contraseña | `NexusTextField` sin controlador, validador ni envío conectado. El botón solo navega al inicio. |
-| Registro | Nombre, correo, contraseña y confirmación | Campos visuales sin controlador, validador, creación de cuenta o persistencia. |
+| Login | Correo y contraseña | Formulario validado; inicia sesión con Supabase Auth o con el mock. |
+| Registro | Nombre, correo, contraseña, confirmación y aceptación de documentos | Formulario validado; crea la cuenta y el backend registra el consentimiento. |
+| Recuperación | Correo, código y contraseña nueva | Envía el código al correo y cambia la contraseña. |
+| Perfil y direcciones | Nombre, teléfono y direcciones de entrega | Formularios validados contra las tablas `profiles` y `addresses` (o el mock). |
 | Catálogo inicial | Primera página de productos | `catalogControllerProvider` obtiene 20 productos por página, de Supabase o del mock (ocho productos). |
 | Búsqueda del catálogo | Texto de producto, marca o categoría | El campo usa el controlador, que aplica debounce y búsqueda normalizada en el repositorio. |
 | Filtros y orden | Familia, tipo de pieza, marca, precio y orden | Chips de familia y de tipo de pieza; hoja "Filtros" con marcas del repositorio y rangos de precio; menú de orden (relevancia, menor y mayor precio). Todo se envía al repositorio. |
@@ -143,7 +180,7 @@ La barra inferior ya no conoce rutas. `MainShell` conserva el tab activo con `La
 
 `NexusTextField`, en `widgets/nexus_widgets.dart`, usa `TextFormField` y conserva `hint`, `obscure` y `prefixIcon`. También acepta opcionalmente `controller`, `onChanged`, `onSubmitted`, `validator`, `keyboardType`, `textInputAction` y `enabled`. Los errores de validación usan el rosa de la paleta NEXUS. Sigue siendo `StatelessWidget` y no crea controladores propios; quien proporciona un controlador externo es responsable de destruirlo. No implementa debounce: esa lógica debe vivir en el controlador de búsqueda, no en el campo.
 
-El paso 3 se limitó al widget y a `test/nexus_text_field_test.dart`; login, registro y catálogo no conectan todavía las nuevas opciones. La suite del campo cubre controlador, `onChanged`, validación dentro de `Form`, uso sin `Form`, texto oculto y campo deshabilitado.
+Los formularios de cuenta y perfil (fase 4) usan `controller`, `validator`, `keyboardType`, `textInputAction` y `autofillHints`, este último agregado en esa fase; el catálogo usa `onChanged`. La suite del campo cubre controlador, `onChanged`, validación dentro de `Form`, uso sin `Form`, texto oculto y campo deshabilitado.
 
 El catálogo es la única parte conectada a un servicio: con Supabase configurado lee las RPC del contrato; sin configuración usa el mock. La navegación al detalle conserva el id seleccionado. No hay almacenamiento local. Home, carrito y PC Builder todavía usan datos locales; la navegación no conserva formularios enviados.
 
@@ -193,6 +230,10 @@ Pasos completados:
 - **Fase 3:** catálogo conectado a Supabase (contrato v0.4): familias,
   computadores armados, ofertas por proveedor en el detalle, imágenes con
   caché, filtros por familia, tipo de pieza, marca y precio, y orden.
+- **Fase 4:** cuentas con Supabase Auth: registro con aceptación de términos y
+  política de datos (exigida también por el backend), inicio de sesión,
+  recuperación con código de 6 dígitos, perfil y direcciones de entrega con
+  RLS. La app abre en Inicio y pide la sesión solo para comprar.
 
 La hoja de ruta vigente está en [docs/PLAN_IMPLEMENTACION.md](docs/PLAN_IMPLEMENTACION.md).
 Los requisitos son los de [docs/REQUISITOS.md](docs/REQUISITOS.md) (análisis v2):
@@ -203,4 +244,4 @@ fase 6. Autenticación pasa a ser la fase 4.
 
 ## Archivos y validación
 
-El árbol anterior refleja los archivos Dart actuales bajo `lib/`. Las pruebas de `test/` cubren formato COP, estados de stock, filtros, búsqueda, paginación, el controlador, la lectura del JSON del contrato, el repositorio de Supabase con RPC falsas, widgets, carga/error/reintento, navegación por producto y el catálogo a 360 px. `test/integration/` prueba el repositorio real contra el Supabase local y se salta sin configuración. Validación de la fase 3: `dart analyze` sin hallazgos; `flutter test` con 107 pruebas aprobadas y 4 de integración saltadas; esas 4 pasan contra el backend local. Se compiló para web; no se probó en un dispositivo. Para mediciones de rendimiento, usar un teléfono físico con `flutter run --profile`, según `REGLAS_RENDIMIENTO.md`.
+El árbol anterior refleja los archivos Dart actuales bajo `lib/`. Las pruebas de `test/` cubren el catálogo (formato COP, stock, filtros, búsqueda, paginación, JSON del contrato, repositorio de Supabase con RPC falsas, widgets y 360 px), los validadores, el mapeo de errores de Supabase Auth, los mocks de cuentas y perfil, y los flujos de login, registro, recuperación, `ensureSignedIn`, perfil y direcciones. `test/integration/` prueba los repositorios reales contra el Supabase local: catálogo, registro con consentimiento, perfil, direcciones con RLS entre dos usuarios y recuperación leyendo el código en Mailpit con PKCE. Se salta sin configuración. Validación de la fase 4: `dart analyze` sin hallazgos; `flutter test` con 141 pruebas aprobadas y 9 de integración saltadas; esas 9 pasan contra el backend local; pgTAP con 65 pruebas. Se compiló para web; no se probó en un dispositivo. Para mediciones de rendimiento, usar un teléfono físico con `flutter run --profile`, según `REGLAS_RENDIMIENTO.md`.

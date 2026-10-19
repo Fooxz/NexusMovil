@@ -43,9 +43,11 @@ class NexusProductImage extends StatelessWidget {
       builder: (context, constraints) {
         // Decodifica al tamaño mostrado, no a la resolución original (R8).
         final pixelRatio = MediaQuery.devicePixelRatioOf(context);
-        final cacheWidth = constraints.hasBoundedWidth
+        // Sin ancho útil (infinito o 0) se decodifica a tamaño original.
+        final width = constraints.hasBoundedWidth
             ? (constraints.maxWidth * pixelRatio).round()
-            : null;
+            : 0;
+        final cacheWidth = width > 0 ? width : null;
 
         return ClipRRect(
           borderRadius: BorderRadius.circular(borderRadius),

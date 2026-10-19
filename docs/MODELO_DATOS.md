@@ -61,9 +61,45 @@ Tablas auditadas hoy: `offers`, `products`, `product_attributes`, `providers`, `
 La bitácora es de solo inserción: hay triggers que impiden `UPDATE`, `DELETE` y `TRUNCATE` (RNF-030), y ningún cliente la puede leer.
 La retención (RNF-031) está pendiente de definir.
 
+## Cuentas (fase 4)
+
+La cuenta (correo y contraseña) vive en `auth.users`, que administra Supabase Auth. Las tablas propias son:
+
+| Tabla | Para qué | Acceso de clientes |
+|---|---|---|
+| `legal_documents` | Términos (`terms`) y política de datos (`privacy`), versionados. Solo una versión vigente por documento (`is_current`). | Lectura pública de las vigentes: se leen antes de registrarse. |
+| `profiles` | Nombre completo (2 a 120 caracteres) y teléfono opcional (7 a 15 dígitos). Mismo `id` que `auth.users`. | Cada usuario lee y edita el suyo. No puede crearlo ni borrarlo. |
+| `user_consents` | Constancia de qué versión de cada documento aceptó cada usuario y cuándo (RF-007). | Cada usuario lee los suyos. No puede crearlos, cambiarlos ni borrarlos. |
+| `addresses` | Direcciones de entrega: nombre, quién recibe, teléfono, departamento, ciudad, dirección y detalles (RF-004). Supuesto: Colombia (S-02). | Cada usuario gestiona las suyas (RLS por `auth.uid()`); `user_id` lo pone el backend. |
+
+**Alta con consentimiento (RN-033).**
+- La app envía en `signUp` los metadatos `full_name` y `accepted_documents` (`[{code, version}]`).
+- El trigger `private.handle_new_user` (`after insert on auth.users`) comprueba que estén **todas** las versiones vigentes. Después crea el perfil y registra los consentimientos.
+- Si falta alguna, lanza un error y la cuenta **no se crea**, aunque se llame a la API sin pasar por la app.
+- GoTrue devuelve ese rechazo como `500 "Database error saving new user"`, sin el detalle. La app lo muestra como "debes aceptar los términos" y recarga los documentos vigentes.
+
+**Una dirección predeterminada.**
+- Un índice único parcial permite una sola por usuario.
+- La primera dirección que se crea queda como predeterminada.
+- Al marcar otra, se desmarca la anterior.
+- Al borrar la predeterminada, pasa a serlo la más reciente que quede.
+- Desmarcarla sin marcar otra no está permitido desde la app.
+
+**Contraseña y recuperación** (`backend/supabase/config.toml`):
+- **Contraseña:** 8 caracteres como mínimo, con letras y números (`password_requirements = "letters_digits"`). La app valida lo mismo.
+- **Recuperación (RF-003):** la plantilla `backend/supabase/templates/recovery.html` envía un **código de 6 dígitos** (`{{ .Token }}`). La app lo valida con `verifyOTP(type: recovery)` y cambia la contraseña con `updateUser`. No hacen falta deep links, y funciona igual con PKCE, el flujo de la app.
+- **Confirmación de correo:** desactivada en local (`enable_confirmations = false`). Si se activa en producción, la app ya contempla el caso: avisa que se confirme el correo y no abre sesión.
+
+**Pendientes:**
+- Texto legal definitivo: los documentos 1.0 son borradores marcados "PENDIENTE DE REVISIÓN LEGAL" (RNF-008, RNF-035).
+- Supresión de la cuenta a pedido del usuario (RNF-008).
+- Retención de los consentimientos cuando se borra una cuenta: hoy se borran en cascada con ella.
+
 ## Datos de desarrollo
 
 `backend/supabase/seed.sql` (lo carga `npx supabase db reset`) contiene:
 - **3 proveedores:** 2 activos y 1 pendiente.
 - **15 productos:** los 6 del mock de la app con los mismos ids, 6 piezas más y 3 computadores armados, con sus atributos tipados.
 - **18 ofertas:** incluyen un producto con dos proveedores, niveles `stable`, `critical` y `outOfStock`, una oferta de un proveedor pendiente y una en borrador. Estas dos últimas no deben verse.
+
+No trae usuarios: las cuentas se crean desde la app, que pasa por el trigger de consentimiento.

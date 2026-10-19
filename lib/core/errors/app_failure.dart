@@ -46,3 +46,35 @@ class UnexpectedFailure extends AppFailure {
   const UnexpectedFailure()
     : super('Ocurrió un error inesperado. Inténtalo de nuevo.');
 }
+
+// --- Cuentas (fase 4) ---
+
+class InvalidCredentialsFailure extends AppFailure {
+  const InvalidCredentialsFailure()
+    : super('El correo o la contraseña no son correctos.');
+}
+
+class EmailAlreadyRegisteredFailure extends AppFailure {
+  const EmailAlreadyRegisteredFailure()
+    : super('Ya existe una cuenta con ese correo. Inicia sesión o recupera tu acceso.');
+}
+
+class WeakPasswordFailure extends AppFailure {
+  const WeakPasswordFailure()
+    : super('La contraseña debe tener al menos 8 caracteres, con letras y números.');
+}
+
+class ConsentRequiredFailure extends AppFailure {
+  const ConsentRequiredFailure()
+    : super('Debes aceptar los términos y la política de datos para crear tu cuenta.');
+}
+
+class InvalidCodeFailure extends AppFailure {
+  const InvalidCodeFailure()
+    : super('El código no es válido o ya venció. Pide uno nuevo.');
+}
+
+class RateLimitedFailure extends AppFailure {
+  const RateLimitedFailure()
+    : super('Hiciste demasiados intentos. Espera un momento e inténtalo de nuevo.');
+}

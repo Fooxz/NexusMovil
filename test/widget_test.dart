@@ -54,9 +54,13 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('renders the app bootstrap screen', (WidgetTester tester) async {
+  testWidgets('the app opens on Home without asking to sign in', (
+    WidgetTester tester,
+  ) async {
     await tester.pumpWidget(const ProviderScope(child: NexusApp()));
+    await tester.pumpAndSettle();
 
-    expect(find.text('INICIA SESIÓN'), findsOneWidget);
+    expect(find.text('TIENDA DE\nTECNOLOGÍA'), findsOneWidget);
+    expect(find.text('INICIA SESIÓN'), findsNothing);
   });
 }
