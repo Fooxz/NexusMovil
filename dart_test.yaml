@@ -1,0 +1,4 @@
+tags:
+  # Pruebas contra el Supabase local (test/integration). Se saltan sin
+  # --dart-define-from-file=env.json.
+  integration:

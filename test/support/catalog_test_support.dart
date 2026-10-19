@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:prueba01/features/catalog/catalog_providers.dart';
 import 'package:prueba01/features/catalog/domain/product.dart';
+import 'package:prueba01/features/catalog/domain/product_filters.dart';
 import 'package:prueba01/features/catalog/domain/product_page.dart';
 import 'package:prueba01/features/catalog/domain/product_repository.dart';
 import 'package:prueba01/features/catalog/presentation/catalog_screen.dart';
@@ -57,12 +58,54 @@ const catalogOutOfStock = Product(
   specs: [ProductSpec(label: 'MODEL', value: 'TEST')],
 );
 
+const catalogPrebuilt = Product(
+  id: 'prebuilt-test',
+  name: 'PC ARMADO TEST',
+  brand: 'NEXUS',
+  category: ProductCategory.prebuiltPc,
+  priceCents: 500000000,
+  stockLevel: StockLevel.stable,
+);
+
+const catalogGpuWithOffers = Product(
+  id: 'gpu-offers-test',
+  name: 'GPU CON OFERTAS',
+  brand: 'NVIDIA',
+  category: ProductCategory.gpu,
+  priceCents: 100000,
+  stockLevel: StockLevel.stable,
+  offers: [
+    ProductOffer(
+      id: 'offer-a',
+      providerId: 'provider-a',
+      providerName: 'Proveedor A',
+      priceCents: 100000,
+      stockLevel: StockLevel.stable,
+    ),
+    ProductOffer(
+      id: 'offer-b',
+      providerId: 'provider-b',
+      providerName: 'Proveedor B',
+      priceCents: 120000,
+      oldPriceCents: 150000,
+      stockLevel: StockLevel.critical,
+    ),
+  ],
+);
+
 typedef CatalogPageLoader = Future<ProductPage> Function(
+  int page,
+  int pageSize,
+  ProductFilters filters,
+);
+
+typedef CatalogPageRequest = ({
   int page,
   int pageSize,
   String? search,
   ProductCategory? category,
-);
+  ProductFilters filters,
+});
 
 class CatalogFakeProductRepository implements ProductRepository {
   CatalogFakeProductRepository({
@@ -78,40 +121,44 @@ class CatalogFakeProductRepository implements ProductRepository {
   final bool failFirstPageRequest;
   final bool failProductLookup;
   final CatalogPageLoader? pageLoader;
-  final requests =
-      <({int page, int pageSize, String? search, ProductCategory? category})>[];
+  final requests = <CatalogPageRequest>[];
+  final brandRequests = <({ProductFamily? family, ProductCategory? category})>[];
   var productPageRequests = 0;
 
   @override
   Future<ProductPage> getProducts({
     int page = 0,
     int pageSize = 20,
-    String? search,
-    ProductCategory? category,
+    ProductFilters filters = const ProductFilters(),
   }) {
     productPageRequests++;
     requests.add((
       page: page,
       pageSize: pageSize,
-      search: search,
-      category: category,
+      search: filters.search.isEmpty ? null : filters.search,
+      category: filters.category,
+      filters: filters,
     ));
     final loader = pageLoader;
-    if (loader != null) return loader(page, pageSize, search, category);
+    if (loader != null) return loader(page, pageSize, filters);
     if (pageCompleter != null) return pageCompleter!.future;
     if (failFirstPageRequest && productPageRequests == 1) {
       return Future.error(StateError('network error'));
     }
 
-    final normalizedSearch = search?.toLowerCase().trim();
+    final normalizedSearch = filters.search.toLowerCase().trim();
     final matches = products.where((product) {
-      final matchesCategory = category == null || product.category == category;
+      final matchesFamily =
+          filters.family == null || product.family == filters.family;
+      final matchesCategory =
+          filters.category == null || product.category == filters.category;
+      final matchesBrand =
+          filters.brand == null || product.brand == filters.brand;
       final matchesSearch =
-          normalizedSearch == null ||
           normalizedSearch.isEmpty ||
           product.name.toLowerCase().contains(normalizedSearch) ||
           product.brand.toLowerCase().contains(normalizedSearch);
-      return matchesCategory && matchesSearch;
+      return matchesFamily && matchesCategory && matchesBrand && matchesSearch;
     }).toList();
     final start = page * pageSize;
     return Future.value(
@@ -133,6 +180,23 @@ class CatalogFakeProductRepository implements ProductRepository {
   @override
   Future<List<Product>> getRelated(String id, {int limit = 2}) async =>
       products.where((product) => product.id != id).take(limit).toList();
+
+  @override
+  Future<List<String>> getBrands({
+    ProductFamily? family,
+    ProductCategory? category,
+  }) async {
+    brandRequests.add((family: family, category: category));
+    return products
+        .where(
+          (product) =>
+              (family == null || product.family == family) &&
+              (category == null || product.category == category),
+        )
+        .map((product) => product.brand)
+        .toSet()
+        .toList();
+  }
 }
 
 CatalogFakeProductRepository createRetryablePageRepository() {
@@ -140,7 +204,7 @@ CatalogFakeProductRepository createRetryablePageRepository() {
   const products = [catalogGpu, catalogCpu, catalogRam, catalogStorage];
   return CatalogFakeProductRepository(
     products: products,
-    pageLoader: (page, pageSize, search, category) {
+    pageLoader: (page, pageSize, filters) {
       if (page == 1 && !failedPageRequest) {
         failedPageRequest = true;
         return Future.error(StateError('page failure'));
@@ -162,9 +226,9 @@ CatalogFakeProductRepository createStaleCategoryRepository(
   Completer<ProductPage> gpuCompleter,
   Completer<ProductPage> cpuCompleter,
 ) => CatalogFakeProductRepository(
-  pageLoader: (page, pageSize, search, category) {
-    if (category == ProductCategory.gpu) return gpuCompleter.future;
-    if (category == ProductCategory.cpu) return cpuCompleter.future;
+  pageLoader: (page, pageSize, filters) {
+    if (filters.category == ProductCategory.gpu) return gpuCompleter.future;
+    if (filters.category == ProductCategory.cpu) return cpuCompleter.future;
     return Future.value(
       const ProductPage(
         items: [catalogGpu, catalogCpu],
@@ -178,7 +242,7 @@ CatalogFakeProductRepository createStaleCategoryRepository(
 
 CatalogPageLoader createInitialRetryLoader() {
   var requestCount = 0;
-  return (page, pageSize, search, category) {
+  return (page, pageSize, filters) {
     requestCount++;
     if (requestCount == 1) return Future.error(StateError('temporary failure'));
     return Future.value(

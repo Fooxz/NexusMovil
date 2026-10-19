@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/utils/format_price.dart';
 import '../../../routes.dart';
 import '../../../theme/nexus_theme.dart';
 import '../../../widgets/nexus_empty_state.dart';
@@ -13,6 +14,7 @@ import '../../../widgets/nexus_product_card.dart';
 import '../../../widgets/nexus_widgets.dart';
 import '../catalog_providers.dart';
 import '../domain/product.dart';
+import '../domain/product_filters.dart';
 import 'product_visuals.dart';
 
 class CatalogScreen extends ConsumerWidget {
@@ -36,6 +38,7 @@ class CatalogScreen extends ConsumerWidget {
               children: const [
                 CatalogSearchField(),
                 SizedBox(height: 14),
+                CatalogFamilySelector(),
                 CatalogCategoryChips(),
                 SizedBox(height: 18),
                 CatalogResultsHeader(),
@@ -104,41 +107,77 @@ class _CatalogSearchFieldState extends ConsumerState<CatalogSearchField> {
   }
 }
 
-class CatalogCategoryChips extends ConsumerWidget {
-  const CatalogCategoryChips({super.key});
-
-  static const _categories = [
-    (label: 'CPU', category: ProductCategory.cpu),
-    (label: 'GPU', category: ProductCategory.gpu),
-    (label: 'RAM', category: ProductCategory.ram),
-    (label: 'Motherboard', category: ProductCategory.motherboard),
-    (label: 'Almacenamiento', category: ProductCategory.storage),
-    (label: 'Fuente', category: ProductCategory.psu),
-    (label: 'Gabinete', category: ProductCategory.pcCase),
-    (label: 'Refrigeración', category: ProductCategory.cooling),
-  ];
+/// Computadores armados o piezas (RF-033).
+class CatalogFamilySelector extends ConsumerWidget {
+  const CatalogFamilySelector({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final selectedCategory = ref.watch(
-      catalogControllerProvider.select((value) => value.asData?.value.category),
+    final selectedFamily = ref.watch(
+      catalogControllerProvider.select(
+        (value) => value.asData?.value.filters.family,
+      ),
     );
+    final controller = ref.read(catalogControllerProvider.notifier);
 
     return Wrap(
       spacing: 8,
       runSpacing: 8,
       children: [
-        for (final item in _categories)
+        ChoiceChip(
+          label: const Text('Todo'),
+          selected: selectedFamily == null,
+          onSelected: (_) => controller.setFamily(null),
+        ),
+        for (final family in ProductFamily.values)
           ChoiceChip(
-            label: Text(item.label),
-            selected: selectedCategory == item.category,
-            onSelected: (selected) {
-              ref
-                  .read(catalogControllerProvider.notifier)
-                  .setCategory(selected ? item.category : null);
-            },
+            label: Text(ProductVisuals.familyLabel(family)),
+            selected: selectedFamily == family,
+            onSelected: (selected) =>
+                controller.setFamily(selected ? family : null),
           ),
       ],
+    );
+  }
+}
+
+/// Tipos de pieza. Se ocultan cuando se ven solo computadores armados.
+class CatalogCategoryChips extends ConsumerWidget {
+  const CatalogCategoryChips({super.key});
+
+  static final _partCategories = [
+    for (final category in ProductCategory.values)
+      if (category.family == ProductFamily.part) category,
+  ];
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final scope = ref.watch(
+      catalogControllerProvider.select((value) {
+        final filters = value.asData?.value.filters;
+        return (family: filters?.family, category: filters?.category);
+      }),
+    );
+    if (scope.family == ProductFamily.prebuiltPc) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 10),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          for (final category in _partCategories)
+            ChoiceChip(
+              label: Text(ProductVisuals.chipLabel(category)),
+              selected: scope.category == category,
+              onSelected: (selected) {
+                ref
+                    .read(catalogControllerProvider.notifier)
+                    .setCategory(selected ? category : null);
+              },
+            ),
+        ],
+      ),
     );
   }
 }
@@ -155,35 +194,229 @@ class CatalogResultsHeader extends ConsumerWidget {
     );
 
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(
-          '$total productos',
-          style: const TextStyle(fontSize: 12, color: NexusColors.textDim),
-        ),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-          decoration: BoxDecoration(
-            border: Border.all(color: NexusColors.border),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: const Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Orden: Relevancia',
-                style: TextStyle(fontSize: 10.5, color: NexusColors.textDim),
-              ),
-              SizedBox(width: 4),
-              Icon(
-                Icons.keyboard_arrow_down,
-                size: 16,
-                color: NexusColors.textDim,
-              ),
-            ],
+        Expanded(
+          child: Text(
+            '$total productos',
+            style: const TextStyle(fontSize: 12, color: NexusColors.textDim),
           ),
         ),
+        const Flexible(child: CatalogFiltersButton()),
+        const SizedBox(width: 8),
+        const Flexible(child: CatalogSortMenu()),
       ],
+    );
+  }
+}
+
+class CatalogSortMenu extends ConsumerWidget {
+  const CatalogSortMenu({super.key});
+
+  static String label(ProductSort sort) => switch (sort) {
+    ProductSort.relevance => 'Relevancia',
+    ProductSort.priceAsc => 'Menor precio',
+    ProductSort.priceDesc => 'Mayor precio',
+  };
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final sort = ref.watch(
+      catalogControllerProvider.select(
+        (value) => value.asData?.value.filters.sort ?? ProductSort.relevance,
+      ),
+    );
+
+    return PopupMenuButton<ProductSort>(
+      tooltip: 'Ordenar',
+      initialValue: sort,
+      onSelected: (value) =>
+          ref.read(catalogControllerProvider.notifier).setSort(value),
+      itemBuilder: (context) => [
+        for (final option in ProductSort.values)
+          PopupMenuItem(value: option, child: Text(label(option))),
+      ],
+      child: _HeaderPill(label: label(sort), icon: Icons.swap_vert),
+    );
+  }
+}
+
+/// Abre la hoja de marca y precio. Indica cuántos de esos filtros están activos.
+class CatalogFiltersButton extends ConsumerWidget {
+  const CatalogFiltersButton({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final activeCount = ref.watch(
+      catalogControllerProvider.select((value) {
+        final filters = value.asData?.value.filters;
+        if (filters == null) return 0;
+        return (filters.brand != null ? 1 : 0) +
+            (filters.minPriceCents != null || filters.maxPriceCents != null
+                ? 1
+                : 0);
+      }),
+    );
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(8),
+      onTap: () => showModalBottomSheet<void>(
+        context: context,
+        backgroundColor: NexusColors.bgAlt,
+        showDragHandle: true,
+        isScrollControlled: true,
+        builder: (_) => const CatalogFiltersSheet(),
+      ),
+      child: _HeaderPill(
+        label: activeCount == 0 ? 'Filtros' : 'Filtros ($activeCount)',
+        icon: Icons.tune,
+        highlighted: activeCount > 0,
+      ),
+    );
+  }
+}
+
+class _HeaderPill extends StatelessWidget {
+  const _HeaderPill({
+    required this.label,
+    required this.icon,
+    this.highlighted = false,
+  });
+
+  final String label;
+  final IconData icon;
+  final bool highlighted;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = highlighted ? NexusColors.cyan : NexusColors.textDim;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        border: Border.all(
+          color: highlighted ? NexusColors.cyan : NexusColors.border,
+        ),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 10.5, color: color),
+            ),
+          ),
+          const SizedBox(width: 4),
+          Icon(icon, size: 16, color: color),
+        ],
+      ),
+    );
+  }
+}
+
+/// Rangos de precio sobre el precio de la mejor oferta, en centavos de COP.
+const catalogPriceRanges = [
+  (min: null, max: 100000000),
+  (min: 100000000, max: 300000000),
+  (min: 300000000, max: 600000000),
+  (min: 600000000, max: null),
+];
+
+String catalogPriceRangeLabel(({int? min, int? max}) range) =>
+    switch (range) {
+      (min: null, max: final int max) => 'Hasta ${formatPrice(max)}',
+      (min: final int min, max: null) => 'Más de ${formatPrice(min)}',
+      (min: final int min, max: final int max) =>
+        '${formatPrice(min)} – ${formatPrice(max)}',
+      _ => 'Cualquier precio',
+    };
+
+/// Filtros por marca y precio. Cada selección se aplica de inmediato.
+class CatalogFiltersSheet extends ConsumerWidget {
+  const CatalogFiltersSheet({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final filters = ref.watch(
+      catalogControllerProvider.select(
+        (value) => value.asData?.value.filters ?? const ProductFilters(),
+      ),
+    );
+    final brands = ref.watch(catalogBrandsProvider);
+    final controller = ref.read(catalogControllerProvider.notifier);
+
+    return SafeArea(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const NexusUnderlineTitle('MARCA'),
+            const SizedBox(height: 10),
+            brands.when(
+              loading: () => const NexusLoading(),
+              error: (error, _) => NexusErrorState(
+                message: 'No se pudieron cargar las marcas.\n$error',
+                onRetry: () => ref.invalidate(catalogBrandsProvider),
+              ),
+              data: (brands) => Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  ChoiceChip(
+                    label: const Text('Todas'),
+                    selected: filters.brand == null,
+                    onSelected: (_) => controller.setBrand(null),
+                  ),
+                  for (final brand in brands)
+                    ChoiceChip(
+                      label: Text(brand),
+                      selected: filters.brand == brand,
+                      onSelected: (selected) =>
+                          controller.setBrand(selected ? brand : null),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            const NexusUnderlineTitle('PRECIO'),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                ChoiceChip(
+                  label: const Text('Cualquier precio'),
+                  selected:
+                      filters.minPriceCents == null &&
+                      filters.maxPriceCents == null,
+                  onSelected: (_) => controller.setPriceRange(),
+                ),
+                for (final range in catalogPriceRanges)
+                  ChoiceChip(
+                    label: Text(catalogPriceRangeLabel(range)),
+                    selected:
+                        filters.minPriceCents == range.min &&
+                        filters.maxPriceCents == range.max,
+                    onSelected: (selected) => selected
+                        ? controller.setPriceRange(
+                            minPriceCents: range.min,
+                            maxPriceCents: range.max,
+                          )
+                        : controller.setPriceRange(),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            NexusPrimaryButton(
+              label: 'VER RESULTADOS',
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -249,7 +482,8 @@ class _CatalogResults extends ConsumerWidget {
                   crossAxisCount: 2,
                   crossAxisSpacing: 10,
                   mainAxisSpacing: 10,
-                  childAspectRatio: 0.72,
+                  // 0.70 deja aire suficiente para teléfonos de 360 px.
+                  childAspectRatio: 0.70,
                 ),
                 itemBuilder: (context, index) => _CatalogProductCard(
                   key: ValueKey(state.items[index].id),
@@ -336,6 +570,7 @@ class _CatalogProductCard extends StatelessWidget {
     final visuals = ProductVisuals.forCategory(product.category);
 
     return NexusProductCard(
+      imageUrl: product.imageUrl,
       icon: visuals.icon,
       gradientColors: visuals.gradientColors,
       discountLabel: product.hasDiscount

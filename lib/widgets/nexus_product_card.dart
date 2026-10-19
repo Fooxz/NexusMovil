@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../core/utils/format_price.dart';
 import '../theme/nexus_theme.dart';
+import 'nexus_product_image.dart';
 import 'nexus_widgets.dart';
 
 class NexusProductCard extends StatelessWidget {
@@ -23,8 +24,11 @@ class NexusProductCard extends StatelessWidget {
     this.actions,
     this.onTap,
     this.priceFontSize = 12,
+    this.imageUrl,
   });
 
+  /// Miniatura del producto; sin ella se muestra [icon] sobre [gradientColors].
+  final String? imageUrl;
   final IconData icon;
   final List<Color> gradientColors;
   final Color iconColor;
@@ -58,12 +62,12 @@ class NexusProductCard extends StatelessWidget {
           children: [
             Stack(
               children: [
-                NexusPlaceholderBox(
+                NexusProductImage(
+                  imageUrl: imageUrl,
                   icon: icon,
                   iconColor: iconColor,
                   gradientColors: gradientColors,
                   height: imageHeight,
-                  borderRadius: 0,
                 ),
                 if (discountLabel != null)
                   Positioned(
@@ -93,6 +97,7 @@ class NexusProductCard extends StatelessWidget {
                                 fontSize: 8,
                                 color: NexusColors.textFaint,
                               ),
+                              maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),

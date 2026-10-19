@@ -20,6 +20,14 @@ dart analyze
 flutter test
 ```
 
+`flutter test` salta las pruebas de `test/integration/`, que usan el Supabase local. Para correrlas, con el backend levantado y `npx supabase db reset` recién hecho:
+
+```powershell
+flutter test test/integration --dart-define-from-file=env.json
+```
+
+Aquí `env.json` debe tener `SUPABASE_URL` = `http://127.0.0.1:54321`.
+
 `flutter analyze` (Flutter 3.47.2) falla en esta carpeta con `FormatException: Unexpected end of input`: el analysis server no maneja bien la `á` de `Práctica_dart` en la ruta. `dart analyze` aplica las mismas reglas de `analysis_options.yaml` y sí funciona. También funciona `flutter analyze` ejecutado desde una ruta solo ASCII, por ejemplo un junction (`New-Item -ItemType Junction`).
 
 Para inspección de rendimiento, usar un dispositivo físico y `flutter run --profile`; Chrome solo sirve para revisar lógica y aspecto, no fluidez.

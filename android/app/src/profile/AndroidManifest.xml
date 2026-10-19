@@ -4,4 +4,7 @@
          to allow setting breakpoints, to provide hot reload, etc.
     -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Solo desarrollo: el Supabase local usa HTTP (10.0.2.2 o la IP del PC).
+         Release no lo permite y exige HTTPS. -->
+    <application android:usesCleartextTraffic="true"/>
 </manifest>

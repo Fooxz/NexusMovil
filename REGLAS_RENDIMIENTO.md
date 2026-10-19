@@ -79,6 +79,21 @@ Estas reglas aplican a todos los pasos de desarrollo desde el paso 3. Deben guia
 - **R7 aplicada:** el catálogo solicita páginas configurables y pide la
   siguiente al quedar menos de 600 px de contenido.
 
+### Catálogo con backend (fase 3)
+
+- **R4 aplicada:** el selector de familia, los chips de tipo de pieza, el
+  botón de filtros y el menú de orden observan solo su parte de
+  `ProductFilters` con `select`.
+- **R5:** el cliente de Supabase ya decodifica el JSON en un isolate
+  (`yet_another_json_isolate`). En el hilo de UI solo se convierten mapas en
+  objetos, como mucho 50 productos por página, así que no se agregó `compute`.
+  Si alguna respuesta llega a ser grande (por ejemplo, el asistente o el PC
+  Builder), se mide antes de moverla a un isolate.
+- **R8 aplicada:** `NexusProductImage` usa `cached_network_image` (caché en
+  memoria y disco) y `memCacheWidth` calculado con el ancho mostrado y el
+  `devicePixelRatio`. Las listas usan la miniatura del contrato (`imageUrl`).
+  Sin imagen, mientras carga o si falla, muestra el icono de la categoría.
+
 ## Verificación de rendimiento
 
 - Chrome sirve para comprobar lógica y aspecto, no para medir fluidez móvil.

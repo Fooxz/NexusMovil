@@ -1,4 +1,9 @@
+/// Familias del catálogo: solo computadores armados y piezas (RN-010).
+enum ProductFamily { prebuiltPc, part }
+
+/// Los nombres coinciden con `category` del contrato (docs/API_CONTRATO.md).
 enum ProductCategory {
+  prebuiltPc,
   cpu,
   gpu,
   ram,
@@ -7,6 +12,13 @@ enum ProductCategory {
   psu,
   pcCase,
   cooling,
+}
+
+extension ProductCategoryX on ProductCategory {
+  /// Mientras no se decida D8, `prebuiltPc` es la única categoría de su familia.
+  ProductFamily get family => this == ProductCategory.prebuiltPc
+      ? ProductFamily.prebuiltPc
+      : ProductFamily.part;
 }
 
 enum StockLevel { stable, critical, outOfStock }
@@ -31,9 +43,35 @@ class ProductSpec {
   final String value;
 }
 
+/// Lo que un proveedor vende de un producto (RF-014). El precio lo fija el
+/// proveedor (RN-001).
+class ProductOffer {
+  const ProductOffer({
+    required this.id,
+    required this.providerId,
+    required this.providerName,
+    required this.priceCents,
+    this.oldPriceCents,
+    required this.stockLevel,
+  });
+
+  final String id;
+  final String providerId;
+  final String providerName;
+  final int priceCents;
+  final int? oldPriceCents;
+  final StockLevel stockLevel;
+
+  bool get hasDiscount =>
+      oldPriceCents != null && oldPriceCents! > priceCents;
+}
+
 /// `Product` es lo que vende la tienda. `ProductSpec` es solo texto para mostrar.
 /// Los atributos con tipo para compatibilidad van en `PcPartSpec`
-/// (`features/pc_builder`, paso 7). No agregar campos de compatibilidad a `Product`.
+/// (`features/pc_builder`, fase 6). No agregar campos de compatibilidad a `Product`.
+///
+/// `priceCents`, `oldPriceCents` y `stockLevel` son los de la mejor oferta.
+/// `offers` solo viene lleno en el detalle; en listas es `[]`.
 class Product {
   const Product({
     required this.id,
@@ -43,9 +81,11 @@ class Product {
     required this.priceCents,
     this.oldPriceCents,
     required this.stockLevel,
+    this.imageUrl,
     this.summary,
     this.quickSpecs = const [],
     this.specs = const [],
+    this.offers = const [],
   });
 
   final String id;
@@ -55,9 +95,13 @@ class Product {
   final int priceCents;
   final int? oldPriceCents;
   final StockLevel stockLevel;
+  final String? imageUrl;
   final String? summary;
   final List<String> quickSpecs;
   final List<ProductSpec> specs;
+  final List<ProductOffer> offers;
+
+  ProductFamily get family => category.family;
 
   bool get hasDiscount =>
       oldPriceCents != null && oldPriceCents! > priceCents;

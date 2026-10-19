@@ -23,8 +23,32 @@ class ProductVisuals {
     categoryLabel: 'PRODUCTOS',
   );
 
+  static String familyLabel(ProductFamily family) => switch (family) {
+    ProductFamily.prebuiltPc => 'Computadores armados',
+    ProductFamily.part => 'Piezas',
+  };
+
+  /// Etiqueta corta del tipo de pieza para los chips de filtro.
+  static String chipLabel(ProductCategory category) => switch (category) {
+    ProductCategory.prebuiltPc => 'Armados',
+    ProductCategory.cpu => 'CPU',
+    ProductCategory.gpu => 'GPU',
+    ProductCategory.ram => 'RAM',
+    ProductCategory.motherboard => 'Motherboard',
+    ProductCategory.storage => 'Almacenamiento',
+    ProductCategory.psu => 'Fuente',
+    ProductCategory.pcCase => 'Gabinete',
+    ProductCategory.cooling => 'Refrigeración',
+  };
+
   static ProductVisuals forCategory(ProductCategory? category) =>
       switch (category) {
+        ProductCategory.prebuiltPc => const ProductVisuals(
+          icon: Icons.desktop_windows,
+          gradientColors: [Color(0xFF0E1A24), Color(0xFF0F3B4A)],
+          shortCategoryLabel: 'PC ARMADO',
+          categoryLabel: 'COMPUTADORES ARMADOS',
+        ),
         ProductCategory.cpu => const ProductVisuals(
           icon: Icons.memory,
           gradientColors: [Color(0xFF101010), Color(0xFF1B1B1B)],

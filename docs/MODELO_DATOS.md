@@ -35,7 +35,8 @@ Un producto aparece en el catálogo si tiene al menos una oferta `published` de 
 la más barata. Su `stockLevel` es el mejor entre sus ofertas.
 
 Estas reglas viven en las vistas `private.visible_offers` y `private.catalog_products`. Las RPC
-(`get_products`, `get_product`, `get_related`) las aplican.
+(`get_products`, `get_product`, `get_related` y `get_catalog_brands`) las aplican. Los filtros de marca y
+precio, y el orden por precio, usan esa mejor oferta (API_CONTRATO v0.4).
 
 ### Acceso y seguridad
 

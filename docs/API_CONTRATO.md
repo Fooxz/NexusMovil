@@ -1,6 +1,6 @@
-# Contrato de API: NEXUS Movil (v0.3, borrador)
+# Contrato de API: NEXUS Movil (v0.4, borrador)
 
-**Estado:** borrador. Parte 1: catalogo. Los campos nuevos de la v0.3 (`family`, `imageUrl`, `offers`) los adopta el front en la fase 3 de `docs/PLAN_IMPLEMENTACION.md`.
+**Estado:** borrador. Parte 1: catalogo. Implementado en el backend (`backend/`) y consumido por el front desde la fase 3 de `docs/PLAN_IMPLEMENTACION.md`.
 **Quien lo escribe:** el front, a partir de sus modelos reales (`lib/features/catalog/domain`).
 **Quien lo implementa:** el backend Supabase de `backend/`.
 **Regla de oro:** ninguno de los dos lados cambia el comportamiento sin editar este archivo primero. Si el codigo y este documento no coinciden, el documento gana hasta que se actualice.
@@ -123,6 +123,18 @@
 | `search` | string | (vacio) | Sin distinguir mayusculas y sin acentos. Busca en `name`, `brand` y categoria. Vacio o ausente significa "sin filtro". |
 | `family` | string (enum) | (ausente) | `prebuiltPc` o `part`. Si es invalido, `400`. |
 | `category` | string (enum) | (ausente) | Un valor de `category`. Si es invalido, `400`. Si se envia junto con `family` y no corresponde a ella, la respuesta es `200` con `items: []`. |
+| `brand` | string | (ausente) | Marca exacta, sin distinguir mayusculas. Los valores validos salen de 3.5. |
+| `minPriceCents` | entero (64 bits) | (ausente) | Precio minimo **inclusivo**, sobre `priceCents` (la mejor oferta). Negativo: `400`. |
+| `maxPriceCents` | entero (64 bits) | (ausente) | Precio maximo **inclusivo**. Negativo o menor que `minPriceCents`: `400`. |
+| `sort` | string (enum) | `relevance` | `relevance`, `priceAsc` o `priceDesc`. Otro valor: `400`. |
+
+**`sort`:**
+
+| Valor | Orden |
+|---|---|
+| `relevance` | Por nombre y luego `id`, mientras no exista un puntaje de busqueda. |
+| `priceAsc` | `priceCents` ascendente; desempata nombre y luego `id`. |
+| `priceDesc` | `priceCents` descendente; desempata nombre y luego `id`. |
 
 **Respuesta `200`:**
 
@@ -137,7 +149,7 @@
 
 - `total` es la cantidad de productos que cumplen los filtros **en todas las paginas**, no solo en esta.
 - El front calcula si hay mas paginas con `(page + 1) * pageSize < total`.
-- **El orden debe ser determinista y estable entre paginas** (si no, un producto puede aparecer dos veces o ninguna). Un parametro `sort` queda reservado para una version futura.
+- **El orden debe ser determinista y estable entre paginas** (si no, un producto puede aparecer dos veces o ninguna). Por eso todos los valores de `sort` desempatan por `id`.
 - Los productos `outOfStock` **si aparecen** en el listado y cuentan en `total`. El front los muestra como "AGOTADO".
 - Si no hay resultados: `200` con `items: []` y `total: 0`. No es un error.
 
@@ -167,12 +179,25 @@ Cada endpoint es un `POST /rest/v1/rpc/<funcion>` con los parametros en un cuerp
 
 | Endpoint | RPC | Parametros (cuerpo JSON) |
 |---|---|---|
-| 3.1 Listar | `get_products` | `page`, `page_size`, `search`, `family`, `category` |
+| 3.1 Listar | `get_products` | `page`, `page_size`, `search`, `family`, `category`, `brand`, `min_price_cents`, `max_price_cents`, `sort` |
 | 3.2 Detalle | `get_product` | `id` |
 | 3.3 Relacionados | `get_related` | `id`, `max_items` (equivale a `limit`, palabra reservada de SQL) |
+| 3.5 Marcas | `get_catalog_brands` | `family`, `category` |
 
 - Los nombres de parametro de las RPC van en snake_case porque son argumentos de funciones SQL. Los campos de las respuestas siguen en camelCase.
 - Los errores llegan con el codigo HTTP del contrato y un cuerpo `{"code", "message", "details", "hint"}`. El front ignora `details` y `hint`.
+
+### 3.5 Marcas del catalogo
+
+`GET /api/v1/products/brands?family=part&category=gpu`
+
+| Parametro | Tipo | Defecto | Notas |
+|---|---|---|---|
+| `family` | string (enum) | (ausente) | Como en 3.1. Invalido: `400`. |
+| `category` | string (enum) | (ausente) | Como en 3.1. Invalido: `400`. |
+
+- `200`: **lista** de string con las marcas que tienen productos visibles para esa familia y categoria, sin repetir y en orden alfabetico sin distinguir mayusculas. Puede ser `[]`.
+- Alimenta el filtro `brand` de 3.1.
 
 ---
 
@@ -255,7 +280,7 @@ Ambos lados deben poder usar este JSON como dato de prueba: el back para comprob
 | D2 | **Nombre corto.** El mismo producto necesita a veces un nombre largo (detalle) y uno corto (tarjeta). Opcion: agregar `shortName` (string o `null`) a `Product`. | Pendiente |
 | D3 | **Valor de N** para `critical` (de 1 a N unidades). 0 unidades es `outOfStock`. Sugerido: N = 5. | Pendiente de confirmar el valor de N |
 | D4 | **Imagenes.** Campo `imageUrl` (string o `null`) con la miniatura para listas. La galeria del detalle se define en la fase 3. | **Cerrada (v0.3)** |
-| D5 | **Orden y `sort`.** El front muestra "Orden: Relevancia" pero aun no filtra. Se define con el paso de busqueda del catalogo. | Pendiente |
+| D5 | **Orden y `sort`.** `relevance`, `priceAsc` y `priceDesc` (seccion 3.1). Un puntaje real de relevancia para la busqueda queda para despues. | **Cerrada (v0.4)** |
 | D6 | **Ocultar agotados.** Hoy los `outOfStock` se listan. Opcion futura: parametro `availableOnly=true`. | Pendiente |
 | D7 | **Unidades disponibles.** Para limitar la cantidad en el carrito (paso 5D) el front podria necesitar `stockQuantity` (entero). Se decide al disenar el carrito. | Pendiente |
 | D8 | **Tipos de computador armado.** Si se aceptan escritorio, portatil o ambos, y equipos usados o reacondicionados (vacio de informacion del analisis v2). Hasta decidirlo, `prebuiltPc` es la unica categoria de la familia. | Pendiente (negocio) |
@@ -292,6 +317,7 @@ Cambios compatibles (agregar un campo opcional, un endpoint nuevo): no rompen a 
 | 0.2 | Moneda fijada en COP (centavos, enteros de 64 bits, multiplos de 100). Nuevo valor `outOfStock` en `stockLevel` (0 unidades = no disponible). `critical` = de 1 a N unidades. Los agotados se listan. Precios de los ejemplos pasados a COP. |
 | 0.3 | Nuevo enfoque del analisis v2: se elimina `phone` y se agrega la categoria `prebuiltPc`. Nuevos campos en `Product`: `family`, `imageUrl` (cierra D4) y `offers` (modelo `Offer`, solo en el detalle). `priceCents`, `oldPriceCents` y `stockLevel` pasan a reflejar la mejor oferta. Nuevo parametro `family` en el listado. Fixture corregido (antes filtraba `gpu` y devolvia un CPU). Implementacion con RPC de Supabase. Nuevas decisiones D8 y D9. |
 | 0.3.1 | Seccion 3.4: nombres de las RPC y de sus parametros (`page_size`, `max_items`). Sin cambios en las respuestas. |
+| 0.4 | Listado: nuevos parametros `brand`, `minPriceCents`, `maxPriceCents` y `sort` (cierra D5). Nuevo endpoint 3.5 de marcas (`get_catalog_brands`). Cambios compatibles: los parametros son opcionales. |
 
 ---
 

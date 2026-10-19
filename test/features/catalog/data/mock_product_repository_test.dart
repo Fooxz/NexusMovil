@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:prueba01/features/catalog/data/mock_product_repository.dart';
 import 'package:prueba01/features/catalog/domain/product.dart';
+import 'package:prueba01/features/catalog/domain/product_filters.dart';
 
 void main() {
   late MockProductRepository repository;
@@ -9,24 +10,34 @@ void main() {
     repository = MockProductRepository(latency: Duration.zero);
   });
 
+  Future<List<String>> ids(ProductFilters filters) async =>
+      (await repository.getProducts(filters: filters)).items
+          .map((product) => product.id)
+          .toList();
+
   test('lists and paginates all products', () async {
     final firstPage = await repository.getProducts(pageSize: 4);
     final secondPage = await repository.getProducts(page: 1, pageSize: 4);
 
-    expect(firstPage.total, 6);
+    expect(firstPage.total, 8);
     expect(firstPage.items, hasLength(4));
     expect(firstPage.hasMore, isTrue);
-    expect(secondPage.items, hasLength(2));
+    expect(secondPage.items, hasLength(4));
     expect(secondPage.hasMore, isFalse);
   });
 
   test('searches product name and category', () async {
-    final byName = await repository.getProducts(search: 'ryzen');
+    final byName = await repository.getProducts(
+      filters: const ProductFilters(search: 'ryzen'),
+    );
     final byCategory = await repository.getProducts(
-      search: 'tarjetas gráficas',
+      filters: const ProductFilters(search: 'tarjetas gráficas'),
     );
 
-    expect(byName.items.map((product) => product.id), ['ryzen-9-9950x']);
+    expect(byName.items.map((product) => product.id), [
+      'ryzen-9-9950x',
+      'pc-gamer-pro-r7-5070',
+    ]);
     expect(byCategory.items.map((product) => product.id), [
       'rtx-5090',
       'rtx-5080',
@@ -34,7 +45,9 @@ void main() {
   });
 
   test('searches accented names and categories without accents', () async {
-    final page = await repository.getProducts(search: 'tarjetas graficas');
+    final page = await repository.getProducts(
+      filters: const ProductFilters(search: 'tarjetas graficas'),
+    );
 
     expect(page.items.map((product) => product.id), [
       'rtx-5090',
@@ -62,12 +75,71 @@ void main() {
 
   test('filters by category', () async {
     final page = await repository.getProducts(
-      category: ProductCategory.cooling,
+      filters: const ProductFilters(category: ProductCategory.cooling),
     );
 
     expect(page.items.map((product) => product.id), [
       'kraken-elite-360',
       'cooler-master-elite-liquid-360',
+    ]);
+  });
+
+  test('filters by family, brand and price range', () async {
+    expect(
+      await ids(const ProductFilters(family: ProductFamily.prebuiltPc)),
+      ['pc-gamer-pro-r7-5070', 'pc-oficina-i5-14400'],
+    );
+    expect(
+      await ids(const ProductFilters(brand: 'nvidia')),
+      ['rtx-5090', 'rtx-5080'],
+    );
+    expect(
+      await ids(
+        const ProductFilters(
+          minPriceCents: 200000000,
+          maxPriceCents: 260000000,
+        ),
+      ),
+      ['ryzen-9-9950x', 'cooler-master-elite-liquid-360', 'pc-oficina-i5-14400'],
+    );
+  });
+
+  test('sorts by price in both directions', () async {
+    final ascending = await ids(
+      const ProductFilters(
+        family: ProductFamily.part,
+        category: ProductCategory.gpu,
+        sort: ProductSort.priceAsc,
+      ),
+    );
+    final descending = await ids(
+      const ProductFilters(
+        category: ProductCategory.gpu,
+        sort: ProductSort.priceDesc,
+      ),
+    );
+
+    expect(ascending, ['rtx-5080', 'rtx-5090']);
+    expect(descending, ['rtx-5090', 'rtx-5080']);
+  });
+
+  test('lists brands for the selected family', () async {
+    expect(
+      await repository.getBrands(family: ProductFamily.prebuiltPc),
+      ['Mundo PC', 'TecnoPartes'],
+    );
+  });
+
+  test('returns offers only in the product detail', () async {
+    final listed = (await repository.getProducts()).items.firstWhere(
+      (product) => product.id == 'rtx-5090',
+    );
+    final detail = await repository.getById('rtx-5090');
+
+    expect(listed.offers, isEmpty);
+    expect(detail!.offers.map((offer) => offer.providerName), [
+      'TecnoPartes',
+      'Mundo PC',
     ]);
   });
 

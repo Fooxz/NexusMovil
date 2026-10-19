@@ -8,6 +8,7 @@ import '../../../widgets/nexus_error_state.dart';
 import '../../../widgets/nexus_loading.dart';
 import '../../../widgets/nexus_page.dart';
 import '../../../widgets/nexus_product_card.dart';
+import '../../../widgets/nexus_product_image.dart';
 import '../../../widgets/nexus_quantity_stepper.dart';
 import '../../../widgets/nexus_widgets.dart';
 import '../catalog_providers.dart';
@@ -78,18 +79,19 @@ class _ProductDetailContent extends ConsumerWidget {
         ),
         const SizedBox(height: 14),
         Container(
-          height: 230,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: NexusColors.cyan.withValues(alpha: 0.5)),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: visuals.gradientColors,
-            ),
           ),
-          alignment: Alignment.center,
-          child: Icon(visuals.icon, size: 64, color: NexusColors.cyan),
+          child: NexusProductImage(
+            imageUrl: product.imageUrl,
+            icon: visuals.icon,
+            iconColor: NexusColors.cyan,
+            iconSize: 64,
+            gradientColors: visuals.gradientColors,
+            height: 230,
+            borderRadius: 11,
+          ),
         ),
         const SizedBox(height: 14),
         Wrap(
@@ -137,6 +139,10 @@ class _ProductDetailContent extends ConsumerWidget {
             ],
           ],
         ),
+        if (product.offers.isNotEmpty) ...[
+          const SizedBox(height: 18),
+          _ProductOffers(offers: product.offers),
+        ],
         if (product.quickSpecs.isNotEmpty) ...[
           const SizedBox(height: 18),
           const NexusUnderlineTitle('SPECS RÁPIDAS'),
@@ -220,6 +226,96 @@ class _ProductDetailContent extends ConsumerWidget {
   }
 }
 
+/// Ofertas de cada proveedor (HU-005). NEXUS es intermediario: cada proveedor
+/// vende y despacha su oferta (RN-009).
+class _ProductOffers extends StatelessWidget {
+  const _ProductOffers({required this.offers});
+
+  final List<ProductOffer> offers;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        NexusUnderlineTitle(
+          offers.length == 1 ? 'VENDIDO POR' : 'OFERTAS DE PROVEEDORES',
+        ),
+        const SizedBox(height: 4),
+        NexusCard(
+          child: Column(
+            children: [
+              for (var index = 0; index < offers.length; index++) ...[
+                if (index > 0) const Divider(color: NexusColors.border, height: 1),
+                _OfferRow(offer: offers[index]),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _OfferRow extends StatelessWidget {
+  const _OfferRow({required this.offer});
+
+  final ProductOffer offer;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  offer.providerName,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                NexusStatusDot(
+                  ProductVisuals.stockLabel(offer.stockLevel),
+                  color: ProductVisuals.stockColor(offer.stockLevel),
+                ),
+              ],
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                formatPrice(offer.priceCents),
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
+                  color: NexusColors.cyan,
+                ),
+              ),
+              if (offer.hasDiscount)
+                Text(
+                  formatPrice(offer.oldPriceCents!),
+                  style: const TextStyle(
+                    fontSize: 10.5,
+                    color: NexusColors.textFaint,
+                    decoration: TextDecoration.lineThrough,
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _RelatedProducts extends ConsumerWidget {
   const _RelatedProducts({required this.productId});
 
@@ -271,6 +367,7 @@ class _RelatedProductCard extends StatelessWidget {
     final visuals = ProductVisuals.forCategory(product.category);
 
     return NexusProductCard(
+      imageUrl: product.imageUrl,
       icon: visuals.icon,
       gradientColors: visuals.gradientColors,
       imageHeight: 74,

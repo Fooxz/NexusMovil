@@ -3,13 +3,23 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/network/supabase_providers.dart';
 import 'data/mock_product_repository.dart';
+import 'data/supabase_product_repository.dart';
 import 'domain/product.dart';
+import 'domain/product_filters.dart';
 import 'domain/product_repository.dart';
 
-final productRepositoryProvider = Provider<ProductRepository>(
-  (ref) => MockProductRepository(),
-);
+/// Único punto que decide entre el backend real y el mock: con Supabase
+/// configurado (ver env.example.json) usa las RPC; sin él, el mock.
+final productRepositoryProvider = Provider<ProductRepository>((ref) {
+  if (ref.watch(appEnvProvider).hasSupabase) {
+    return SupabaseProductRepository.fromClient(
+      ref.watch(supabaseClientProvider),
+    );
+  }
+  return MockProductRepository();
+});
 
 final catalogPageSizeProvider = Provider<int>((ref) => 20);
 
@@ -20,8 +30,7 @@ class CatalogState {
     required this.total,
     required this.page,
     required this.pageSize,
-    this.query = '',
-    this.category,
+    this.filters = const ProductFilters(),
     this.isLoadingMore = false,
     this.loadMoreError,
   });
@@ -30,10 +39,12 @@ class CatalogState {
   final int total;
   final int page;
   final int pageSize;
-  final String query;
-  final ProductCategory? category;
+  final ProductFilters filters;
   final bool isLoadingMore;
   final String? loadMoreError;
+
+  String get query => filters.search;
+  ProductCategory? get category => filters.category;
 
   factory CatalogState.initial({int pageSize = 20}) =>
       CatalogState(items: const [], total: 0, page: 0, pageSize: pageSize);
@@ -43,20 +54,17 @@ class CatalogState {
     int? total,
     int? page,
     int? pageSize,
-    String? query,
-    ProductCategory? category,
+    ProductFilters? filters,
     bool? isLoadingMore,
     String? loadMoreError,
     bool clearLoadMoreError = false,
-    bool clearCategory = false,
   }) {
     return CatalogState(
       items: items ?? this.items,
       total: total ?? this.total,
       page: page ?? this.page,
       pageSize: pageSize ?? this.pageSize,
-      query: query ?? this.query,
-      category: clearCategory ? null : (category ?? this.category),
+      filters: filters ?? this.filters,
       isLoadingMore: isLoadingMore ?? this.isLoadingMore,
       loadMoreError: clearLoadMoreError
           ? null
@@ -87,106 +95,117 @@ class CatalogController extends AsyncNotifier<CatalogState> {
     return _loadPage(
       page: 0,
       pageSize: pageSize,
-      query: '',
-      category: null,
+      filters: const ProductFilters(),
       preservePrevious: false,
     );
   }
 
+  CatalogState get _current =>
+      state.asData?.value ??
+      CatalogState.initial(pageSize: ref.read(catalogPageSizeProvider));
+
   Future<void> setSearch(String value) async {
-    final trimmed = value.trim();
-    final current =
-        state.asData?.value ??
-        CatalogState.initial(pageSize: ref.read(catalogPageSizeProvider));
-    final nextQuery = trimmed.isEmpty ? '' : trimmed;
+    final nextQuery = value.trim();
 
     _searchDebounce?.cancel();
     _searchDebounce = null;
-    if (current.query == nextQuery) return;
+    if (_current.query == nextQuery) return;
 
     _searchDebounce = Timer(const Duration(milliseconds: 300), () {
-      final latest =
-          state.asData?.value ??
-          CatalogState.initial(pageSize: ref.read(catalogPageSizeProvider));
-      unawaited(
-        _loadPage(
-          page: 0,
-          pageSize: ref.read(catalogPageSizeProvider),
-          query: nextQuery,
-          category: latest.category,
-          preservePrevious: true,
-        ),
-      );
+      unawaited(_applyFilters(_current.filters.copyWith(search: nextQuery)));
     });
   }
 
-  Future<void> setCategory(ProductCategory? category) async {
-    final current =
-        state.asData?.value ??
-        CatalogState.initial(pageSize: ref.read(catalogPageSizeProvider));
-    if (current.category == category) return;
-    await _loadPage(
-      page: 0,
-      pageSize: ref.read(catalogPageSizeProvider),
-      query: current.query,
-      category: category,
-      preservePrevious: true,
+  /// La categoría solo se conserva si pertenece a la nueva familia; elegir
+  /// "Todo" (`null`) la quita también.
+  Future<void> setFamily(ProductFamily? family) {
+    final filters = _current.filters;
+    if (filters.family == family) return Future.value();
+    final category = filters.category;
+    return _applyFilters(
+      filters.copyWith(
+        family: family,
+        category: category?.family == family ? category : null,
+        brand: null,
+      ),
     );
   }
 
+  /// La categoría implica su familia.
+  Future<void> setCategory(ProductCategory? category) {
+    final filters = _current.filters;
+    if (filters.category == category) return Future.value();
+    return _applyFilters(
+      filters.copyWith(
+        category: category,
+        family: category?.family ?? filters.family,
+        brand: null,
+      ),
+    );
+  }
+
+  Future<void> setBrand(String? brand) =>
+      _applyFilters(_current.filters.copyWith(brand: brand));
+
+  Future<void> setPriceRange({int? minPriceCents, int? maxPriceCents}) =>
+      _applyFilters(
+        _current.filters.copyWith(
+          minPriceCents: minPriceCents,
+          maxPriceCents: maxPriceCents,
+        ),
+      );
+
+  Future<void> setSort(ProductSort sort) =>
+      _applyFilters(_current.filters.copyWith(sort: sort));
+
+  /// Quita búsqueda y filtros; conserva el orden.
   Future<void> clearFilters() async {
     _searchDebounce?.cancel();
     _searchDebounce = null;
-    final current =
-        state.asData?.value ??
-        CatalogState.initial(pageSize: ref.read(catalogPageSizeProvider));
-    if (current.query.isEmpty && current.category == null) return;
-
-    await _loadPage(
-      page: 0,
-      pageSize: ref.read(catalogPageSizeProvider),
-      query: '',
-      category: null,
-      preservePrevious: true,
-    );
+    final filters = _current.filters;
+    if (!filters.hasActiveFilters) return;
+    await _applyFilters(ProductFilters(sort: filters.sort));
   }
 
   Future<void> retry() async {
     _searchDebounce?.cancel();
     _searchDebounce = null;
-    final current =
-        state.asData?.value ??
-        CatalogState.initial(pageSize: ref.read(catalogPageSizeProvider));
+    final current = _current;
     await _loadPage(
       page: current.page,
       pageSize: ref.read(catalogPageSizeProvider),
-      query: current.query,
-      category: current.category,
+      filters: current.filters,
       preservePrevious: true,
     );
   }
 
   Future<void> loadMore() async {
-    final current =
-        state.asData?.value ??
-        CatalogState.initial(pageSize: ref.read(catalogPageSizeProvider));
+    final current = _current;
     if (current.isLoadingMore || !current.hasMore) return;
     if (state.isLoading) return;
     await _loadPage(
       page: current.page + 1,
       pageSize: ref.read(catalogPageSizeProvider),
-      query: current.query,
-      category: current.category,
+      filters: current.filters,
       preservePrevious: true,
       append: true,
+    );
+  }
+
+  Future<void> _applyFilters(ProductFilters next) async {
+    if (next == _current.filters) return;
+    await _loadPage(
+      page: 0,
+      pageSize: ref.read(catalogPageSizeProvider),
+      filters: next,
+      preservePrevious: true,
     );
   }
 
   Future<CatalogState> _loadPage({
     required int page,
     required int pageSize,
-    required String query,
-    required ProductCategory? category,
+    required ProductFilters filters,
     required bool preservePrevious,
     bool append = false,
   }) async {
@@ -194,7 +213,7 @@ class CatalogController extends AsyncNotifier<CatalogState> {
     final current =
         state.asData?.value ?? CatalogState.initial(pageSize: pageSize);
     final requestId = ++_requestVersion;
-    final effectiveQuery = query.trim();
+    final effectiveFilters = filters.copyWith(search: filters.search.trim());
 
     if (preservePrevious) {
       state = AsyncValue<CatalogState>.data(
@@ -206,8 +225,7 @@ class CatalogController extends AsyncNotifier<CatalogState> {
       final pageResult = await repository.getProducts(
         page: page,
         pageSize: pageSize,
-        search: effectiveQuery.isEmpty ? null : effectiveQuery,
-        category: category,
+        filters: effectiveFilters,
       );
 
       if (requestId != _requestVersion) {
@@ -222,9 +240,7 @@ class CatalogController extends AsyncNotifier<CatalogState> {
         total: pageResult.total,
         page: pageResult.page,
         pageSize: pageSize,
-        query: effectiveQuery,
-        category: category,
-        clearCategory: category == null,
+        filters: effectiveFilters,
         isLoadingMore: false,
         clearLoadMoreError: true,
       );
@@ -245,6 +261,19 @@ class CatalogController extends AsyncNotifier<CatalogState> {
     }
   }
 }
+
+/// Marcas para el filtro, según la familia y categoría seleccionadas.
+final catalogBrandsProvider = FutureProvider.autoDispose<List<String>>((ref) {
+  final scope = ref.watch(
+    catalogControllerProvider.select((value) {
+      final filters = value.asData?.value.filters;
+      return (family: filters?.family, category: filters?.category);
+    }),
+  );
+  return ref
+      .watch(productRepositoryProvider)
+      .getBrands(family: scope.family, category: scope.category);
+});
 
 final productDetailProvider = FutureProvider.autoDispose
     .family<Product?, String>(
