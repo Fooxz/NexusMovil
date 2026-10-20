@@ -8,6 +8,14 @@
     "version": "0.2.0",
     "configurations": [
         {
+            // Proyecto_nexus en Supabase (nube): funciona en el teléfono, Chrome
+            // o Windows sin el backend local. Copiar de env.cloud.example.json.
+            "name": "NEXUS – Supabase en la nube",
+            "request": "launch",
+            "type": "dart",
+            "args": ["--dart-define-from-file=env.cloud.json"]
+        },
+        {
             "name": "NEXUS – Chrome/Windows + Supabase local",
             "request": "launch",
             "type": "dart",

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 /// Configuración de entorno inyectada al compilar con `--dart-define` o
 /// `--dart-define-from-file=env.json` (ver `env.example.json`).
 ///
@@ -18,12 +20,36 @@ class AppEnv {
   /// Nunca poner aquí la clave `service_role` ni secretos de servidor.
   final String supabasePublishableKey;
 
+  /// Con una clave de servidor la app no usa Supabase: esa clave salta RLS
+  /// y no debe viajar en una app que cualquiera puede descompilar.
   bool get hasSupabase =>
-      supabaseUrl.isNotEmpty && supabasePublishableKey.isNotEmpty;
+      supabaseUrl.isNotEmpty &&
+      supabasePublishableKey.isNotEmpty &&
+      !usesServerKey;
+
+  /// La clave es de servidor: una `sb_secret_...` o un JWT con rol
+  /// `service_role` (la clave antigua).
+  bool get usesServerKey {
+    final key = supabasePublishableKey;
+    if (key.startsWith('sb_secret_')) return true;
+    final parts = key.split('.');
+    if (parts.length != 3) return false;
+    try {
+      final payload = jsonDecode(
+        utf8.decode(base64Url.decode(base64Url.normalize(parts[1]))),
+      );
+      return payload is Map && payload['role'] == 'service_role';
+    } on FormatException {
+      return false;
+    }
+  }
 
   /// Errores de configuración frecuentes, para avisar al arrancar en debug.
   /// [isAndroid] indica si la app corre en Android (emulador o teléfono).
   List<String> warnings({required bool isAndroid}) => [
+    if (usesServerKey)
+      'SUPABASE_PUBLISHABLE_KEY es una clave de servidor (secret o '
+          'service_role). La app no la usa: pon la "Publishable key".',
     if (supabasePublishableKey.contains('reemplazar'))
       'SUPABASE_PUBLISHABLE_KEY es la de ejemplo: copia la "Publishable key" '
           'de `npx supabase status` (en backend/).',

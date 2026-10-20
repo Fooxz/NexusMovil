@@ -24,12 +24,11 @@ import 'theme/nexus_theme.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   const env = AppEnv.fromEnvironment();
+  final isAndroid = !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+  for (final warning in env.warnings(isAndroid: isAndroid)) {
+    debugPrint('[NEXUS] Configuración: $warning');
+  }
   if (env.hasSupabase) {
-    final isAndroid =
-        !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
-    for (final warning in env.warnings(isAndroid: isAndroid)) {
-      debugPrint('[NEXUS] Configuración: $warning');
-    }
     await Supabase.initialize(
       url: env.supabaseUrl,
       publishableKey: env.supabasePublishableKey,

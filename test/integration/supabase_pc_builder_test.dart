@@ -13,6 +13,8 @@ import 'package:prueba01/features/catalog/domain/product.dart';
 import 'package:prueba01/features/pc_builder/data/supabase_pc_builder_repository.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthUser;
 
+import '../support/integration_support.dart';
+
 const _validBuild = [
   'off-tp-9950x', // AM5, 170 W, gráficos integrados
   'off-mp-b650ef', // AM5, ATX, DDR5
@@ -25,14 +27,12 @@ const _validBuild = [
 
 void main() {
   const env = AppEnv.fromEnvironment();
-  final skip = env.hasSupabase
-      ? false
-      : 'Sin SUPABASE_URL/SUPABASE_PUBLISHABLE_KEY (ver env.example.json)';
+  final skip = integrationSkip(env);
 
   late SupabasePcBuilderRepository builder;
 
   setUpAll(() {
-    if (!env.hasSupabase) return;
+    if (skip != false) return;
     builder = SupabasePcBuilderRepository.fromClient(
       SupabaseClient(env.supabaseUrl, env.supabasePublishableKey),
     );

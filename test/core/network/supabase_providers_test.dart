@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -30,6 +32,27 @@ void main() {
     expect(exampleOnWeb.warnings(isAndroid: false), hasLength(2));
     expect(exampleOnWeb.warnings(isAndroid: true), hasLength(1));
     expect(realOnAndroid.warnings(isAndroid: true), isEmpty);
+  });
+
+  test('never uses a server key in the app', () {
+    String jwt(Map<String, Object?> payload) =>
+        'eyJhbGciOiJIUzI1NiJ9.${base64Url.encode(utf8.encode(jsonEncode(payload))).replaceAll('=', '')}.firma';
+    const url = 'https://abc.supabase.co';
+
+    for (final key in [
+      'sb_secret_N7UND0UgjKTVK',
+      jwt({'role': 'service_role'}),
+    ]) {
+      final env = AppEnv(supabaseUrl: url, supabasePublishableKey: key);
+      expect(env.usesServerKey, isTrue, reason: key);
+      expect(env.hasSupabase, isFalse, reason: 'no se inicia Supabase');
+      expect(env.warnings(isAndroid: true).single, contains('clave de servidor'));
+    }
+    for (final key in ['sb_publishable_abc', jwt({'role': 'anon'})]) {
+      final env = AppEnv(supabaseUrl: url, supabasePublishableKey: key);
+      expect(env.usesServerKey, isFalse, reason: key);
+      expect(env.hasSupabase, isTrue);
+    }
   });
 
   test('tests run without Supabase configured', () {

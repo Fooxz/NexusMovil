@@ -17,13 +17,13 @@ import 'package:prueba01/features/profile/data/supabase_profile_repository.dart'
 import 'package:prueba01/features/profile/domain/profile_models.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthUser;
 
+import '../support/integration_support.dart';
+
 const _password = 'Nexus12345';
 
 void main() {
   const env = AppEnv.fromEnvironment();
-  final skip = env.hasSupabase
-      ? false
-      : 'Sin SUPABASE_URL/SUPABASE_PUBLISHABLE_KEY (ver env.example.json)';
+  final skip = integrationSkip(env);
 
   // Un cliente por usuario, como dos dispositivos distintos. Flujo implícito:
   // el PKCE necesita almacenamiento, que en la app pone Supabase.initialize.
@@ -42,7 +42,7 @@ void main() {
   late List<LegalDocument> documents;
 
   setUpAll(() async {
-    if (!env.hasSupabase) return;
+    if (skip != false) return;
     final client = newClient();
     authA = SupabaseAuthRepository(client);
     profileA = SupabaseProfileRepository(client);

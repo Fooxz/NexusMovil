@@ -103,6 +103,10 @@ políticas, funciones, triggers y permisos), y las RPC, Storage y la función re
   *Authentication → SMTP* y subir `supabase/templates/recovery.html`.
 - **Pausa:** un proyecto gratuito sin actividad durante una semana se pausa; se reactiva desde el dashboard.
 
+**Pruebas de integración:** solo corren contra el Supabase local, porque crean cuentas, direcciones y carritos de
+prueba. Con `env.cloud.json` se saltan, salvo que se agregue `--dart-define=ALLOW_REMOTE_INTEGRATION=true`
+(`test/support/integration_support.dart`).
+
 **Al agregar una migración:** `npx supabase db push --dry-run` y después `npx supabase db push`. Si cambia la
 función: `npx supabase functions deploy assistant --no-verify-jwt --use-api`.
 

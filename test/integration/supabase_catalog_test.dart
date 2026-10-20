@@ -15,16 +15,16 @@ import 'package:prueba01/features/catalog/domain/product.dart';
 import 'package:prueba01/features/catalog/domain/product_filters.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../support/integration_support.dart';
+
 void main() {
   const env = AppEnv.fromEnvironment();
-  final skip = env.hasSupabase
-      ? false
-      : 'Sin SUPABASE_URL/SUPABASE_PUBLISHABLE_KEY (ver env.example.json)';
+  final skip = integrationSkip(env);
 
   late SupabaseProductRepository repository;
 
   setUpAll(() {
-    if (!env.hasSupabase) return;
+    if (skip != false) return;
     repository = SupabaseProductRepository.fromClient(
       SupabaseClient(env.supabaseUrl, env.supabasePublishableKey),
     );

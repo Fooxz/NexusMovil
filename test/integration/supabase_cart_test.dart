@@ -12,6 +12,8 @@ import 'package:prueba01/features/cart/domain/cart_models.dart';
 import 'package:prueba01/features/catalog/data/supabase_product_repository.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthUser;
 
+import '../support/integration_support.dart';
+
 // Ofertas de seed.sql.
 const _z790Three = 'off-mp-z790hero'; // 3 unidades
 const _rtx5090Many = 'off-tp-rtx5090'; // 12 unidades, tope 10
@@ -20,9 +22,7 @@ const _hiddenProvider = 'off-cn-vengeance32'; // proveedor pendiente
 
 void main() {
   const env = AppEnv.fromEnvironment();
-  final skip = env.hasSupabase
-      ? false
-      : 'Sin SUPABASE_URL/SUPABASE_PUBLISHABLE_KEY (ver env.example.json)';
+  final skip = integrationSkip(env);
 
   SupabaseClient newClient() => SupabaseClient(
     env.supabaseUrl,

@@ -15,17 +15,17 @@ import 'package:prueba01/features/assistant/data/supabase_assistant_repository.d
 import 'package:prueba01/features/assistant/domain/assistant_models.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../support/integration_support.dart';
+
 void main() {
   const env = AppEnv.fromEnvironment();
   const live = bool.fromEnvironment('ASSISTANT_LIVE');
-  final skip = env.hasSupabase
-      ? false
-      : 'Sin SUPABASE_URL/SUPABASE_PUBLISHABLE_KEY (ver env.example.json)';
+  final skip = integrationSkip(env);
 
   late SupabaseAssistantRepository assistant;
 
   setUpAll(() {
-    if (!env.hasSupabase) return;
+    if (skip != false) return;
     assistant = SupabaseAssistantRepository.fromClient(
       SupabaseClient(env.supabaseUrl, env.supabasePublishableKey),
     );
