@@ -35,6 +35,7 @@ La URL depende de dónde corre la app, así que hay un archivo por destino. Todo
 
 | Dónde corre la app | Archivo (copiar de) | `SUPABASE_URL` |
 |---|---|---|
+| **Supabase en la nube** (cualquier dispositivo) | `env.cloud.json` (`env.cloud.example.json`) | `https://fzapwqaadxivadtlpthj.supabase.co` |
 | Chrome o Windows | `env.json` (`env.example.json`) | `http://127.0.0.1:54321` |
 | Emulador de Android | `env.android.json` (`env.android.example.json`) | `http://10.0.2.2:54321` |
 | Celular físico por USB (recomendado) | `env.json`, después de `adb reverse tcp:54321 tcp:54321` | `http://127.0.0.1:54321` |
@@ -71,6 +72,39 @@ raíz, agregar `--workdir backend`.
 
 **Nunca** poner la `service_role` key ni otros secretos en `env.json` ni en el código de la app: van solo
 en las Edge Functions (`npx supabase secrets set`).
+
+## Proyecto en la nube (Proyecto_nexus)
+
+Proyecto `fzapwqaadxivadtlpthj` (plan gratuito, us-east-1, Postgres 17). La CLI está vinculada con
+`npx supabase link --project-ref fzapwqaadxivadtlpthj` (la referencia vive en `supabase/.temp`, ignorada por git).
+
+**Cómo se subió (2026-10-19):**
+1. `npx supabase db push`: las 10 migraciones, con los datos que traen (categorías, atributos, ranuras, reglas,
+   documentos legales y configuración).
+2. **Catálogo:** se exportó de local con `npx supabase db dump --local --data-only`, solo con las tablas
+   `providers`, `products`, `product_attributes`, `product_images`, `offers`, `component_models` y
+   `prebuilt_components`. Se importó con `npx supabase db query --linked -f` en una transacción. No se migraron
+   las cuentas de prueba, `auth`, los carritos ni las bitácoras.
+3. `npx supabase seed buckets --project-ref fzapwqaadxivadtlpthj`: el bucket `component-models` y sus `.glb`.
+4. `npx supabase secrets set --env-file supabase/functions/.env` y
+   `npx supabase functions deploy assistant --no-verify-jwt --use-api`.
+5. **Autenticación:** se igualaron solo los ajustes que la app necesita: código de 6 dígitos, sin confirmar el
+   correo, contraseña de 8+ con letras y números, MFA apagado. Se hizo con una configuración mínima aparte
+   (`config push --workdir`), porque `config.toml` trae valores de desarrollo (`site_url` local, 1 s
+   entre correos).
+
+**Verificado:** el esquema `public` y `private` es idéntico al local (volcado completo sin diferencias: RLS,
+políticas, funciones, triggers y permisos), y las RPC, Storage y la función responden desde fuera.
+
+**Límites del plan gratuito:**
+- **Correo:** sin SMTP propio, Supabase solo envía a los miembros de la organización y no deja cambiar las
+  plantillas. Por eso la confirmación de correo está apagada y **la recuperación de contraseña no funciona en la
+  nube**: la app espera un código y la plantilla de fábrica manda un enlace. Para activarla, configurar un SMTP en
+  *Authentication → SMTP* y subir `supabase/templates/recovery.html`.
+- **Pausa:** un proyecto gratuito sin actividad durante una semana se pausa; se reactiva desde el dashboard.
+
+**Al agregar una migración:** `npx supabase db push --dry-run` y después `npx supabase db push`. Si cambia la
+función: `npx supabase functions deploy assistant --no-verify-jwt --use-api`.
 
 ## Cuentas y correos en local
 
