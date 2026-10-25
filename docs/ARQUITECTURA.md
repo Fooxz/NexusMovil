@@ -117,6 +117,15 @@ Los datos para PC Builder se modelarán por separado como `PcPartSpec` en la fas
 - **Agregar desde cualquier pantalla:** con `addToCart()` (`features/cart/presentation/cart_actions.dart`), que muestra el aviso o el error del `AppFailure`. Las tarjetas del catálogo agregan `bestOfferId`; el detalle agrega la oferta elegida con la cantidad elegida.
 - **El repositorio del carrito va en pareja con los mocks:** con `MockProductRepository` y `MockAuthRepository` se usa `MockCartRepository`; si no, las RPC.
 
+### Checkout (fase 8)
+
+- **`CheckoutController`** (`features/checkout/checkout_providers.dart`, `autoDispose`) lleva el flujo: `form` → `starting` → `paying` → `verifying` → `done`. Un error al iniciar vuelve al formulario con el `AppFailure`; `retry()` empieza de nuevo.
+- **La pantalla orquesta la pasarela,** porque necesita el `BuildContext`: `start()` devuelve la sesión, `PaymentLauncher.open()` espera al cliente y `verify(transactionId)` consulta el resultado. Si sigue pendiente, consulta 3 veces más, a un intervalo de `checkoutPollIntervalProvider` (las pruebas lo ponen en cero).
+- **La app no decide si se pagó:** solo muestra lo que responde `checkout`. El backend aplica el resultado de Wompi con `apply_payment_event` y crea la orden.
+- **`PaymentLauncher`** es intercambiable: `WompiPaymentLauncher` (WebView en móvil, `url_launcher` en web y escritorio) o `SimulatedPaymentLauncher` cuando el checkout es el mock. Las pruebas usan uno falso.
+- **Al aprobarse** se invalida `cartControllerProvider`: el backend ya sacó lo comprado. También se invalida si el carrito cambió (`PRICE_CHANGED`, `CART_CHANGED`).
+- **En pareja con el carrito:** con `MockCartRepository` se usa `MockCheckoutRepository`; si no, la Edge Function.
+
 ### PC Builder (fase 6)
 
 - **La app no calcula compatibilidad.** `PcBuilderController` (`features/pc_builder/pc_builder_providers.dart`) guarda qué oferta hay en cada ranura y, en cada cambio, pide la evaluación al motor del backend (`validate_build`). Las operaciones van en serie. Si una falla, se conserva la configuración anterior y el error llega a la pantalla.

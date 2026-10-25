@@ -45,6 +45,11 @@
         <intent>
             <action android:name="android.speech.RecognitionService"/>
         </intent>
+        <!-- Pago con Wompi: abrir el navegador o la app del banco o de Nequi (url_launcher). -->
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="https"/>
+        </intent>
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>

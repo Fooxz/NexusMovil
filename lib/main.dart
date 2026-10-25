@@ -16,6 +16,7 @@ import 'features/auth/presentation/login_screen.dart';
 import 'features/auth/presentation/signup_screen.dart';
 import 'features/cart/presentation/cart_actions.dart';
 import 'features/cart/presentation/cart_screen.dart';
+import 'features/checkout/presentation/checkout_screen.dart';
 import 'routes.dart';
 import 'features/catalog/presentation/product_detail_screen.dart';
 import 'screens/shell/main_shell.dart';
@@ -85,6 +86,10 @@ Route<Object?>? generateNexusRoute(RouteSettings settings) {
     NexusRoutes.cart => MaterialPageRoute<void>(
       settings: settings,
       builder: (_) => const CartScreen(),
+    ),
+    NexusRoutes.checkout => MaterialPageRoute<void>(
+      settings: settings,
+      builder: (_) => const CheckoutScreen(),
     ),
     NexusRoutes.productDetail => MaterialPageRoute<void>(
       settings: settings,

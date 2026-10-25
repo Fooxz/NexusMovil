@@ -10,9 +10,10 @@ NEXUS es una app Flutter de un marketplace de computadores armados y piezas. Con
 - el perfil con direcciones de entrega (fase 4);
 - el carrito (fase 5);
 - el PC Builder con el motor de compatibilidad (fase 6) y la vista 3D (fase 6.1);
-- el asistente de recomendación con Gemini, por texto o por voz (fase 7).
+- el asistente de recomendación con Gemini, por texto o por voz (fase 7);
+- el checkout con pago en Wompi y la orden por proveedor (fase 8).
 
-Sin configuración, las mismas pantallas usan repositorios mock en memoria (sin backend, el PC Builder avisa que no verifica compatibilidad y el asistente avisa que necesita el servidor). Inicio todavía muestra datos de ejemplo escritos en el código. "Confirmar pedido" ya exige sesión, pero el pago llega en la fase 8.
+Sin configuración, las mismas pantallas usan repositorios mock en memoria (sin backend, el PC Builder avisa que no verifica compatibilidad y el asistente avisa que necesita el servidor). Inicio todavía muestra datos de ejemplo escritos en el código. Sin backend, el pago se simula con un diálogo que lo aprueba o lo rechaza.
 
 ## Estructura de `lib/`
 
@@ -53,6 +54,14 @@ lib/
 |   |       |-- part_picker_screen.dart # Piezas de una ranura: compatibles primero, con la causa si no
 |   |       |-- prebuilt_preview.dart # Un computador armado por secciones y en 3D (solo para ver)
 |   |       `-- viewer/               # Vista 3D: posición de cada pieza (scene_layout), widget y host por plataforma
+|   |-- checkout/
+|   |   |-- checkout_providers.dart   # Repositorio, pasarela, CheckoutController (form → pago → resultado)
+|   |   |-- domain/                   # CheckoutContact, CheckoutSession, CheckoutStatus, PlacedOrder
+|   |   |-- data/                     # Edge Function checkout, lectura del JSON y mock sobre el carrito mock
+|   |   `-- presentation/
+|   |       |-- checkout_screen.dart  # Dirección, contacto y facturación, resumen por proveedor y "Pagar"
+|   |       |-- payment_launcher.dart # Wompi en WebView (Android/iOS) o navegador; pasarela simulada sin backend
+|   |       `-- payment_result_view.dart # Orden aprobada, pago pendiente o rechazo con reintento
 |   |-- cart/
 |   |   |-- cart_providers.dart       # Repositorio, carrito de invitado, CartController y contador
 |   |   |-- domain/                   # CartEntry, CartItem, CartState (grupos y totales), CartRepository
@@ -185,12 +194,22 @@ Todas usan `AuthScaffold` (tarjeta centrada con botón de cerrar), validan antes
 - **Agrupación:** las líneas van por proveedor ("Vendido y despachado por …") y, si hay varios, se avisa que llegarán en envíos separados.
 - **Cada línea** muestra imagen, nombre, precio unitario vigente, subtotal y un selector de cantidad que se detiene en el máximo disponible. También tiene un botón para quitarla.
 - **Líneas con problemas:** las agotadas y las que superan el stock se marcan, con un botón "Ajustar a N", y no entran en el total.
-- **Resumen:** artículos, subtotal y envío "Se calcula al confirmar".
+- **Resumen:** artículos, subtotal y envío "Sin costo adicional" (supuesto de la fase 8).
 - **Sin sesión:** se avisa que el carrito no se guarda.
-- **"Confirmar pedido":** queda deshabilitado si hay líneas por revisar y exige sesión (`ensureSignedIn`). Con sesión avisa que el pago llega pronto (fase 8).
+- **"Confirmar pedido":** queda deshabilitado si hay líneas por revisar y exige sesión (`ensureSignedIn`). Con sesión abre el checkout.
 - **"Vaciar carrito":** pide confirmación.
 
 Se agrega desde el ícono de carrito de las tarjetas del catálogo (la mejor oferta) y desde el detalle (oferta del proveedor elegido, cantidad, "Agregar al carrito" y "Comprar ahora"). El ícono de la barra superior muestra cuántas unidades hay.
+
+### Checkout
+
+`features/checkout/presentation/checkout_screen.dart` (HU-010, HU-011), desde "Confirmar pedido":
+- **Dirección:** una de las guardadas (la predeterminada, marcada) o "Agregar una dirección".
+- **Contacto y facturación:** nombre, correo y teléfono prellenados con el perfil, tipo y número de documento.
+- **Resumen:** un envío por proveedor, envío sin costo y total con IVA incluido.
+- **"Pagar $X":** el backend revalida el carrito. Si el total o el stock cambiaron, avisa y recarga el carrito. Si no, abre Wompi: en Android e iOS, en un WebView que se cierra solo al volver; en web, en otra pestaña.
+- **Resultado** (`payment_result_view.dart`): orden aprobada con su número y sus sub-órdenes; pago en proceso con "Consultar de nuevo"; rechazado o sin pagar con "Intentar de nuevo", que crea un intento nuevo con los mismos datos.
+- Mientras el pago está en curso no se puede volver atrás.
 
 ### Asistente
 
@@ -307,6 +326,10 @@ Pasos completados:
   recomendación en el servidor, cadena de modelos por cuota, registro de
   interacciones, chat con dictado por voz y paso de la configuración al PC
   Builder y a la vista 3D.
+- **Fase 8:** checkout y pagos (contrato v0.10, parte 5). Wompi en modo de pruebas,
+  revalidación del carrito, intento de pago firmado en el servidor, resultado
+  idempotente por webhook o consulta, orden con una sub-orden por proveedor,
+  comisión sobre el valor sin IVA y descuento de stock.
 
 La hoja de ruta vigente está en [docs/PLAN_IMPLEMENTACION.md](docs/PLAN_IMPLEMENTACION.md).
 Los requisitos son los de [docs/REQUISITOS.md](docs/REQUISITOS.md) (análisis v2):
@@ -323,10 +346,18 @@ El árbol anterior refleja los archivos Dart actuales bajo `lib/`. Las pruebas d
 - **PC Builder:** JSON del motor, parámetros de las RPC, mock que avisa que no verifica, selector, incompatibilidades por pieza, "Agregar todo" y 360 px;
 - **vista 3D:** posición de cada pieza según la placa y los atributos, JSON de la escena, eventos del visor, sincronía con la selección, piezas marcadas, toque que abre el selector, créditos y plataformas sin visor;
 - **asistente:** JSON de la función, errores (IA caída, límite de uso, red), controlador (historial, reintento, conversación nueva, envíos cruzados), pantalla (sugerencias, tarjetas, carrito, "Ver en el PC Builder", atajos, dictado, 360 px) y pestaña;
+- **checkout:** JSON de la función, errores (`PRICE_CHANGED` con el total nuevo, pagos no disponibles), validador de documento y pantalla (orden aprobada por proveedor, rechazo y reintento, pago sin terminar, dirección y documento obligatorios, total que cambió);
 - **carrito:** totales y grupos, JSON de líneas, controlador con y sin sesión (incluida la fusión y los toques rápidos), pantalla del carrito, agregar desde el detalle y la tarjeta, y el contador;
 - **Inicio:** de 32 a 412 px.
 
 `test/integration/` prueba los repositorios reales contra el Supabase local y se salta sin configuración.
+
+**Validación de la fase 8:**
+- `dart analyze` sin hallazgos y `flutter build apk --debug` correcto.
+- `flutter test`: 251 pruebas aprobadas y 22 de integración saltadas.
+- pgTAP: 198 pruebas (41 del checkout). Funciones de pago: 20 pruebas con `node --test`.
+- Recorrido local con llaves falsas de Wompi: cuenta, dirección, carrito, `start` (también con un total viejo), webhook con firma falsa (401) y firmado dos veces (una sola orden), `status` con la orden y carrito vacío.
+- Falta probar con llaves reales del sandbox de Wompi.
 
 **Validación de la fase 7:**
 - `dart analyze` sin hallazgos.

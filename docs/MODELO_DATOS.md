@@ -56,7 +56,7 @@ Las actualizaciones sin cambios reales no se registran, y los cambios que solo t
 
 Tablas auditadas hoy: `offers`, `products`, `product_attributes`, `providers`, `categories`,
 `attribute_definitions` y `app_settings`. Cada fase nueva agrega el trigger
-`private.audit_row_change()` a sus tablas (comisiones, reglas, órdenes, pagos).
+`private.audit_row_change()` a sus tablas: reglas de compatibilidad (fase 6), modelos 3D (fase 6.1) y pagos, órdenes y comisiones (fase 8).
 
 La bitácora es de solo inserción: hay triggers que impiden `UPDATE`, `DELETE` y `TRUNCATE` (RNF-030), y ningún cliente la puede leer.
 La retención (RNF-031) está pendiente de definir.
@@ -107,7 +107,7 @@ La cuenta (correo y contraseña) vive en `auth.users`, que administra Supabase A
 - **Carrito de invitado:** no se guarda en la base. La app lo lleva en memoria, lo muestra con `preview_cart` y, al iniciar sesión, lo suma con `merge_cart`.
 - El catálogo expone `bestOfferId`, el id de la mejor oferta, para agregarla desde una tarjeta: es una columna nueva al final de `private.catalog_products`.
 
-**Pendiente (fase 8):** reservar stock durante el checkout (RF-067, Could) y revalidar el precio antes de pagar (RF-055).
+**Checkout (fase 8):** `start_checkout` revalida el precio y el stock antes de pagar (RF-055). Reservar stock durante el pago (RF-067, Could) sigue pendiente: si otra compra se lleva las unidades mientras el cliente paga, queda registrado en `order_items.backordered_units`.
 
 ## PC Builder (fase 6)
 
@@ -168,6 +168,57 @@ La cuenta (correo y contraseña) vive en `auth.users`, que administra Supabase A
   - se guarda un hash del cliente y no la IP;
   - si se borra la cuenta, `user_id` queda nulo;
   - el mensaje puede contener datos que el cliente escriba. **Pendiente para la fase 12:** fijar cuánto tiempo se conservan las interacciones y borrar las vencidas con `pg_cron`.
+
+## Checkout, pagos y comisión (fase 8)
+
+```text
+payments 1─0..1 orders 1─* sub_orders 1─* order_items *─0..1 commission_rules
+    1                         (una por proveedor)
+    *
+payment_events
+```
+
+| Tabla | Para qué | Acceso de clientes |
+|---|---|---|
+| `payments` | Cada intento de pago (RF-058): referencia `NX-AAAAMMDD-XXXXXXXXXX`, usuario, estado, valor, transacción y medio de Wompi, y la **foto** de lo que se compra: líneas con el precio revalidado, dirección y contacto. Vence a los 60 minutos. | Ninguno. Solo las RPC `start_checkout` y `get_checkout_status`. |
+| `payment_events` | Cada aviso del webhook y cada consulta a Wompi, con lo que se hizo (`order_created`, `status_updated`, `duplicate`, `stale`, `amount_mismatch`, `unknown_reference`). Sirve para conciliar (RF-079). | Ninguno. No se edita ni se borra. |
+| `orders` | La orden, creada solo con el pago aprobado (RN-025): número `NX-000123`, usuario, pago, total, dirección y contacto. Estado `paid`. | Ninguno (fase 9: historial). |
+| `sub_orders` | Una por proveedor (S-06): subtotal, base sin IVA, comisión y neto del proveedor. Estado `pending`, esperando al proveedor. | Ninguno. |
+| `order_items` | Precio, cantidad, IVA, base, porcentaje y regla de comisión, comisión y neto **del momento de la compra** (RN-026, RF-075). `backordered_units`: unidades que ya no había al aprobarse el pago. | Ninguno. No se edita ni se borra. |
+| `commission_rules` | Comisión de un proveedor (`product_id` nulo) o de un producto suyo, con vigencia (RF-071, RF-072). | Ninguno. El administrador las opera desde Studio o SQL. |
+
+**Estados del pago.** `pending` → `approved` (con orden), `declined`, `voided`, `error` o `abandoned`. Solo `approved` es final: después de un rechazo el cliente puede reintentar en Wompi, y si esa transacción se aprueba, se acepta. Un intento abandonado que igual se paga también crea su orden, porque la pasarela ya cobró.
+
+**`apply_payment_event`, idempotente (RNF-020).**
+- La llaman el webhook y la consulta de `checkout`, con el rol de servicio.
+- Bloquea la fila del pago, así que dos avisos simultáneos no crean dos órdenes.
+- Un aviso repetido o atrasado se registra y no cambia nada.
+- Si el valor o la moneda no coinciden, el pago queda en `error` y no se crea la orden.
+
+**Al aprobarse:**
+- se crea la orden con una sub-orden por proveedor;
+- se descuenta el stock de cada oferta, sin bajar de 0 (RF-066);
+- lo comprado sale del carrito.
+
+**Comisión (RF-073, RF-074).**
+- **Regla aplicable:** la del producto; si no hay, la del proveedor; si no hay, `app_settings.default_commission_rate`. Siempre la vigente en el momento de la compra.
+- Un trigger impide reglas por encima de `commission_rate_max` y vigencias superpuestas para el mismo proveedor y producto.
+- **Cálculo:**
+  - los precios incluyen IVA (`vat_rate` = 0,19);
+  - `base = total de la línea / 1,19` y `comisión = base × porcentaje`, los dos redondeados a pesos enteros;
+  - `neto del proveedor = total de la línea − comisión`.
+- El cliente paga el precio publicado (RN-002) y la comisión nunca viaja a la app.
+
+**Inmutabilidad y auditoría.**
+- Los ítems no se modifican. Tampoco cambian los montos de las órdenes y sub-órdenes. Ninguna orden ni ningún pago se borra.
+- Cambiar una regla de comisión no altera las órdenes anteriores (HU-026).
+- `payments`, `orders`, `sub_orders`, `order_items` y `commission_rules` están en `audit_log`.
+
+**Supuestos pendientes del negocio:**
+- **Comisión por defecto: 10 %** (`default_commission_rate`, S-07).
+- **Máximo: 30 %** (`commission_rate_max`, RN-024).
+- **Envío:** sin costo adicional para el cliente.
+- **IVA:** se asume del 19 % para todo el catálogo. Algunos computadores están excluidos de IVA en Colombia según su valor; si aplica, `vat_rate` debe pasar a ser por producto.
 
 ## Datos de desarrollo
 

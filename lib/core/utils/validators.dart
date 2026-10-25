@@ -61,6 +61,17 @@ abstract final class Validators {
   static String? optionalPhone(String? value) =>
       normalizePhone(value ?? '').isEmpty ? null : phone(value);
 
+  /// Número de documento para facturar: de 4 a 20 letras o números. Ignora
+  /// puntos, espacios y guiones, como `start_checkout`.
+  static String? document(String? value) {
+    final text = (value ?? '').replaceAll(RegExp(r'[\s.\-]'), '');
+    if (text.isEmpty) return 'Escribe tu número de documento.';
+    if (!RegExp(r'^[0-9A-Za-z]{4,20}$').hasMatch(text)) {
+      return 'Escribe un documento de 4 a 20 letras o números.';
+    }
+    return null;
+  }
+
   static String? code(String? value) {
     final text = value?.trim() ?? '';
     return RegExp(r'^[0-9]{6}$').hasMatch(text)

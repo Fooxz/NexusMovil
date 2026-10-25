@@ -14,4 +14,7 @@ class NexusRoutes {
   static const home = '/home';
   static const productDetail = '/product-detail';
   static const cart = '/cart';
+
+  /// Exige sesión: se abre después de `ensureSignedIn`.
+  static const checkout = '/checkout';
 }

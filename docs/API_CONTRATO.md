@@ -1,6 +1,6 @@
-# Contrato de API: NEXUS Movil (v0.9, borrador)
+# Contrato de API: NEXUS Movil (v0.10, borrador)
 
-**Estado:** borrador. Parte 1: catalogo (secciones 1 a 5). Parte 2: carrito (seccion 10). Parte 3: PC Builder y vista 3D (seccion 11). Parte 4: asistente (seccion 12). Implementado en el backend (`backend/`) y consumido por el front desde las fases 3, 5, 6, 6.1 y 7 de `docs/PLAN_IMPLEMENTACION.md`.
+**Estado:** borrador. Parte 1: catalogo (secciones 1 a 5). Parte 2: carrito (seccion 10). Parte 3: PC Builder y vista 3D (seccion 11). Parte 4: asistente (seccion 12). Parte 5: checkout y pagos (seccion 13). Implementado en el backend (`backend/`) y consumido por el front desde las fases 3, 5, 6, 6.1, 7 y 8 de `docs/PLAN_IMPLEMENTACION.md`.
 **Quien lo escribe:** el front, a partir de sus modelos reales (`lib/features/catalog/domain`).
 **Quien lo implementa:** el backend Supabase de `backend/`.
 **Regla de oro:** ninguno de los dos lados cambia el comportamiento sin editar este archivo primero. Si el codigo y este documento no coinciden, el documento gana hasta que se actualice.
@@ -299,8 +299,7 @@ Ambos lados deben poder usar este JSON como dato de prueba: el back para comprob
 Estas partes se agregan a este mismo archivo cuando se necesiten. No implementar nada de esto todavia.
 
 - **Autenticacion**: la hace Supabase Auth directamente (fase 4, `docs/MODELO_DATOS.md`); no tiene endpoints propios.
-- **Asistente de recomendacion** (fase 7 del plan).
-- **Pedidos.**
+- **Historial y seguimiento de pedidos** (fase 9 del plan).
 
 ---
 
@@ -327,6 +326,7 @@ Cambios compatibles (agregar un campo opcional, un endpoint nuevo): no rompen a 
 | 0.7 | Seccion 11.4: `get_build_scene`, modelos 3D y atributos visuales de una configuracion (RF-090). Endpoint nuevo; sin cambios en los existentes. |
 | 0.9 | Seccion 11.5: `get_prebuilt_scene`, componentes de un computador armado para verlo en 3D. Endpoint nuevo; sin cambios en los existentes. |
 | 0.8 | Parte 4: asistente (seccion 12), la Edge Function `assistant`. Nuevos codigos `RATE_LIMITED` y `ASSISTANT_UNAVAILABLE`. Endpoint nuevo; sin cambios en los existentes. |
+| 0.10 | Parte 5: checkout y pagos con Wompi (seccion 13): la Edge Function `checkout` y el webhook `payment-webhook`. Nuevos codigos `CART_EMPTY`, `CART_CHANGED`, `PRICE_CHANGED`, `ADDRESS_NOT_FOUND`, `PAYMENT_NOT_FOUND` y `PAYMENTS_UNAVAILABLE`. Endpoints nuevos; sin cambios en los existentes. |
 
 ---
 
@@ -591,3 +591,130 @@ Asistente de recomendacion (HU-006, RF-036 a RF-045, RF-089). Es una Edge Functi
 | 400 | `VALIDATION_ERROR` | La conversacion no cumple 12.1. |
 | 429 | `RATE_LIMITED` | Mas de 20 preguntas en 10 minutos desde el mismo cliente. |
 | 503 | `ASSISTANT_UNAVAILABLE` | Ningun modelo respondio (caido o sin cuota). La app ofrece el catalogo y el PC Builder (RNF-018). |
+
+---
+
+## 13. Parte 5: checkout y pagos (v0.10)
+
+Compra del carrito guardado con pago en **Wompi** (COP), en modo de pruebas mientras no haya cuenta de produccion (HU-010, HU-011, RF-055 a RF-061). Exige sesion (RN-027). Es una Edge Function: `POST /functions/v1/checkout`, con el token de la sesion en `Authorization`.
+
+**Flujo:**
+1. La app envia `start` con la direccion, el contacto y el total que vio el cliente.
+2. El backend revalida el carrito (RF-055), guarda el intento de pago y devuelve la URL firmada del Web Checkout.
+3. El cliente paga en Wompi (tarjeta, PSE o Nequi). Al terminar, Wompi redirige a `redirectUrl?id=<transaccion>`; la app intercepta esa URL y no la abre.
+4. La app envia `status` con la referencia y el id. Wompi tambien avisa al webhook. Los dos caminos aplican el resultado una sola vez (RNF-020).
+5. **La orden se crea solo con el pago aprobado (RN-025)**: una sub-orden por proveedor, el stock descontado y lo comprado fuera del carrito.
+
+**Precios:** el cliente paga el precio publicado, que ya incluye el IVA del 19 % (RN-001). La comision de NEXUS se calcula sobre el valor sin IVA y se descuenta de lo que recibe el proveedor; no viaja a la app (RN-002). **Envio:** sin costo adicional para el cliente (supuesto, pendiente del negocio).
+
+### 13.1 Iniciar el pago: `start`
+
+```json
+{
+  "action": "start",
+  "addressId": "8d0c4f8e-2b7a-4c1e-9a55-0f3e2d1c4b6a",
+  "contact": {
+    "fullName": "Ana Perez",
+    "email": "ana@correo.co",
+    "phone": "3001234567",
+    "documentType": "CC",
+    "documentNumber": "1065123456"
+  },
+  "expectedTotalCents": 313990000
+}
+```
+
+- `addressId`: una direccion del usuario (cuentas, `docs/MODELO_DATOS.md`). Se guarda una copia: cambiarla despues no altera el pedido.
+- `contact`: nombre (2 a 120 caracteres), correo, telefono (7 a 15 digitos), `documentType` (`CC`, `CE`, `NIT`, `PP` o `TI`) y `documentNumber` (4 a 20 letras o numeros; se ignoran puntos y espacios). Wompi los usa para prellenar el pago.
+- `expectedTotalCents`: el total del carrito que vio el cliente.
+
+Respuesta `200`:
+
+```json
+{
+  "reference": "NX-20261024-733D2C28F6",
+  "amountCents": 313990000,
+  "currency": "COP",
+  "expiresAt": "2026-10-25T00:41:55.756115+00:00",
+  "checkoutUrl": "https://checkout.wompi.co/p/?public-key=pub_test_...&reference=NX-20261024-733D2C28F6&signature:integrity=...",
+  "redirectUrl": "https://<proyecto>.supabase.co/functions/v1/checkout"
+}
+```
+
+- El intento vence en `expiresAt` (60 minutos). Un intento nuevo abandona el anterior si este no llego a Wompi.
+- `checkoutUrl` lleva la firma de integridad: si se cambia el valor o la referencia en la URL, Wompi la rechaza.
+
+### 13.2 Consultar el resultado: `status`
+
+```json
+{ "action": "status", "reference": "NX-20261024-733D2C28F6", "transactionId": "1234-1730000000-00001" }
+```
+
+`transactionId` es opcional: es el `id` que Wompi agrega a `redirectUrl`. Si el pago no esta aprobado, el backend consulta la transaccion en Wompi y aplica lo que responda. Sin `transactionId`, solo puede hacerlo si tiene la llave privada.
+
+Respuesta `200`:
+
+```json
+{
+  "reference": "NX-20261024-733D2C28F6",
+  "status": "approved",
+  "amountCents": 313990000,
+  "currency": "COP",
+  "transactionId": "1234-1730000000-00001",
+  "paymentMethod": "CARD",
+  "message": null,
+  "expiresAt": "2026-10-25T00:41:55.756115+00:00",
+  "order": {
+    "id": "df3759c9-de3c-434c-9c3b-2028e68fd3c6",
+    "number": "NX-000005",
+    "status": "paid",
+    "totalCents": 313990000,
+    "createdAt": "2026-10-24T23:41:55.846419+00:00",
+    "subOrders": [
+      {
+        "id": "aa2ac493-e82e-4db0-bd90-9873f423c932",
+        "providerName": "Mundo PC",
+        "status": "pending",
+        "subtotalCents": 313990000,
+        "items": [
+          { "productId": "corsair-rm850x", "productName": "CORSAIR RM850x", "brand": "Corsair",
+            "quantity": 1, "unitPriceCents": 64990000, "lineTotalCents": 64990000, "backorderedUnits": 0 }
+        ]
+      }
+    ]
+  }
+}
+```
+
+| `status` | Significado | `order` |
+|---|---|---|
+| `pending` | Esperando a Wompi. Sin `transactionId`, el cliente no termino el pago o el aviso no ha llegado. | `null` |
+| `approved` | Pagado. No cambia mas. | La orden |
+| `declined`, `voided`, `error` | Wompi no cobro. El cliente puede intentar de nuevo con otro medio; si una transaccion posterior se aprueba, se acepta. | `null` |
+| `abandoned` | El cliente empezo otro intento sin pagar este. Si igual se paga, se acepta. | `null` |
+
+- `backorderedUnits`: unidades que ya no habia en stock cuando se aprobo el pago, porque otra compra se las llevo. El proveedor las resuelve; la fase 9 define el reembolso.
+- `subOrders[].status` es `pending` (esperando al proveedor). La fase 9 agrega los demas estados.
+- `GET /functions/v1/checkout` es la pagina de regreso para quien paga fuera de la app (web): un texto que pide volver a NEXUS.
+
+### 13.3 Webhook de Wompi: `payment-webhook`
+
+`POST /functions/v1/payment-webhook` recibe los eventos `transaction.updated` de Wompi. No lo usa la app.
+
+- Verifica `signature.checksum` con el secreto de eventos: SHA-256 de los valores de `signature.properties`, el `timestamp` y el secreto. Con firma invalida responde `401` y no aplica nada.
+- Responde `200` cuando aplica el evento, cuando ya lo conocia y cuando la referencia no existe. Responde `500` si falla la base, para que Wompi reintente.
+- Cada evento queda en `payment_events` (RF-058, RF-079).
+
+### 13.4 Errores
+
+| HTTP | `code` | Cuando |
+|---|---|---|
+| 400 | `VALIDATION_ERROR` | El contacto o el cuerpo no cumplen 13.1. |
+| 401 | `AUTH_REQUIRED` | Sin sesion. |
+| 404 | `ADDRESS_NOT_FOUND` | La direccion no existe o es de otro usuario. |
+| 404 | `PAYMENT_NOT_FOUND` | La referencia no existe o es de otro usuario. |
+| 409 | `CART_EMPTY` | El carrito guardado esta vacio. |
+| 409 | `CART_CHANGED` | Una linea se agoto o tiene mas unidades de las disponibles. La app recarga el carrito. |
+| 409 | `PRICE_CHANGED` | El total cambio. `details` trae `{"totalCents": n}` en texto. La app recarga el carrito. |
+| 429 | `RATE_LIMITED` | Mas de 10 intentos de pago en 10 minutos. |
+| 503 | `PAYMENTS_UNAVAILABLE` | Faltan las llaves de Wompi en el servidor. El carrito no se pierde. |

@@ -48,4 +48,12 @@ void main() {
     expect(Validators.code('12345'), isNotNull);
     expect(Validators.code('12a456'), isNotNull);
   });
+
+  test('document accepts 4 to 20 letters or digits ignoring separators', () {
+    expect(Validators.document('1.065.123.456'), isNull);
+    expect(Validators.document('AB12345'), isNull);
+    expect(Validators.document(''), isNotNull);
+    expect(Validators.document('123'), isNotNull);
+    expect(Validators.document('12#45'), isNotNull);
+  });
 }

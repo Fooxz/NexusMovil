@@ -240,10 +240,15 @@ class NexusSpecRow extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            label,
-            style: const TextStyle(fontSize: 10.5, color: NexusColors.textDim),
+          // Una etiqueta larga (el nombre de un producto) baja de línea en
+          // lugar de empujar el valor fuera de la pantalla.
+          Flexible(
+            child: Text(
+              label,
+              style: const TextStyle(fontSize: 10.5, color: NexusColors.textDim),
+            ),
           ),
+          const SizedBox(width: 12),
           Text(
             value,
             style: TextStyle(

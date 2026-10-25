@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/utils/format_price.dart';
+import '../../../routes.dart';
 import '../../../theme/nexus_theme.dart';
 import '../../../widgets/nexus_empty_state.dart';
 import '../../../widgets/nexus_error_state.dart';
@@ -382,7 +383,7 @@ class _Summary extends StatelessWidget {
           NexusSpecRow('Subtotal', formatPrice(state.subtotalCents)),
           const NexusSpecRow(
             'Envío',
-            'Se calcula al confirmar',
+            'Sin costo adicional',
             valueColor: NexusColors.textDim,
           ),
           const Divider(color: NexusColors.border, height: 20),
@@ -405,8 +406,8 @@ class _Summary extends StatelessWidget {
   }
 }
 
-/// Solo un cliente con sesión confirma una compra (RN-027). El checkout real
-/// llega en la fase 8; por ahora, con sesión, solo se informa.
+/// Solo un cliente con sesión confirma una compra (RN-027): con sesión abre
+/// el checkout (fase 8).
 class _ConfirmOrderButton extends ConsumerWidget {
   const _ConfirmOrderButton({required this.enabled});
 
@@ -419,9 +420,7 @@ class _ConfirmOrderButton extends ConsumerWidget {
       reason: 'para confirmar tu pedido',
     );
     if (!signedIn || !context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('El pago estará disponible muy pronto.')),
-    );
+    await Navigator.of(context).pushNamed(NexusRoutes.checkout);
   }
 
   @override

@@ -202,17 +202,39 @@ Objetivo: ver cómo se vería el computador con las piezas elegidas, ya sea a ma
 - **Visualizar en 3D un armado recomendado** (RF-090): tabla `prebuilt_components` y RPC `get_prebuilt_scene`. Muestra sus componentes en las secciones del PC Builder y en la vista 3D, sin tocar la configuración del cliente. El armado se compra completo.
 - **Cambio frente al plan:** no hay una herramienta `get_product_attributes` separada. Las búsquedas ya traen los atributos legibles (RPC `get_product_attributes`), así se ahorran llamadas al modelo.
 
-### Fase 8: checkout, pagos y comisión
-- Tablas `orders`, `sub_orders` (una por proveedor, S-06), `order_items` (snapshot de precio, cantidad, % de comisión y neto; RN-026), `payments` y `commission_rules` (proveedor o producto con vigencia; prevalece la del producto).
-- Edge Function `checkout`:
-  - revalida el precio y el stock (RF-055);
-  - crea la intención de pago en la pasarela. La pasarela está **pendiente** de definir; propuesta: Wompi en sandbox, por COP.
-- `payment-webhook`:
-  - es idempotente por referencia (RNF-020);
-  - crea la orden solo con el pago aprobado (RN-025);
-  - descuenta el stock (RF-066) y calcula la comisión (RF-074);
-  - registra los estados pendiente y rechazado sin crear órdenes (RF-059).
-- Flutter: `features/checkout` con dirección, contacto, pago por redirect con deep link de retorno, y reintento si el pago es rechazado.
+### Fase 8: checkout, pagos y comisión — hecha
+- **Decisiones del negocio (2026-10-24):**
+  - pasarela **Wompi**, en COP y en modo de pruebas;
+  - los precios del catálogo ya incluyen el **IVA del 19 %**;
+  - la comisión se calcula sobre el valor sin IVA.
+- **Tablas** (migración `20261024010000_checkout.sql`, ver `docs/MODELO_DATOS.md`):
+  - `payments` (intento de pago con la foto del carrito) y `payment_events` (cada aviso y consulta);
+  - `orders`, `sub_orders` (una por proveedor, S-06) y `order_items` (precio, cantidad, base sin IVA, % y regla de comisión y neto; RN-026);
+  - `commission_rules` (proveedor o producto, con vigencia; prevalece la del producto, S-05).
+- **RPC:**
+  - `start_checkout` revalida el precio y el stock (RF-055);
+  - `get_checkout_status` da el estado del pago;
+  - `apply_payment_event`, solo para el rol de servicio, aplica el resultado de la pasarela de forma idempotente (RNF-020). Crea la orden solo con el pago aprobado (RN-025), descuenta el stock (RF-066) y calcula la comisión (RF-074). Los pendientes y rechazados no crean órdenes (RF-059).
+- **Edge Functions** (`backend/supabase/functions`):
+  - `checkout`: crea el intento y firma la URL del Web Checkout con el secreto de integridad. Al volver, consulta la transacción en Wompi y aplica el resultado, así el pago se confirma aunque el webhook se demore o no llegue (en local nunca llega).
+  - `payment-webhook`: verifica la firma de los eventos de Wompi y aplica el resultado.
+  - Código común en `_shared/` (`wompi.ts` y `http.ts`).
+  - Las llaves solo viven en el servidor: `functions/.env` o `supabase secrets set`.
+- **Flutter** (`features/checkout`):
+  - dirección guardada, contacto y facturación prellenados con el perfil;
+  - resumen por proveedor y pago;
+  - resultado: orden aprobada con sus sub-órdenes, pago pendiente con "consultar de nuevo", o rechazo con "intentar de nuevo".
+  - Si el total o el stock cambiaron, se avisa y se recarga el carrito.
+- **Cambio frente al plan: sin deep link.** En Android e iOS, Wompi se abre en un WebView dentro de la app, que intercepta la página de regreso (`redirectUrl?id=...`). Así no hace falta registrar un esquema propio ni App Links. En web y escritorio se abre en el navegador y el cliente vuelve a consultar.
+- **Sin backend,** la app simula la pasarela con un diálogo que aprueba o rechaza.
+- **Pruebas:**
+  - pgTAP (41);
+  - firmas, función y webhook con `node --test` (20), con el ejemplo de firma de la documentación de Wompi;
+  - JSON, repositorio y pantalla en Flutter;
+  - recorrido local completo con llaves falsas y webhook firmado.
+- **Pendiente:**
+  - probar con llaves reales del sandbox de Wompi y registrar la URL de eventos en su dashboard (ver `backend/README.md`);
+  - reservar stock durante el pago (RF-067, Could).
 
 ### Fase 9: órdenes y seguimiento
 - `order_status_history` con transiciones válidas forzadas por trigger (RN-029).
@@ -248,8 +270,8 @@ Objetivo: ver cómo se vería el computador con las piezas elegidas, ya sea a ma
 ## Pendientes del negocio que bloquean fases
 
 Se avanza con estos supuestos provisionales y se marcan en el código cuando aplique:
-- pasarela de pago y esquema de cobro (fase 8);
-- rango de comisión y base de cálculo, S-07 (fase 8);
+- porcentaje de comisión por defecto (10 %) y máximo (30 %), S-07 y RN-024 (fase 8). Ya decidido: Wompi como pasarela y comisión sobre el valor sin IVA;
+- costo de envío: se asume sin costo adicional para el cliente (fase 8);
 - política de fallo de la API y latencia (fase 10);
 - jurisdicción: se asume Colombia, Ley 1581 y Ley 1480 (fases 4 y 8);
 - si las piezas incluyen periféricos: se asume que no (S-10, fase 2).

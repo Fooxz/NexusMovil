@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import '../utils/format_price.dart';
+
 /// Errores que los repositorios devuelven a los controladores.
 ///
 /// Los repositorios de `data/` traducen las excepciones de red o de Supabase a
@@ -15,7 +17,8 @@ sealed class AppFailure implements Exception {
   /// `message` es solo informativo y no se muestra al usuario.
   ///
   /// [details] es el texto `details` del cuerpo: para `QUANTITY_UNAVAILABLE`
-  /// trae el JSON `{"maxQuantity": n}` (API_CONTRATO, parte 2).
+  /// trae el JSON `{"maxQuantity": n}` (API_CONTRATO, parte 2) y para
+  /// `PRICE_CHANGED`, `{"totalCents": n}` (parte 5).
   factory AppFailure.fromApiError({
     int? statusCode,
     String? code,
@@ -24,9 +27,13 @@ sealed class AppFailure implements Exception {
     return switch ((statusCode, code)) {
       (_, 'OUT_OF_STOCK') => const OutOfStockFailure(),
       (_, 'QUANTITY_UNAVAILABLE') => QuantityUnavailableFailure(
-        _maxQuantityFrom(details),
+        _intFrom(details, 'maxQuantity'),
       ),
       (_, 'AUTH_REQUIRED') => const UnauthorizedFailure(),
+      (_, 'CART_EMPTY') => const CartEmptyFailure(),
+      (_, 'CART_CHANGED') => const CartChangedFailure(),
+      (_, 'PRICE_CHANGED') => PriceChangedFailure(_intFrom(details, 'totalCents')),
+      (_, 'PAYMENTS_UNAVAILABLE') => const PaymentsUnavailableFailure(),
       (_, 'ASSISTANT_UNAVAILABLE') || (503, _) => const AssistantUnavailableFailure(),
       (_, 'RATE_LIMITED') || (429, _) => const RateLimitedFailure(),
       (_, 'PRODUCT_NOT_FOUND') ||
@@ -38,7 +45,8 @@ sealed class AppFailure implements Exception {
     };
   }
 
-  static int? _maxQuantityFrom(Object? details) {
+  /// Un entero de `details`, que llega como objeto o como JSON en texto.
+  static int? _intFrom(Object? details, String key) {
     Object? value = details;
     if (value is String) {
       try {
@@ -47,9 +55,7 @@ sealed class AppFailure implements Exception {
         return null;
       }
     }
-    return value is Map && value['maxQuantity'] is int
-        ? value['maxQuantity'] as int
-        : null;
+    return value is Map && value[key] is int ? value[key] as int : null;
   }
 
   @override
@@ -142,4 +148,37 @@ class AssistantUnavailableFailure extends AppFailure {
         'El asistente no está disponible en este momento. Mientras tanto, '
         'puedes buscar en el catálogo o armar tu equipo en el PC Builder.',
       );
+}
+
+// --- Checkout (fase 8) ---
+
+class CartEmptyFailure extends AppFailure {
+  const CartEmptyFailure() : super('Tu carrito está vacío.');
+}
+
+/// Una línea se agotó o quedó con más unidades de las disponibles mientras el
+/// cliente confirmaba (RF-055).
+class CartChangedFailure extends AppFailure {
+  const CartChangedFailure()
+    : super('Algunos productos de tu carrito cambiaron. Revísalo antes de pagar.');
+}
+
+/// El total del carrito cambió desde que el cliente lo vio. [totalCents] es
+/// el nuevo total, si el backend lo informó.
+class PriceChangedFailure extends AppFailure {
+  PriceChangedFailure(this.totalCents)
+    : super(
+        totalCents == null
+            ? 'El total de tu carrito cambió. Revísalo antes de pagar.'
+            : 'El total de tu carrito cambió a ${formatPrice(totalCents)}. '
+                  'Revísalo antes de pagar.',
+      );
+
+  final int? totalCents;
+}
+
+/// La pasarela no está configurada o no responde. El carrito no se pierde.
+class PaymentsUnavailableFailure extends AppFailure {
+  const PaymentsUnavailableFailure()
+    : super('Los pagos no están disponibles en este momento. Tu carrito sigue guardado.');
 }

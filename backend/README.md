@@ -139,8 +139,12 @@ backend/supabase/
 ├── tests/           # pruebas pgTAP
 ├── models/          # modelos 3D que se suben al bucket component-models (MODELOS_3D.md)
 └── functions/
-    ├── .env         # secretos locales (GEMINI_API_KEY); ignorado por git
-    └── assistant/   # asistente de recomendación con Gemini (fase 7)
+    ├── .env              # secretos locales (Gemini y Wompi); ignorado por git
+    ├── .env.example      # plantilla de .env, sin valores
+    ├── _shared/          # Wompi (firmas, consultas) y utilidades HTTP de los pagos
+    ├── assistant/        # asistente de recomendación con Gemini (fase 7)
+    ├── checkout/         # checkout con Wompi (fase 8)
+    └── payment-webhook/  # eventos de Wompi (fase 8)
 ```
 
 Las carpetas se crean en la fase que las usa. El modelo de datos está descrito en
@@ -184,6 +188,64 @@ node --test supabase/functions/assistant/core.test.ts
 - Si ninguno responde, la app muestra que el asistente no está disponible y ofrece el catálogo y el PC Builder.
 
 Cada pregunta queda en `assistant_interactions` (ver docs/MODELO_DATOS.md).
+
+## Pagos con Wompi (Edge Functions, fase 8)
+
+Contrato: [../docs/API_CONTRATO.md](../docs/API_CONTRATO.md), parte 5. Se trabaja en el **modo de pruebas** de Wompi: no
+mueve dinero real.
+
+**1. Llaves.** Crear la cuenta en `comercios.wompi.co` y, en modo de pruebas, copiar desde *Desarrolladores*:
+
+| Variable | Empieza con | Para qué |
+|---|---|---|
+| `WOMPI_PUBLIC_KEY` | `pub_test_` | Identifica el comercio en el Web Checkout. |
+| `WOMPI_INTEGRITY_SECRET` | `test_integrity_` | Firma el valor y la referencia de cada pago. |
+| `WOMPI_EVENTS_SECRET` | `test_events_` | Verifica la firma de los eventos del webhook. |
+| `WOMPI_PRIVATE_KEY` (opcional) | `prv_test_` | Consulta el pago por referencia cuando la app no recibió el id de la transacción. |
+
+Van en `supabase/functions/.env` (plantilla: `supabase/functions/.env.example`), **nunca** en la app ni en el repositorio.
+
+**2. En local,** desde `backend/`:
+
+```powershell
+npx supabase functions serve --env-file supabase/functions/.env
+```
+
+Wompi no puede llamar al webhook en `127.0.0.1`. No hace falta: al volver del pago, la app consulta `checkout` con el id
+de la transacción y la función le pregunta el resultado a Wompi.
+
+**3. En la nube** (cada comando cambia el proyecto: confirmarlo antes):
+
+```powershell
+npx supabase db push --dry-run; npx supabase db push
+npx supabase secrets set --env-file supabase/functions/.env
+npx supabase functions deploy checkout --no-verify-jwt --use-api
+npx supabase functions deploy payment-webhook --no-verify-jwt --use-api
+```
+
+En `secrets set`, no incluir `CHECKOUT_RETURN_URL` con la URL local: en la nube vale por defecto
+`https://fzapwqaadxivadtlpthj.supabase.co/functions/v1/checkout`. Después, en el dashboard de Wompi (*Desarrolladores →
+URL de eventos*, modo de pruebas), registrar `https://fzapwqaadxivadtlpthj.supabase.co/functions/v1/payment-webhook`.
+
+**4. Probar el pago** con los datos de prueba de Wompi:
+- **Tarjetas:** `4242 4242 4242 4242` aprobada y `4111 1111 1111 1111` rechazada, con cualquier fecha futura y CVC.
+- **Nequi:** `3991111111` aprobado y `3992222222` rechazado.
+- **PSE:** elegir el banco de prueba que aprueba o el que rechaza.
+
+**Consultas útiles** (Studio o `db query`):
+- `select reference, status, amount_cents, gateway_transaction_id from payments order by created_at desc;`
+- `select reference, source, status, outcome, received_at from payment_events order by id desc;`
+- `select number, total_cents from orders order by created_at desc;`
+
+**Comisiones.** Se configuran por SQL en `commission_rules`, por proveedor o por producto y con vigencia. Para cambiar un
+porcentaje, se cierra la regla vigente (`valid_to`) y se crea otra. Sin regla aplica `default_commission_rate`
+de `app_settings` (10 %, supuesto pendiente del negocio).
+
+**Pruebas de las funciones de pago**, sin red, con Node 22 o más reciente:
+
+```powershell
+node --test supabase/functions/_shared/payments.test.ts
+```
 
 ## Probar la API a mano
 

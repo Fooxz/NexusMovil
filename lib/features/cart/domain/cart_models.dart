@@ -118,7 +118,8 @@ class CartState {
   /// Unidades que se pueden pagar ahora.
   final int purchasableUnits;
 
-  /// Suma de las líneas que se pueden pagar. El envío se calcula al confirmar.
+  /// Suma de las líneas que se pueden pagar, con IVA incluido. Supuesto: el
+  /// envío no tiene costo adicional para el cliente.
   final int subtotalCents;
 
   /// Hay líneas agotadas o con más unidades de las disponibles.

@@ -36,6 +36,24 @@ void main() {
       expect(AppFailure.fromApiError(), isA<UnexpectedFailure>());
     });
 
+    test('maps the checkout codes (API_CONTRATO parte 5)', () {
+      expect(AppFailure.fromApiError(code: 'CART_EMPTY'), isA<CartEmptyFailure>());
+      expect(AppFailure.fromApiError(code: 'CART_CHANGED'), isA<CartChangedFailure>());
+      expect(
+        AppFailure.fromApiError(statusCode: 503, code: 'PAYMENTS_UNAVAILABLE'),
+        isA<PaymentsUnavailableFailure>(),
+        reason: 'el código manda sobre el 503 del asistente',
+      );
+      final changed = AppFailure.fromApiError(
+        statusCode: 409,
+        code: 'PRICE_CHANGED',
+        details: '{"totalCents" : 313990000}',
+      );
+      expect(changed, isA<PriceChangedFailure>());
+      expect((changed as PriceChangedFailure).totalCents, 313990000);
+      expect(changed.userMessage, contains('\$3.139.900'));
+    });
+
     test('exposes a Spanish user message through toString', () {
       const failure = NetworkFailure();
       expect(failure.toString(), failure.userMessage);
