@@ -2,17 +2,16 @@
 
 ## Contexto
 
-La versión 2 del análisis de requisitos (`NEXUS_Analisis_de_Requisitos.md`) cambia el enfoque del negocio:
-- el catálogo queda en **solo computadores armados y piezas**. **Cambio posterior (2026-10-27): solo piezas.** Los armados salen porque el asistente aporta más ayudando a escoger piezas compatibles que eligiendo un equipo cerrado;
+La versión vigente del análisis está en [`docs/REQUISITOS.md`](REQUISITOS.md). El cambio de alcance del 2026-10-27 prevalece sobre la versión 2 original: el catálogo incluye **solo piezas**, no computadores armados. El asistente ayuda a escoger piezas compatibles según uso y presupuesto.
 - se elimina el comparador de celulares;
 - el **asistente de recomendación** pasa a ser el núcleo del producto;
 - los proveedores publican **por API**.
 
-El repo ya tiene una app Flutter avanzada:
+Estado actual del repo:
 - Riverpod 3.4.3, organizada por feature (`domain`/`data`/`presentation`).
-- Catálogo con repositorio mock, búsqueda con debounce, filtros y paginación con slivers. Los pasos 1 a 5C están hechos.
-- Las pantallas de login, registro, carrito y PC Builder son solo visuales.
-- La documentación existente sigue vigente: `docs/ARQUITECTURA.md`, `docs/API_CONTRATO.md` y `REGLAS_RENDIMIENTO.md`.
+- Catálogo, cuentas, perfil, carrito, PC Builder, asistente y checkout con implementaciones conectadas al backend y repositorios mock donde corresponde.
+- Las fases 0 a 8 están implementadas; el cambio a solo piezas y el catálogo grande de desarrollo también están hechos. Las fases 9 a 12 siguen en la hoja de ruta.
+- `docs/ARQUITECTURA.md`, `docs/API_CONTRATO.md` y `REGLAS_RENDIMIENTO.md` describen decisiones y requisitos técnicos; cada documento debe mantenerse alineado con el estado del código.
 
 Decisiones tomadas con el usuario:
 - La app Flutter cubre **solo al cliente** (HU-001 a HU-014).
@@ -45,12 +44,12 @@ prueba01/                          # raíz del repo git
 ├── lib/
 │   ├── main.dart / routes.dart
 │   ├── core/
-│   │   ├── config/env.dart        # SUPABASE_URL/ANON_KEY vía --dart-define
+│   │   ├── config/env.dart        # SUPABASE_URL/SUPABASE_PUBLISHABLE_KEY
 │   │   ├── network/supabase_providers.dart
 │   │   ├── errors/app_failure.dart
 │   │   └── utils/format_price.dart   (existe)
 │   ├── theme/  widgets/           (existen; se reutilizan)
-│   ├── screens/home, screens/shell   (se quedan hasta tener lógica propia)
+│   ├── screens/home, screens/shell   (inicio y navegación)
 │   └── features/<feature>/{<feature>_providers.dart, domain/, data/, presentation/}
 │       ├── catalog/     (existe)
 │       ├── auth/        profile/   (direcciones, consentimientos)

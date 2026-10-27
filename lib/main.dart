@@ -29,6 +29,13 @@ Future<void> main() async {
   for (final warning in env.warnings(isAndroid: isAndroid)) {
     debugPrint('[NEXUS] Configuración: $warning');
   }
+  if (!env.hasSupabase) {
+    debugPrint(
+      '[NEXUS] Sin Supabase: la app usa los repositorios mock y el asistente '
+      'responde "Modo sin backend". Ejecuta con '
+      '--dart-define-from-file=env.cloud.json (ver env.cloud.example.json).',
+    );
+  }
   if (env.hasSupabase) {
     await Supabase.initialize(
       url: env.supabaseUrl,

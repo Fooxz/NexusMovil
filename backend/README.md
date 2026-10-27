@@ -130,8 +130,9 @@ npx supabase test db                  # pruebas pgTAP de supabase/tests/
 
 Las migraciones son la única fuente del esquema: no se cambian tablas a mano desde Studio.
 
-**Catálogo grande de desarrollo.** `supabase/seeds/catalog_generated.sql` suma unas 730 piezas con atributos y
-ofertas. No se edita a mano: se cambia `tool/catalog/generate_catalog.mjs` y se regenera desde la raíz del repo con
+**Catálogo grande de desarrollo.** `supabase/seeds/catalog_generated.sql` suma 734 piezas generadas (760 en total,
+junto con las seis del seed base) con atributos y ofertas. No se edita a mano: se cambia
+`tool/catalog/generate_catalog.mjs` y se regenera desde la raíz del repo con
 `node tool/catalog/generate_catalog.mjs`. Usa una semilla fija, así que el archivo solo cambia si cambia el
 generador. El reset tarda unos 40 s más por este archivo.
 

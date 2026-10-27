@@ -1,6 +1,14 @@
 # NEXUS
 
-Prototipo Flutter navegable para una tienda de computadoras y componentes. La app inicia en login y permite recorrer inicio, catálogo, detalle, carrito y PC Builder. Actualmente utiliza datos de ejemplo; autenticación y carrito todavía no están conectados a servicios.
+Aplicación Flutter para un marketplace de piezas de computador. El alcance actual
+es solo piezas (no se venden computadores armados). La app incluye catálogo,
+cuentas y perfil, carrito, checkout con Wompi, asistente de recomendación y PC
+Builder con visor 3D.
+
+La app abre en Inicio y permite recorrer el catálogo sin iniciar sesión. Cuando
+se configura Supabase, las funciones implementadas usan el backend; sin esa
+configuración, la app usa repositorios mock en memoria. El asistente necesita
+el backend incluso en desarrollo y, sin él, informa que no está disponible.
 
 ## Ejecutar y comprobar
 
@@ -9,7 +17,7 @@ flutter pub get
 flutter run
 ```
 
-Para conectar la app al backend local (Supabase), ver [backend/README.md](backend/README.md):
+Para conectar la app al backend local (Supabase), seguir [backend/README.md](backend/README.md):
 
 ```powershell
 flutter run --dart-define-from-file=env.json
@@ -28,11 +36,9 @@ flutter test test/integration --dart-define-from-file=env.json
 
 Aquí `env.json` debe tener `SUPABASE_URL` = `http://127.0.0.1:54321`.
 
-`flutter analyze` (Flutter 3.47.2) falla en esta carpeta con `FormatException: Unexpected end of input`: el analysis server no maneja bien la `á` de `Práctica_dart` en la ruta. `dart analyze` aplica las mismas reglas de `analysis_options.yaml` y sí funciona. También funciona `flutter analyze` ejecutado desde una ruta solo ASCII, por ejemplo un junction (`New-Item -ItemType Junction`).
-
-Por la misma tilde, el plugin de Android para Gradle se niega a compilar ("Your project path contains non-ASCII characters"). `android/gradle.properties` lo desactiva con `android.overridePathCheck=true`, y la compilación funciona. Si algún día falla un paso nativo (por ejemplo, con el NDK), la solución definitiva es mover el proyecto a una carpeta sin tildes.
-
-Para inspección de rendimiento, usar un dispositivo físico y `flutter run --profile`; Chrome solo sirve para revisar lógica y aspecto, no fluidez.
+Para inspección de rendimiento, usar un dispositivo físico y
+`flutter run --profile`; Chrome sirve para revisar lógica y aspecto, no la
+fluidez móvil. Las reglas están en [REGLAS_RENDIMIENTO.md](REGLAS_RENDIMIENTO.md).
 
 ## Documentación
 
@@ -41,4 +47,5 @@ Para inspección de rendimiento, usar un dispositivo físico y `flutter run --pr
 - [Arquitectura](docs/ARQUITECTURA.md) y [contrato de API app–backend](docs/API_CONTRATO.md)
 - [Documentación del código y estado funcional](DOCUMENTACION_LIB.md)
 - [Reglas permanentes de rendimiento](REGLAS_RENDIMIENTO.md)
-- [Registro histórico de refactorización de los pasos 1 y 2](REFACTORIZACION_PASOS_1_Y_2.md)
+- [Modelo de datos del backend](docs/MODELO_DATOS.md) y [guía del backend local](backend/README.md)
+- [Modelos 3D y sus licencias](backend/MODELOS_3D.md)

@@ -19,25 +19,27 @@ lib/
     |   |-- domain/               # AuthUser, LegalDocument, AuthRepository
     |   |-- data/                 # Supabase Auth y mock en memoria
     |   `-- presentation/         # login, registro, recuperación y ensureSignedIn
-    `-- profile/
-        |-- profile_providers.dart
-        |-- domain/               # UserProfile, Address, ProfileRepository
-        |-- data/                 # tablas profiles y addresses, y mock
-        `-- presentation/         # pestaña PERFIL, editar datos y formulario de dirección
+    |-- profile/                  # perfil, direcciones y sus repositorios
+    |-- cart/                     # carrito de invitado y persistente
+    |-- pc_builder/               # selección y compatibilidad
+    |-- assistant/                # conversación y recomendaciones
+    `-- checkout/                 # pedido, pago y resultado
 ```
 
-El catálogo fue la primera feature migrada y la primera conectada al backend
-(fase 3). La fase 4 agregó cuentas y perfil. Las pantallas que aún no tienen una
-implementación basada en repositorios permanecen en `lib/screens/`; el carrito
-se migra en la fase 5 y PC Builder en la 6 (`docs/PLAN_IMPLEMENTACION.md`). No
-se crean carpetas vacías por adelantado.
+El catálogo, cuentas y perfil se conectaron primero al backend; el carrito,
+PC Builder, asistente y checkout también cuentan con implementaciones por
+feature. Inicio y el shell de navegación permanecen en `lib/screens/`. La
+descripción del estado y las fases futuras está en
+[`docs/PLAN_IMPLEMENTACION.md`](PLAN_IMPLEMENTACION.md). No se crean carpetas
+vacías por adelantado.
 
 ## Regla de dependencias
 
 - `domain` no importa Flutter ni Riverpod: es Dart puro.
 - `data` importa `domain`.
 - `presentation` importa `domain`, los providers y los widgets compartidos.
-- Solo `<nombre>_providers.dart` decide si se usa el repositorio mock o el real.
+- En cada feature, `<nombre>_providers.dart` decide si se usa el repositorio
+  mock o el real.
 - Solo los repositorios de `data/` leen `supabaseClientProvider`
   (`core/network/`). Traducen las excepciones de Supabase o de red a un
   `AppFailure` (`core/errors/`), de modo que controladores y pantallas no
@@ -46,14 +48,16 @@ se crean carpetas vacías por adelantado.
   `--dart-define`. Sin ella la app arranca con los mocks y las pruebas no
   necesitan backend.
 
-Así, las reglas de negocio se prueban sin widgets y cambiar el mock por el
-backend requiere modificar un único archivo de providers.
+Así, las reglas de negocio se prueban sin widgets y la selección del
+repositorio queda centralizada en los providers de cada feature.
 
 ### Catálogo como ejemplo
 
 **Dominio** (`features/catalog/domain/`):
-- `Product` con su familia (derivada de la categoría), estado de stock, imagen y ofertas (`ProductOffer`).
-- `ProductFilters`: búsqueda, familia, categoría, marca, rango de precio y orden.
+- `Product` con categoría, estado de stock, imagen y ofertas (`ProductOffer`).
+- `ProductFilters`: búsqueda, categoría, marca, rango de precio y orden. El
+  contrato conserva `family=part`, pero el catálogo ya no ofrece un filtro de
+  familia porque solo vende piezas.
 - `ProductPage` y el contrato `ProductRepository`.
 
 **Datos** (`data/`):
@@ -65,8 +69,7 @@ backend requiere modificar un único archivo de providers.
 
 **Controlador:** `CatalogController` guarda un `ProductFilters` y se encarga de:
 - la búsqueda con debounce de 300 ms;
-- las reglas entre familia y categoría: la categoría implica su familia, y cambiar de familia quita la categoría ajena;
-- marca, precio y orden;
+- la categoría, marca, precio y orden;
 - el total y la paginación incremental.
 
 **Pantalla:** cada widget observa solo su parte del estado con `select`. La grilla usa slivers y pide otra página al acercarse al final.
@@ -79,8 +82,8 @@ catálogo con un repositorio falso y pueden cambiar `catalogPageSizeProvider`
 para recorrer la paginación con pocas filas.
 
 `ProductSpec` contiene texto de presentación, no datos tipados de compatibilidad.
-Los datos para PC Builder se modelarán por separado como `PcPartSpec` en la fase
-6, sin acoplar el dominio del catálogo al builder.
+El motor de compatibilidad usa atributos tipados del backend (`product_attributes`),
+sin acoplar el dominio del catálogo al PC Builder.
 
 ### Sesión y navegación (fase 4)
 

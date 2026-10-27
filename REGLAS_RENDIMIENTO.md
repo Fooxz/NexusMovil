@@ -83,9 +83,8 @@ Estas reglas aplican a todos los pasos de desarrollo desde el paso 3. Deben guia
 
 ### Catálogo con backend (fase 3)
 
-- **R4 aplicada:** el selector de familia, los chips de tipo de pieza, el
-  botón de filtros y el menú de orden observan solo su parte de
-  `ProductFilters` con `select`.
+- **R4 aplicada:** los chips de tipo de pieza, el botón de filtros y el menú
+  de orden observan solo su parte de `ProductFilters` con `select`.
 - **R5:** el cliente de Supabase ya decodifica el JSON en un isolate
   (`yet_another_json_isolate`). En el hilo de UI solo se convierten mapas en
   objetos, como mucho 50 productos por página, así que no se agregó `compute`.
@@ -102,4 +101,4 @@ Estas reglas aplican a todos los pasos de desarrollo desde el paso 3. Deben guia
 - Medir en un teléfono físico con `flutter run --profile`, no en modo debug.
 - Revisar Performance en DevTools; a 60 Hz, los cuadros que exceden aproximadamente 16 ms pueden producir tirones.
 - Usar `Track widget rebuilds` para detectar reconstrucciones innecesarias.
-- Hacer mediciones al completar los pasos 4, 5 y 7, cuando existan las pestañas, datos del catálogo y visor 3D correspondientes.
+- Medir en dispositivo físico las pantallas con listas, imágenes y visor 3D al validar una versión; no usar resultados de Chrome como mediciones de fluidez móvil.

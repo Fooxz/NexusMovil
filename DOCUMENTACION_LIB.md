@@ -1,6 +1,6 @@
 # Documentación del código Dart de NEXUS
 
-Este documento describe el código Dart actual de `lib/`, el punto de entrada, la navegación, las pantallas, los componentes compartidos y el estado real de los datos. Las reglas de rendimiento permanentes están en `REGLAS_RENDIMIENTO.md`.
+Este documento describe el código Dart actual de `lib/`, el punto de entrada, la navegación, las pantallas, los componentes compartidos y el estado real de los datos. El alcance actual es solo piezas de computador; las fases y mediciones registradas más adelante son históricos de su fecha, no una garantía de que correspondan a la última ejecución. Las reglas de rendimiento permanentes están en `REGLAS_RENDIMIENTO.md`.
 
 ## Estado general
 
@@ -89,18 +89,18 @@ lib/
 |   `-- catalog/
 |       |-- catalog_providers.dart    # Elige Supabase o mock y expone providers
 |       |-- domain/
-|       |   |-- product.dart          # Producto, familia, categorías, stock, ofertas y ProductSpec
-|       |   |-- product_filters.dart  # Búsqueda, familia, categoría, marca, precio y orden
+|       |   |-- product.dart          # Producto, categoría, stock, ofertas y ProductSpec
+|       |   |-- product_filters.dart  # Búsqueda, categoría, marca, precio y orden
 |       |   |-- product_page.dart     # Página de productos y hasMore
 |       |   `-- product_repository.dart # Contrato del repositorio
 |       |-- data/
 |       |   |-- supabase_product_repository.dart # RPC del contrato y errores a AppFailure
 |       |   |-- product_json.dart     # Lectura del JSON del contrato
-|       |   `-- mock_product_repository.dart # Ocho productos y consultas en memoria
+|       |   `-- mock_product_repository.dart # Seis productos y consultas en memoria
 |       `-- presentation/
-|           |-- catalog_screen.dart   # Catálogo, familia, tipos de pieza, orden y hoja de filtros
+|           |-- catalog_screen.dart   # Catálogo, tipos de pieza, orden y hoja de filtros
 |           |-- product_detail_screen.dart # Detalle por productId con ofertas de proveedores
-|           `-- product_visuals.dart # Icono, degradado y etiquetas por categoría y familia
+|           `-- product_visuals.dart # Icono, degradado y etiquetas por categoría
 |-- theme/
 |   `-- nexus_theme.dart              # Colores, estilos y ThemeData compartidos
 `-- widgets/
@@ -182,10 +182,10 @@ Todas usan `AuthScaffold` (tarjeta centrada con botón de cerrar), validan antes
 ### Catálogo y detalle
 
 - `features/catalog/presentation/catalog_screen.dart`: observa `catalogControllerProvider` con `select` por partes y muestra carga, error o datos. Arriba están la búsqueda (con debounce) y los chips de tipo de pieza, con "Todo" para quitar el filtro. El encabezado muestra el total, el botón "Filtros" (hoja con marcas del repositorio y rangos de precio; indica cuántos están activos) y el menú de orden. La grilla usa slivers, carga páginas al acercarse al final y muestra la imagen del producto si existe.
-- `features/catalog/presentation/product_detail_screen.dart`: recibe `productId` y obtiene el producto mediante `productDetailProvider`. Muestra estado de carga, error recuperable o "Producto no encontrado". La imagen, marca, categoría, stock, precios, descuento, especificaciones y relacionados se derivan del producto y del repositorio. Si hay ofertas, lista cada proveedor con su precio y stock ("VENDIDO POR" u "OFERTAS DE PROVEEDORES"). Los productos agotados se identifican como "AGOTADO" en gris. Cantidad, compra y agregar al carrito siguen teniendo callbacks vacíos (fase 5).
+- `features/catalog/presentation/product_detail_screen.dart`: recibe `productId` y obtiene el producto mediante `productDetailProvider`. Muestra estado de carga, error recuperable o "Producto no encontrado". La imagen, marca, categoría, stock, precios, descuento, especificaciones y relacionados se derivan del producto y del repositorio. Si hay ofertas, permite elegir proveedor y muestra su precio y stock ("VENDIDO POR" u "ELIGE EL PROVEEDOR"). Los productos agotados se identifican como "AGOTADO" en gris. El cliente elige cantidad y puede agregar al carrito o iniciar "Comprar ahora".
 - `features/catalog/domain/` define `ProductCategory` (solo tipos de pieza), `StockLevel`, `ProductSpec`, `ProductOffer`, `Product`, `ProductFilters`, `ProductSort`, `ProductPage` y `ProductRepository` sin importar Flutter ni Riverpod. El descuento se deriva.
 - `features/catalog/data/`: `SupabaseProductRepository` llama a `get_products`, `get_product`, `get_related` y `get_catalog_brands` y traduce los errores a `AppFailure` (un `PRODUCT_NOT_FOUND` en el detalle se vuelve `null`). `product_json.dart` lee el JSON del contrato: ignora campos desconocidos, lee un `stockLevel` desconocido como agotado y omite productos de categorías desconocidas. `MockProductRepository` tiene seis piezas (con ofertas de dos proveedores para la RTX 5090), simula 300 ms de latencia y aplica en memoria los mismos filtros.
-- `features/catalog/catalog_providers.dart` es el único archivo que elige el repositorio: Supabase si `AppEnv.hasSupabase`, el mock si no. El catálogo usa un `AsyncNotifier` con `ProductFilters`, página y carga incremental; `catalogBrandsProvider` carga las marcas según familia y categoría; detalle y relacionados son `FutureProvider.autoDispose.family` que reciben el id.
+- `features/catalog/catalog_providers.dart` es el único archivo que elige el repositorio: Supabase si `AppEnv.hasSupabase`, el mock si no. El catálogo usa un `AsyncNotifier` con `ProductFilters`, página y carga incremental; `catalogBrandsProvider` carga las marcas según la categoría; detalle y relacionados son `FutureProvider.autoDispose.family` que reciben el id.
 
 ### Carrito
 
@@ -243,9 +243,9 @@ La compatibilidad la decide el motor del backend; la app solo la muestra.
 | Registro | Nombre, correo, contraseña, confirmación y aceptación de documentos | Formulario validado; crea la cuenta y el backend registra el consentimiento. |
 | Recuperación | Correo, código y contraseña nueva | Envía el código al correo y cambia la contraseña. |
 | Perfil y direcciones | Nombre, teléfono y direcciones de entrega | Formularios validados contra las tablas `profiles` y `addresses` (o el mock). |
-| Catálogo inicial | Primera página de productos | `catalogControllerProvider` obtiene 20 productos por página, de Supabase o del mock (ocho productos). |
+| Catálogo inicial | Primera página de productos | `catalogControllerProvider` obtiene 20 productos por página, de Supabase o del mock (seis productos de ejemplo). El catálogo local de desarrollo puede ampliarse con el generador del backend. |
 | Búsqueda del catálogo | Texto de producto, marca o categoría | El campo usa el controlador, que aplica debounce y búsqueda normalizada en el repositorio. |
-| Filtros y orden | Familia, tipo de pieza, marca, precio y orden | Chips de familia y de tipo de pieza; hoja "Filtros" con marcas del repositorio y rangos de precio; menú de orden (relevancia, menor y mayor precio). Todo se envía al repositorio. |
+| Filtros y orden | Tipo de pieza, marca, precio y orden | Chips por tipo de pieza; hoja "Filtros" con marcas del repositorio y rangos de precio; menú de orden (relevancia, menor y mayor precio). No hay selector de familia: el catálogo solo admite piezas. |
 | Cantidad de producto | Unidades en detalle | De 1 a 10; el backend valida contra el stock y responde cuántas quedan. |
 | Carrito | Ofertas, cantidades y totales | Guardado en Supabase con sesión; en memoria sin sesión, y se suma al guardado al iniciar sesión. |
 | PC Builder | Una pieza por ranura | Cada cambio se valida con el motor de reglas del backend; la selección vive en memoria mientras la app está abierta. |
@@ -299,9 +299,9 @@ Pasos completados:
   cliente y errores. La UI no cambia.
 - **Fase 2:** esquema del catálogo, bitácora de auditoría y RPC del contrato
   en el backend ([docs/MODELO_DATOS.md](docs/MODELO_DATOS.md)).
-- **Fase 3:** catálogo conectado a Supabase (contrato v0.4): familias,
-  computadores armados, ofertas por proveedor en el detalle, imágenes con
-  caché, filtros por familia, tipo de pieza, marca y precio, y orden.
+- **Fase 3:** catálogo conectado a Supabase (contrato v0.4): ofertas por
+  proveedor en el detalle, imágenes con caché, filtros por tipo de pieza,
+  marca y precio, y orden. El cambio posterior a solo piezas se documenta abajo.
 - **Fase 4:** cuentas con Supabase Auth: registro con aceptación de términos y
   política de datos (exigida también por el backend), inicio de sesión,
   recuperación con código de 6 dígitos, perfil y direcciones de entrega con
@@ -334,9 +334,9 @@ Pasos completados:
   suma piezas de gama de entrada y media.
 
 La hoja de ruta vigente está en [docs/PLAN_IMPLEMENTACION.md](docs/PLAN_IMPLEMENTACION.md).
-Los requisitos son los de [docs/REQUISITOS.md](docs/REQUISITOS.md) (análisis v2):
-el catálogo se limita a piezas de computador (cambio de alcance del 2026-10-27), el asistente de
-recomendación es el núcleo del producto y los proveedores publican por API.
+Los requisitos están en [docs/REQUISITOS.md](docs/REQUISITOS.md). Su análisis v2
+se modificó posteriormente: prevalece la decisión del 2026-10-27 de vender solo
+piezas, con el asistente como núcleo del producto y proveedores que publican por API.
 El antiguo paso 5D (carrito) es ahora la fase 5, y el paso 7 (PC Builder) es la
 fase 6. Autenticación pasa a ser la fase 4.
 
@@ -352,7 +352,7 @@ El árbol anterior refleja los archivos Dart actuales bajo `lib/`. Las pruebas d
 - **carrito:** totales y grupos, JSON de líneas, controlador con y sin sesión (incluida la fusión y los toques rápidos), pantalla del carrito, agregar desde el detalle y la tarjeta, y el contador;
 - **Inicio:** de 32 a 412 px.
 
-`test/integration/` prueba los repositorios reales contra el Supabase local y se salta sin configuración.
+`test/integration/` prueba los repositorios reales contra el Supabase local y se salta sin configuración. Las cifras de pruebas y resultados de las fases siguientes son registros históricos, no sustituyen ejecutar la suite en el estado actual.
 
 **Validación del catálogo grande (760 piezas):**
 - `flutter test`: 246 pruebas aprobadas; integración contra el backend local: 20 aprobadas. pgTAP: 194. Asistente: 21.
