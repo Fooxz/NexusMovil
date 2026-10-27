@@ -108,6 +108,10 @@ políticas, funciones, triggers y permisos), y las RPC, Storage y la función re
 prueba. Con `env.cloud.json` se saltan, salvo que se agregue `--dart-define=ALLOW_REMOTE_INTEGRATION=true`
 (`test/support/integration_support.dart`).
 
+**Actualización del 2026-10-27:** `db push` de las migraciones de checkout, solo piezas y candidatos con búsqueda;
+carga del inventario (arriba) y despliegue de `assistant`, `checkout` y `payment-webhook`. Sin llaves de Wompi,
+`checkout` responde `PAYMENTS_UNAVAILABLE`. El esquema `public` y `private` volvió a quedar idéntico al local.
+
 **Al agregar una migración:** `npx supabase db push --dry-run` y después `npx supabase db push`. Si cambia la
 función: `npx supabase functions deploy assistant --no-verify-jwt --use-api`.
 
@@ -136,9 +140,16 @@ junto con las seis del seed base) con atributos y ofertas. No se edita a mano: s
 `node tool/catalog/generate_catalog.mjs`. Usa una semilla fija, así que el archivo solo cambia si cambia el
 generador. El reset tarda unos 40 s más por este archivo.
 
-**En la nube** no se carga solo: `db push` aplica migraciones, no seeds. Para subir el catálogo hay que ejecutar el
-archivo con `npx supabase db query --linked -f supabase/seeds/catalog_generated.sql`, con confirmación, porque
-escribe datos en producción.
+**En la nube** no se carga solo: `db push` aplica migraciones, no seeds. Se arma un archivo que solo agrega lo que
+falta (cada `insert` con `on conflict do nothing`, en una transacción) y se ejecuta, con confirmación, porque
+escribe datos en producción:
+
+```powershell
+node ../tool/catalog/build_cloud_import.mjs $env:TEMP/inventario.sql   # desde backend/
+npx supabase db query --linked -f $env:TEMP/inventario.sql
+```
+
+Así se cargó el 2026-10-27: la nube quedó con 760 piezas, 993 ofertas y 7 proveedores, igual que local.
 
 ## Estructura
 
