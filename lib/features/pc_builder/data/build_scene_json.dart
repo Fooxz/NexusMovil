@@ -1,4 +1,3 @@
-import '../../catalog/data/product_json.dart';
 import '../../catalog/domain/product.dart';
 import '../domain/build_scene.dart';
 
@@ -62,39 +61,4 @@ PartModel? _modelFromJson(Object? json, String Function(String) modelUrl) {
     );
   }
   return null;
-}
-
-/// Lectura de `get_prebuilt_scene` (API_CONTRATO, sección 11.5).
-PrebuiltScene prebuiltSceneFromJson(
-  Object? json, {
-  required String Function(String path) modelUrl,
-}) {
-  if (json case {'product': final Object productJson, 'parts': List<Object?> parts}) {
-    final product = productFromJson(productJson);
-    if (product == null) throw FormatException('Armado inválido', json);
-    return PrebuiltScene(
-      product: product,
-      scene: BuildScene(
-        parts: [
-          for (final part in parts)
-            if (part case {
-              'componentId': String id,
-              'category': String categoryName,
-              'name': String name,
-            })
-              if (ProductCategory.values.asNameMap()[categoryName] case final category?)
-                ScenePart(
-                  offerId: id,
-                  category: category,
-                  productName: name,
-                  model: _modelFromJson(part['model'], modelUrl),
-                  attributes: part['attributes'] is Map<String, Object?>
-                      ? Map.unmodifiable(part['attributes'] as Map<String, Object?>)
-                      : const {},
-                ),
-        ],
-      ),
-    );
-  }
-  throw FormatException('Armado inválido', json);
 }

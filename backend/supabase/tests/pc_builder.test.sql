@@ -3,7 +3,7 @@
 -- y crea las que el seed no tiene.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(30);
+select plan(35);
 
 -- Configuración válida del seed: AM5 + DDR5 + ATX + RTX 5080 con fuente de 850 W.
 create function pg_temp.valid_build() returns text[]
@@ -77,30 +77,55 @@ select is(
   'false', 'y se marca la pieza');
 
 -- Entradas inválidas
-select throws_ok($$ select public.validate_build(array['off-tp-pcgamerpro']) $$, 'PGRST', null,
-  'el armador no admite computadores armados');
+select throws_ok($$ select public.validate_build(array['no-existe']) $$, 'PGRST', null,
+  'una oferta que no existe se rechaza');
 select throws_ok($$ select public.validate_build(array['off-tp-9950x', 'off-tp-265k']) $$, 'PGRST', null,
   'una sola pieza por categoría');
 select throws_ok($$ select public.validate_build(array['no-existe']) $$, 'PGRST', null,
   'una oferta inexistente es OFFER_NOT_FOUND');
 
--- Alternativas compatibles (RF-049)
+-- Alternativas compatibles (RF-049). El catálogo de desarrollo es grande: se
+-- comprueban las reglas, no la lista exacta.
+create temp table cands as
+  select row_number() over () as pos, c
+  from jsonb_array_elements(public.get_builder_candidates('cpu', array['off-mp-z790hero'], 50)) c;
+select ok(
+  (select max(pos) from cands where (c ->> 'compatible')::boolean)
+    < (select min(pos) from cands where not (c ->> 'compatible')::boolean),
+  'primero las compatibles con lo ya elegido, después las demás');
 select is(
-  (select jsonb_agg(c ->> 'id' || ':' || (c ->> 'compatible'))
-   from jsonb_array_elements(public.get_builder_candidates('motherboard', array['off-tp-9950x'])) c),
-  '["rog-strix-b650e-f:true", "rog-maximus-z790-hero:false"]'::jsonb,
-  'para un AM5 sugiere primero la placa compatible');
-select is(
-  (select c ->> 'incompatibilityReason' from jsonb_array_elements(public.get_builder_candidates('motherboard', array['off-tp-9950x'])) c
-   where c ->> 'id' = 'rog-maximus-z790-hero'),
+  (select c ->> 'incompatibilityReason'
+   from jsonb_array_elements(public.get_builder_candidates('cpu', array['off-mp-z790hero'], 5, 'ryzen 9 9950x')) c
+   where c ->> 'id' = 'ryzen-9-9950x'),
   'El procesador usa el socket AM5 y la placa madre el LGA1700: no encajan entre sí.',
-  'y explica por qué la otra no sirve');
+  'y explica por qué no sirve');
 select is(
-  (select jsonb_agg(c ->> 'id' || ':' || (c ->> 'compatible'))
-   from jsonb_array_elements(public.get_builder_candidates('gpu', array['off-tp-9950x', 'off-mp-rm850x', 'off-mp-o11evo'])) c),
-  '["rtx-5080:true", "rtx-5090:false"]'::jsonb,
-  'una gráfica que la fuente no alcanza a alimentar no es compatible');
-select throws_ok($$ select public.get_builder_candidates('prebuiltPc') $$, 'PGRST', null,
+  (select c ->> 'compatible' from jsonb_array_elements(public.get_builder_candidates(
+     'gpu', array['off-tp-9950x', 'off-mp-rm850x', 'off-mp-o11evo'], 5, 'rtx 5090')) c
+   where c ->> 'id' = 'rtx-5090'),
+  'false', 'una gráfica que la fuente no alcanza a alimentar no es compatible');
+
+-- Búsqueda, precio máximo, orden y páginas (v0.12)
+select ok(
+  (select bool_and(c ->> 'name' ilike '%5090%')
+   from jsonb_array_elements(public.get_builder_candidates('gpu', '{}', 10, 'rtx 5090')) c),
+  'busca por texto, sin distinguir mayúsculas');
+select ok(
+  (select bool_and((c ->> 'priceCents')::bigint <= 300000000)
+   from jsonb_array_elements(public.get_builder_candidates('gpu', '{}', 30, null, 300000000)) c),
+  'respeta el precio máximo');
+select ok(
+  (select (array_agg((c ->> 'priceCents')::bigint))[1] >= (array_agg((c ->> 'priceCents')::bigint))[2]
+   from jsonb_array_elements(public.get_builder_candidates('gpu', '{}', 2, null, null, 'priceDesc')) c),
+  'priceDesc empieza por la más cara');
+select is(
+  (select count(*) from jsonb_array_elements(public.get_builder_candidates('gpu', '{}', 10, null, null, 'priceAsc', 0)) a
+   join jsonb_array_elements(public.get_builder_candidates('gpu', '{}', 10, null, null, 'priceAsc', 1)) b
+     on a ->> 'id' = b ->> 'id'),
+  0::bigint, 'la página siguiente no repite piezas');
+select throws_ok($$ select public.get_builder_candidates('gpu', '{}', 10, null, null, 'nombre') $$, 'PGRST', null,
+  'el orden solo puede ser por precio');
+select throws_ok($$ select public.get_builder_candidates('monitor') $$, 'PGRST', null,
   'las alternativas son solo de ranuras del armador');
 
 reset role;

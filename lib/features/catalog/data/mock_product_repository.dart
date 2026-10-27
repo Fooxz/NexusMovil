@@ -114,26 +114,6 @@ class MockProductRepository implements ProductRepository {
       stockLevel: StockLevel.stable,
       quickSpecs: ['LIQUID', '360MM'],
     ),
-    const Product(
-      id: 'pc-gamer-pro-r7-5070',
-      name: 'PC GAMER PRO RYZEN 7 9700X / RTX 5070',
-      brand: 'TecnoPartes',
-      category: ProductCategory.prebuiltPc,
-      priceCents: 749990000,
-      stockLevel: StockLevel.critical,
-      summary: 'Ryzen 7 9700X · 32 GB DDR5 · RTX 5070 · 1 TB NVMe',
-      quickSpecs: ['GAMING', '32GB', 'RTX 5070'],
-    ),
-    const Product(
-      id: 'pc-oficina-i5-14400',
-      name: 'PC OFICINA CORE I5-14400',
-      brand: 'Mundo PC',
-      category: ProductCategory.prebuiltPc,
-      priceCents: 229990000,
-      stockLevel: StockLevel.stable,
-      summary: 'Core i5-14400 · 16 GB · 512 GB NVMe',
-      quickSpecs: ['OFICINA', '16GB'],
-    ),
   ];
 
   static List<Product> _generateProducts(int count) {
@@ -222,14 +202,9 @@ class MockProductRepository implements ProductRepository {
   }
 
   @override
-  Future<List<String>> getBrands({
-    ProductFamily? family,
-    ProductCategory? category,
-  }) async {
+  Future<List<String>> getBrands({ProductCategory? category}) async {
     await Future<void>.delayed(latency);
-    final brands = _filter(
-      ProductFilters(family: family, category: category),
-    ).map((product) => product.brand).toSet().toList()
+    final brands = _filter(ProductFilters(category: category)).map((product) => product.brand).toSet().toList()
       ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
     return brands;
   }
@@ -238,9 +213,6 @@ class MockProductRepository implements ProductRepository {
     final normalizedSearch = _normalizeSearch(filters.search);
     final brand = filters.brand?.toLowerCase();
     final matches = _products.where((product) {
-      if (filters.family != null && product.family != filters.family) {
-        return false;
-      }
       if (filters.category != null && product.category != filters.category) {
         return false;
       }
@@ -362,12 +334,6 @@ class MockProductRepository implements ProductRepository {
 
   static List<String> _categorySearchTerms(ProductCategory category) =>
       switch (category) {
-        ProductCategory.prebuiltPc => const [
-          'pc',
-          'computador',
-          'equipo',
-          'armado',
-        ],
         ProductCategory.cpu => const ['cpu', 'procesador'],
         ProductCategory.gpu => const ['gpu', 'tarjeta grafica', 'tarjetas graficas'],
         ProductCategory.ram => const ['ram', 'memoria'],

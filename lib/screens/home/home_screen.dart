@@ -152,7 +152,7 @@ class _Hero extends StatelessWidget {
           const SizedBox(
             width: 230,
             child: Text(
-              'Computadoras y componentes para armar o mejorar tu equipo.',
+              'Piezas de computador para armar o mejorar tu equipo.',
               style: NexusText.body,
             ),
           ),

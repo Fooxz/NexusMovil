@@ -125,6 +125,9 @@ void main() {
     expect(calls[1].$2, {
       'category': 'pcCase',
       'offer_ids': ['off-tp-9950x'],
+      'max_items': 30,
+      'sort': 'priceAsc',
+      'page': 0,
     });
   });
 
@@ -146,14 +149,14 @@ void main() {
       expect(validation.valid, isFalse, reason: 'faltan piezas obligatorias');
     });
 
-    test('applies one part per slot and only parts', () async {
+    test('applies one part per slot and rejects unknown offers', () async {
       await expectLater(
         repository.validate(['mock-offer-ryzen-9-9950x', 'mock-offer-ryzen-9-9950x']),
         throwsA(isA<ValidationFailure>()),
       );
       await expectLater(
-        repository.validate(['mock-offer-pc-oficina-i5-14400']),
-        throwsA(isA<ValidationFailure>()),
+        repository.validate(['no-existe']),
+        throwsA(isA<NotFoundFailure>()),
       );
     });
 
@@ -164,6 +167,17 @@ void main() {
         'kraken-elite-360',
       ]);
       expect(candidates.last.inStock, isFalse);
+    });
+
+    test('searches, sorts and pages the candidates', () async {
+      final byName = await repository.candidates(ProductCategory.gpu, const [], search: '5080');
+      expect(byName.map((c) => c.product.id), ['rtx-5080']);
+
+      final expensiveFirst =
+          await repository.candidates(ProductCategory.gpu, const [], cheapestFirst: false);
+      expect(expensiveFirst.first.product.id, 'rtx-5090');
+
+      expect(await repository.candidates(ProductCategory.gpu, const [], page: 1), isEmpty);
     });
   });
 

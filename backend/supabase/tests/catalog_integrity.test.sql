@@ -1,7 +1,7 @@
 -- Integridad del catálogo y bitácora de auditoría.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(11);
+select plan(13);
 
 insert into public.providers (id, legal_name, display_name, tax_id, contact_email, status) values
   ('zz-prov', 'ZZ S.A.S.', 'ZZ', 'zz-1', 'zz@zz.test', 'active');
@@ -75,6 +75,12 @@ select is(
 
 select throws_ok($$ delete from public.audit_log $$, '42501', null,
   'la bitácora no se puede borrar');
+
+-- Alcance 2026-10-27: solo piezas.
+select is((select count(*) from public.categories where family <> 'part'), 0::bigint,
+  'todas las categorías son piezas');
+select throws_ok($$ insert into public.categories (code, family, name) values ('zzPc', 'prebuiltPc', 'PC') $$,
+  '23514', null, 'no se pueden crear categorías de computadores armados');
 
 select * from finish();
 rollback;

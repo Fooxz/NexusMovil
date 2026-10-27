@@ -85,16 +85,21 @@ class ScriptedBuilderRepository implements PcBuilderRepository {
   @override
   Future<List<BuilderCandidate>> candidates(
     ProductCategory category,
-    List<String> offerIds,
-  ) async => [
-    for (final product in products.productsIn(category))
-      BuilderCandidate(
-        product: product,
-        compatible: !_conflicts(offerIds, product.bestOfferId ?? ''),
-        incompatibilityReason: _conflicts(offerIds, product.bestOfferId ?? '')
-            ? socketMessage
-            : null,
-      ),
+    List<String> offerIds, {
+    String search = '',
+    bool cheapestFirst = true,
+    int page = 0,
+  }) async => [
+    if (page == 0)
+      for (final product in products.productsIn(category))
+        if (search.isEmpty || product.name.toLowerCase().contains(search.toLowerCase()))
+          BuilderCandidate(
+            product: product,
+            compatible: !_conflicts(offerIds, product.bestOfferId ?? ''),
+            incompatibilityReason: _conflicts(offerIds, product.bestOfferId ?? '')
+                ? socketMessage
+                : null,
+          ),
   ];
 
   /// Modelo genérico de gráfica, como el del seed (CC BY).
@@ -127,44 +132,6 @@ class ScriptedBuilderRepository implements PcBuilderRepository {
                   : const {},
             ),
       ],
-    );
-  }
-
-  /// Armado con componentes; el de oficina no tiene componentes registrados.
-  static const gamerPro = 'pc-gamer-pro-r7-5070';
-  static const office = 'pc-oficina-i5-14400';
-
-  @override
-  Future<PrebuiltScene> prebuiltScene(String productId) async {
-    final product = products
-        .productsIn(ProductCategory.prebuiltPc)
-        .firstWhere((p) => p.id == productId);
-    return PrebuiltScene(
-      product: product,
-      scene: BuildScene(
-        parts: productId != gamerPro
-            ? const []
-            : const [
-                ScenePart(
-                  offerId: '$gamerPro:cpu',
-                  category: ProductCategory.cpu,
-                  productName: 'AMD Ryzen 7 9700X',
-                ),
-                ScenePart(
-                  offerId: '$gamerPro:ram',
-                  category: ProductCategory.ram,
-                  productName: 'DDR5 32 GB (2 x 16 GB)',
-                  attributes: {'modules': 2},
-                ),
-                ScenePart(
-                  offerId: '$gamerPro:gpu',
-                  category: ProductCategory.gpu,
-                  productName: 'NVIDIA GeForce RTX 5070 12 GB',
-                  model: gpuModel,
-                  attributes: {'length_mm': 242},
-                ),
-              ],
-      ),
     );
   }
 }

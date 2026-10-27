@@ -4,7 +4,7 @@ NEXUS – Análisis de requisitos · Versión 2
 
 ## Análisis de requisitos 
 
-Marketplace móvil de computadores armados y piezas de computador, con asistente inteligente de recomendación 
+Marketplace móvil de piezas de computador, con asistente inteligente de recomendación 
 
 Versión 2 · 17 de octubre de 2026 · Incorpora el cambio de enfoque del negocio 
 
@@ -14,15 +14,19 @@ Versión 2 · 17 de octubre de 2026 · Incorpora el cambio de enfoque del negoci
 
 **Referencias.** Los códigos RN-xx entre paréntesis en las reglas de negocio remiten a las reglas de la primera versión del entendimiento del negocio, para conservar la trazabilidad con ella. 
 
+### **Cambio de alcance: solo piezas (2026-10-27)** 
+
+Decisión del equipo posterior a la versión 2: **NEXUS vende solo piezas de computador; no vende computadores armados.** Con equipos cerrados, el asistente solo podía elegir entre unos pocos productos; con piezas ayuda al cliente a escoger cada componente según su uso, su presupuesto y la compatibilidad, y le arma el equipo completo en el PC Builder. Los requisitos y reglas que cambian llevan la marca **[Alcance 2026-10]**. Donde el resto del documento habla de computadores armados (por ejemplo, en preguntas abiertas, riesgos o la descripción del enfoque anterior), prevalece esta decisión.
+
 ### **Cambios de enfoque** 
 
 Resumen de lo que cambió respecto al análisis anterior. Todo lo demás del negocio (comisión descontada al proveedor, pagos, órdenes, trazabilidad) se mantiene. 
 
 |**Tema**|**Antes**|**Ahora**|
 |---|---|---|
-|Catálogo|Productos tecnológicos y electrónicos de distintas<br>categorías, incluidos celulares|Solo computadores armados y piezas de<br>computador|
+|Catálogo|Productos tecnológicos y electrónicos de distintas<br>categorías, incluidos celulares|Solo piezas de computador **[Alcance 2026-10]**<br>(la versión 2 incluía también computadores armados)|
 |Comparador de<br>celulares|Incluido, con orientación de uso|Eliminado del alcance|
-|Asistente inteligente|Orientaba hacia productos o configuraciones del<br>catálogo|Núcleo del producto: recomienda al cliente el<br>computador adecuado a sus necesidades (uso,<br>presupuesto, preferencias)|
+|Asistente inteligente|Orientaba hacia productos o configuraciones del<br>catálogo|Núcleo del producto: arma con el cliente el<br>computador adecuado a sus necesidades (uso,<br>presupuesto, preferencias) con piezas del catálogo **[Alcance 2026-10]**|
 |PC Builder|Incluido|Se mantiene, porque el nuevo enfoque no indica su<br>eliminación (por confirmar)|
 |Carga del catálogo|Portal del proveedor o API|Los proveedores suben sus productos a través de la<br>API y llegan a la aplicación; portal o carga manual<br>solo como contingencia|
 |Rol de NEXUS|Intermediario entre clientes y proveedores|Se confirma: NEXUS es intermediario, el proveedor<br>ofrece el producto y atiende el pedido|
@@ -272,7 +276,7 @@ HU-003 – Gestión de perfil y direcciones de entrega **[Inferida]**
 
 HU-004 – Búsqueda y filtrado de computadores y piezas 
 
-**Como** cliente · **Quiero** buscar y filtrar el catálogo por texto, tipo (computador armado o pieza), tipo de pieza, marca, precio y atributos técnicos · **Para** encontrar productos que se ajusten a lo que necesito 
+**Como** cliente · **Quiero** buscar y filtrar el catálogo por texto, tipo de pieza, marca, precio y atributos técnicos · **Para** encontrar productos que se ajusten a lo que necesito 
 
 ###### **Criterios de aceptación** 
 
@@ -310,11 +314,11 @@ HU-006 – Recomendación de un computador adecuado con el asistente **[Nuevo en
 
 ###### **Criterios de aceptación** 
 
-- Dado que describo mi necesidad, cuando el asistente la interpreta, entonces recomienda uno o más computadores armados del catálogo con una justificación basada en atributos reales (procesador, memoria, almacenamiento, gráficos, etc.). 
+- Dado que describo mi necesidad, cuando el asistente la interpreta, entonces me propone un computador completo con piezas del catálogo, validado por el motor de compatibilidad, con una justificación basada en atributos reales (procesador, memoria, almacenamiento, gráficos, etc.). **[Alcance 2026-10]** 
 
 - Dado que falta información relevante (por ejemplo, presupuesto o tipo de uso), cuando el asistente no puede recomendar con criterio, entonces me hace preguntas de aclaración en lugar de suponer. 
 
-- Dado que ningún computador armado cumple mi necesidad o presupuesto, cuando el asistente lo detecta, entonces me lo informa y, si es posible, propone una configuración de piezas validada por el motor de compatibilidad **[Inferida]** . 
+- Dado que busco una pieza en particular o mejorar mi computador, cuando el asistente la interpreta, entonces me recomienda piezas sueltas teniendo en cuenta las que digo tener, y me avisa lo que no puede verificar. **[Alcance 2026-10]** 
 
 - Dado que recibo una recomendación, cuando la reviso, entonces veo precio, disponibilidad y proveedor vigentes, y puedo abrir el producto, llevarlo al carrito o ajustarlo en el PC Builder, sin que se ejecute ninguna compra automática. 
 
@@ -729,7 +733,7 @@ NEXUS – Análisis de requisitos · Versión 2
 |RF-010|Permitir configurar las condiciones comerciales y la comisión inicial del proveedor al aprobarlo|Must|
 |RF-011|Permitir suspender y reactivar proveedores, ocultando sus ofertas mientras estén suspendidos<br>**[Inferida]**|Should|
 |**Catálogo d**|**e computadores armados y piezas**<br>i   i||
-|RF-012|Permitir al administrador gestionar las familias y categorías del catálogo (computador armado y<br>tipos de pieza)**[Nuevo enfoque]**|Must|
+|RF-012|Permitir al administrador gestionar los tipos de pieza del catálogo y sus plantillas de atributos**[Alcance 2026-10]**|Must|
 |RF-013|Permitir definir por categoría una plantilla de atributos técnicos (tipo, unidad, obligatoriedad)|Must|
 |RF-014|Permitir múltiples ofertas de distintos proveedores para un mismo producto (S-08)|Must|
 |RF-015|Ocultar automáticamente ofertas pausadas, sin stock o de proveedores suspendidos|Must|
@@ -739,7 +743,7 @@ NEXUS – Análisis de requisitos · Versión 2
 |RF-018|Emitir y gestionar credenciales de API por proveedor, con rotación y revocación**[Inferida]**|Must|
 |RF-019|Proveer documentación versionada de la API y un entorno de pruebas (sandbox) para los<br>proveedores**[Inferida]**|Should|
 |RF-020|Permitir configurar por proveedor la integración (endpoint, credenciales, modo de intercambio,<br>frecuencia) protegiendo las credenciales|Must|
-|RF-021|Recibir mediante la API la creación, actualización, pausa y retiro de computadores armados y<br>piezas, con sus precios, atributos, imágenes y stock|Must|
+|RF-021|Recibir mediante la API la creación, actualización, pausa y retiro de piezas, con sus precios,<br>atributos, imágenes y stock**[Alcance 2026-10]**|Must|
 |RF-022|Validar cada producto recibido (esquema, datos mínimos, atributos obligatorios, categoría<br>permitida, precio y stock válidos) y rechazar los inválidos devolviendo el detalle de los errores|Must|
 |RF-023|Identificar los productos por su identificador externo del proveedor para evitar duplicados y<br>permitir reenvíos idempotentes**[Inferida]**|Must|
 |RF-024|Normalizar y asociar cada producto recibido a la categoría y la plantilla de atributos de NEXUS<br>**[Inferida]**|Must|
@@ -761,20 +765,20 @@ NEXUS – Análisis de requisitos · Versión 2
 |RF-031|Permitir la carga masiva de catálogo mediante archivo con reporte de errores por fila, como<br>contingencia**[Inferida]**|Could|
 |**Búsqueda**|||
 |RF-032|Permitir buscar productos por texto en nombre, marca, modelo y categoría|Must|
-|RF-033|Permitir filtrar y ordenar por tipo de producto (computador armado o pieza), tipo de pieza, marca,<br>precio, disponibilidad y atributos técnicos**[Nuevo enfoque]**|Must|
+|RF-033|Permitir filtrar y ordenar por tipo de pieza, marca, precio, disponibilidad y atributos técnicos**[Alcance 2026-10]**|Must|
 |RF-034|Consultar el detalle de un producto con especificaciones, precio, disponibilidad y proveedor|Must|
 |RF-035|Mostrar solo productos publicados e indicar los agotados|Must|
 |**Asistente int**|**eligente de recomendación [Nuevo enfoque]**||
 |RF-036|Permitir al cliente expresar en lenguaje natural su necesidad (uso, presupuesto, preferencias, nivel<br>técnico)|Must|
 |RF-037|Solicitar al cliente la información faltante antes de recomendar|Must|
-|RF-038|Recomendar computadores armados del catálogo adecuados a la necesidad, con una explicación<br>basada en atributos reales|Must|
+|RF-038|Recomendar piezas del catálogo adecuadas a la necesidad (sueltas o como computador completo), con<br>una explicación basada en atributos reales**[Alcance 2026-10]**|Must|
 |RF-039|Presentar alternativas con precio, disponibilidad y proveedor vigentes y las diferencias relevantes<br>entre ellas|Should|
-|RF-040|Proponer, cuando ningún computador armado sirva, una configuración de piezas validada por el<br>motor de compatibilidad**[Inferida]**|Should|
+|RF-040|Proponer un computador completo como configuración de piezas validada por el motor de<br>compatibilidad**[Alcance 2026-10]**|Must|
 |RF-041|Restringir al asistente a datos del catálogo y reglas del sistema, recomendar solo productos<br>publicados y disponibles, y declarar cuando no hay información suficiente. Condición de liberación<br>del asistente|Must|
 |RF-042|Permitir ir desde una recomendación al producto, al PC Builder o al carrito sin ejecutar compras<br>automáticas|Should|
 |RF-043|Registrar las interacciones del asistente para trazabilidad**[Inferida]**|Should|
 |RF-044|Permitir escalar a atención humana cuando el asistente no pueda resolver**[Inferida]**|Could|
-|RF-045|Generar la descripción funcional de un computador armado o de una configuración válida a partir<br>de atributos reales|Should|
+|RF-045|Generar la descripción funcional de una configuración válida a partir de atributos reales**[Alcance 2026-10]**|Should|
 |RF-089|Permitir expresar la necesidad al asistente por voz, además de por texto, y que el asistente llene<br>el PC Builder con la configuración propuesta**[Agregado por el equipo, 2026-10]**|Should|
 |**PC Builder**|||
 |RF-046|Permitir seleccionar piezas por tipo (procesador, placa base, memoria, almacenamiento, gráfica,<br>fuente, gabinete, refrigeración, etc.)|Must|
@@ -784,7 +788,7 @@ NEXUS – Análisis de requisitos · Versión 2
 |RF-050|Permitir al administrador crear, modificar, versionar y activar reglas de compatibilidad|Must|
 |RF-051|Calcular el precio total y la disponibilidad de la configuración y permitir agregarla al carrito|Must|
 |RF-052|Permitir guardar configuraciones**[Inferida]**|Could|
-|RF-090|Mostrar una vista 3D de cómo se vería el computador con las piezas elegidas, o de un computador<br>armado con sus componentes por sección, a partir de un modelo 3D por componente**[Agregado por el equipo, 2026-10]**|Should|
+|RF-090|Mostrar una vista 3D de cómo se vería el computador con las piezas elegidas, a partir de un modelo<br>3D por componente**[Agregado por el equipo, 2026-10]**|Should|
 |**Comercio**|||
 |RF-053|Permitir agregar, modificar cantidad y eliminar ítems del carrito, y consultar subtotales|Must|
 |RF-054|Conservar el carrito del cliente autenticado entre sesiones**[Inferida]**|Should|
@@ -953,7 +957,7 @@ NEXUS – Análisis de requisitos · Versión 2
 |RN-007|La disponibilidad mostrada debe corresponder, en lo posible, al inventario que el proveedor envía a NEXUS por API<br>(RN-07, RN-08).|
 |RN-008|**[Nuevo enfoque]**Los productos, precios, atributos y stock llegan a NEXUS a través de la API del proveedor. Cualquier<br>otra vía (portal, carga manual o masiva) es una contingencia.|
 |RN-009|**[Nuevo enfoque]**NEXUS actúa como intermediario: no es el vendedor del producto ni mantiene inventario propio; el<br>proveedor ofrece el producto y atiende el pedido.|
-|RN-010|**[Nuevo enfoque]**El catálogo solo admite computadores armados y piezas de computador; los productos de otras<br>categorías se rechazan.|
+|RN-010|**[Alcance 2026-10]**El catálogo solo admite piezas de computador; los computadores armados y los productos de otras<br>categorías se rechazan.|
 |RN-011|Un producto solo se publica con datos mínimos y atributos técnicos obligatorios de su categoría (RN-09, proceso de<br>publicación).|
 |RN-012|Los errores de integración y los productos rechazados deben quedar registrados.|
 |RN-013|La compatibilidad entre piezas la determinan reglas técnicas definidas por NEXUS, no solo una respuesta de IA<br>generativa (RN-10).|
@@ -975,7 +979,7 @@ NEXUS – Análisis de requisitos · Versión 2
 
 |**ID**|**Regla**|
 |---|---|
-|RN-023|**[Nuevo enfoque]** **[Inferida]**El proveedor responde por el ensamblaje y la compatibilidad de los computadores armados<br>que publica; NEXUS no los revalida con el motor de compatibilidad.|
+|RN-023|**[Alcance 2026-10]** Sin efecto: NEXUS no vende computadores armados. La compatibilidad de una configuración la determina<br>el motor de reglas (RN-013).|
 |RN-024|**[Inferida]**El porcentaje de comisión debe estar dentro del rango definido por NEXUS.**[Pendiente]**|
 |RN-025|**[Inferida]**Una orden se genera únicamente con pago confirmado (S-04).|
 |RN-026|**[Inferida]**Cada ítem de orden conserva el precio, la cantidad y la comisión vigentes al momento de la compra; los<br>cambios posteriores no lo afectan.|
@@ -1065,7 +1069,7 @@ NEXUS – Análisis de requisitos · Versión 2
 
 - **S-09:** Descuentos y promociones quedan fuera de esta versión. 
 
-- **S-10: [Nuevo enfoque]** El catálogo se limita a dos familias: computadores armados (equipos completos vendidos por el proveedor) y piezas (componentes internos como procesador, placa base, memoria, almacenamiento, gráfica, fuente, gabinete y refrigeración). Periféricos y accesorios quedan fuera hasta confirmar. 
+- **S-10: **[Alcance 2026-10]**** El catálogo se limita a piezas: componentes internos como procesador, placa base, memoria, almacenamiento, gráfica, fuente, gabinete y refrigeración. Los computadores armados salieron del alcance; periféricos y accesorios quedan fuera hasta confirmar. 
 
 - **S-11: [Nuevo enfoque]** La API es la vía principal por la que los proveedores envían productos, precios, atributos, imágenes y stock. El portal y la carga masiva son contingencias de menor prioridad. 
 
@@ -1075,7 +1079,7 @@ NEXUS – Análisis de requisitos · Versión 2
 
 - **S-14: [Nuevo enfoque]** El PC Builder se mantiene en el alcance: el cambio de enfoque no lo elimina. Se asume que complementa al asistente. Por confirmar. 
 
-- **S-15: [Nuevo enfoque]** Los computadores armados se venden tal como los publica el proveedor; NEXUS no valida su compatibilidad interna. 
+- **S-15: **[Alcance 2026-10]**** Sin efecto: no se venden computadores armados. 
 
 - **S-16: [Nuevo enfoque]** El asistente se apoya en un modelo generativo restringido a datos del catálogo, y la compatibilidad se resuelve con reglas deterministas. Sube a Must porque es el diferenciador central del negocio; depende de un servicio externo y de la calidad de los datos. 
 

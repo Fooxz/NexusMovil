@@ -37,9 +37,6 @@ class MockPcBuilderRepository implements PcBuilderRepository {
     for (final offerId in offerIds) {
       final found = _products.offerById(offerId);
       if (found == null) throw const NotFoundFailure();
-      if (found.product.family != ProductFamily.part) {
-        throw const ValidationFailure();
-      }
       if (parts.any((part) => part.category == found.product.category)) {
         throw const ValidationFailure();
       }
@@ -85,16 +82,31 @@ class MockPcBuilderRepository implements PcBuilderRepository {
   @override
   Future<List<BuilderCandidate>> candidates(
     ProductCategory category,
-    List<String> offerIds,
-  ) async {
-    final products = _products.productsIn(category)
+    List<String> offerIds, {
+    String search = '',
+    bool cheapestFirst = true,
+    int page = 0,
+  }) async {
+    final query = search.trim().toLowerCase();
+    final products = _products
+        .productsIn(category)
+        .where(
+          (p) =>
+              query.isEmpty ||
+              p.name.toLowerCase().contains(query) ||
+              p.brand.toLowerCase().contains(query),
+        )
+        .toList()
       ..sort((a, b) {
         final byStock = (a.stockLevel == StockLevel.outOfStock ? 1 : 0) -
             (b.stockLevel == StockLevel.outOfStock ? 1 : 0);
-        return byStock != 0 ? byStock : a.priceCents.compareTo(b.priceCents);
+        if (byStock != 0) return byStock;
+        final byPrice = a.priceCents.compareTo(b.priceCents);
+        return cheapestFirst ? byPrice : -byPrice;
       });
+    const size = PcBuilderRepository.candidatesPageSize;
     return [
-      for (final product in products)
+      for (final product in products.skip(page * size).take(size))
         BuilderCandidate(product: product, compatible: true),
     ];
   }
@@ -114,15 +126,5 @@ class MockPcBuilderRepository implements PcBuilderRepository {
           ),
       ],
     );
-  }
-
-  /// El mock del catálogo no tiene componentes de armados: la pantalla lo
-  /// explica.
-  @override
-  Future<PrebuiltScene> prebuiltScene(String productId) async {
-    final product = await _products.getById(productId);
-    if (product == null) throw const NotFoundFailure();
-    if (product.category != ProductCategory.prebuiltPc) throw const ValidationFailure();
-    return PrebuiltScene(product: product, scene: BuildScene.empty);
   }
 }

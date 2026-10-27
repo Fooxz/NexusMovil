@@ -39,7 +39,6 @@ class CatalogScreen extends ConsumerWidget {
               children: const [
                 CatalogSearchField(),
                 SizedBox(height: 14),
-                CatalogFamilySelector(),
                 CatalogCategoryChips(),
                 SizedBox(height: 18),
                 CatalogResultsHeader(),
@@ -108,15 +107,15 @@ class _CatalogSearchFieldState extends ConsumerState<CatalogSearchField> {
   }
 }
 
-/// Computadores armados o piezas (RF-033).
-class CatalogFamilySelector extends ConsumerWidget {
-  const CatalogFamilySelector({super.key});
+/// Tipos de pieza (RF-033). "Todo" quita el filtro.
+class CatalogCategoryChips extends ConsumerWidget {
+  const CatalogCategoryChips({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final selectedFamily = ref.watch(
+    final selected = ref.watch(
       catalogControllerProvider.select(
-        (value) => value.asData?.value.filters.family,
+        (value) => value.asData?.value.filters.category,
       ),
     );
     final controller = ref.read(catalogControllerProvider.notifier);
@@ -127,58 +126,17 @@ class CatalogFamilySelector extends ConsumerWidget {
       children: [
         ChoiceChip(
           label: const Text('Todo'),
-          selected: selectedFamily == null,
-          onSelected: (_) => controller.setFamily(null),
+          selected: selected == null,
+          onSelected: (_) => controller.setCategory(null),
         ),
-        for (final family in ProductFamily.values)
+        for (final category in ProductCategory.values)
           ChoiceChip(
-            label: Text(ProductVisuals.familyLabel(family)),
-            selected: selectedFamily == family,
-            onSelected: (selected) =>
-                controller.setFamily(selected ? family : null),
+            label: Text(ProductVisuals.chipLabel(category)),
+            selected: selected == category,
+            onSelected: (isSelected) =>
+                controller.setCategory(isSelected ? category : null),
           ),
       ],
-    );
-  }
-}
-
-/// Tipos de pieza. Se ocultan cuando se ven solo computadores armados.
-class CatalogCategoryChips extends ConsumerWidget {
-  const CatalogCategoryChips({super.key});
-
-  static final _partCategories = [
-    for (final category in ProductCategory.values)
-      if (category.family == ProductFamily.part) category,
-  ];
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final scope = ref.watch(
-      catalogControllerProvider.select((value) {
-        final filters = value.asData?.value.filters;
-        return (family: filters?.family, category: filters?.category);
-      }),
-    );
-    if (scope.family == ProductFamily.prebuiltPc) return const SizedBox.shrink();
-
-    return Padding(
-      padding: const EdgeInsets.only(top: 10),
-      child: Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        children: [
-          for (final category in _partCategories)
-            ChoiceChip(
-              label: Text(ProductVisuals.chipLabel(category)),
-              selected: scope.category == category,
-              onSelected: (selected) {
-                ref
-                    .read(catalogControllerProvider.notifier)
-                    .setCategory(selected ? category : null);
-              },
-            ),
-        ],
-      ),
     );
   }
 }

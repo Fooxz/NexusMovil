@@ -18,8 +18,8 @@ select is(
   '["corsair-rm850x", "rtx-5080"]'::jsonb,
   'respeta el orden pedido y omite lo que no existe o no se ve');
 select is(
-  public.get_product_attributes(array['pc-gamer-pro-r7-5070']) -> 0 -> 'attributes' -> 0 ->> 'label',
-  'Procesador', 'también los computadores armados');
+  public.get_product_attributes(array['core-i5-14400']) -> 0 -> 'attributes' -> 0 ->> 'label',
+  'Socket', 'los atributos salen en el orden de la plantilla');
 select is(public.get_product_attributes('{}'), '[]'::jsonb, 'sin productos, lista vacía');
 select throws_ok(
   $$ select public.get_product_attributes(array_fill('x'::text, array[31])) $$,
@@ -38,7 +38,7 @@ select lives_ok($$
   insert into public.assistant_interactions
     (session_id, client_hash, user_message, reply_type, reply, product_ids, model, model_calls, tool_calls)
   values ('sesion-123', repeat('a', 64), 'Necesito un PC', 'recommendation', '{}',
-          array['pc-oficina-i5-14400'], 'gemini-3.5-flash', 2,
+          array['core-i5-14400'], 'gemini-3.5-flash', 2,
           '[{"name": "search_catalog", "args": {}}]') $$,
   'la Edge Function registra la pregunta, la respuesta y las herramientas (RF-043)');
 select throws_ok($$

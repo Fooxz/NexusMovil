@@ -130,7 +130,7 @@ Los datos para PC Builder se modelarán por separado como `PcPartSpec` en la fas
 
 - **La app no calcula compatibilidad.** `PcBuilderController` (`features/pc_builder/pc_builder_providers.dart`) guarda qué oferta hay en cada ranura y, en cada cambio, pide la evaluación al motor del backend (`validate_build`). Las operaciones van en serie. Si una falla, se conserva la configuración anterior y el error llega a la pantalla.
 - **Estado fuera del árbol de widgets.** La configuración vive en el provider y se conserva al cambiar de pestaña mientras la app está abierta. Guardar configuraciones (RF-052) queda para más adelante.
-- **Candidatos por ranura.** `builderCandidatesProvider(category)` se recalcula cuando cambia la selección; usa una clave de texto para no recargar sin cambios. La pieza se agrega con su `bestOfferId`: en el armador no se elige proveedor.
+- **Candidatos por ranura.** `builderCandidatesProvider(category)` (`CandidatesController`) se recalcula cuando cambia la selección; usa una clave de texto para no recargar sin cambios y conserva la búsqueda y el orden. Carga páginas de 30 con `loadMore`, y descarta la respuesta de una búsqueda vieja si ya empezó otra. La pieza se agrega con su `bestOfferId`: en el armador no se elige proveedor.
 - **Sin backend** (`MockPcBuilderRepository`): el mock del catálogo no tiene atributos técnicos. Por eso aplica las ranuras obligatorias y la disponibilidad, pero devuelve un aviso que dice que **no verifica compatibilidad**, en lugar de afirmarla.
 - **Llevar al carrito (RF-051):** solo si `purchasable`. Agrega cada pieza con el `CartController` e informa cuáles no se pudieron agregar.
 - El ícono fijo que hacía de "visor 3D" se retiró en esta fase. El visor real
@@ -165,18 +165,10 @@ Los datos para PC Builder se modelarán por separado como `PcPartSpec` en la fas
   - bloquea el envío mientras espera;
   - permite reintentar sin repetir el mensaje;
   - "Nueva" descarta una respuesta que todavía no llega.
-- **Las respuestas son datos, no texto libre:** pregunta, recomendación (productos con motivo y configuración validada) o "no hay nada adecuado". Por eso la app puede mostrar tarjetas con acciones reales.
+- **Las respuestas son datos, no texto libre:** pregunta, recomendación (piezas sueltas con motivo y/o una configuración completa validada) o "no hay nada adecuado". Por eso la app puede mostrar tarjetas con acciones reales.
 - **Del asistente al armador:** "Ver en el PC Builder (3D)" llama a `PcBuilderController.loadBuild`, que toma las ranuras de la validación del motor, y cambia de pestaña con `MainShellScope`.
 - **Voz:** `VoiceInput` (`data/voice_input.dart`) envuelve `speech_to_text`. Las pruebas usan `FakeVoiceInput`.
 - **Sin backend:** `MockAssistantRepository` dice que el asistente necesita el servidor, en lugar de inventar recomendaciones.
-
-### Ver un computador armado en 3D
-
-- **"Visualizar en 3D"** en una recomendación de armado llama a `prebuiltPreviewProvider.show(productId)` y cambia a la pestaña PC BUILDER.
-- **Vista aparte:** mientras está activa, el armador muestra `PrebuiltPreviewView`, con el armado, sus componentes por sección y la vista 3D. `viewerSceneProvider` toma la escena de `prebuiltSceneProvider`.
-  - La configuración del cliente (`PcBuilderController`) no se toca y vuelve con "Volver a mi configuración".
-  - Los componentes no se compran por separado: el botón agrega el armado completo.
-- **Al cambiar de vista,** el visor se vuelve a crear y recarga la página 3D.
 
 ## Reglas de uso de Riverpod
 

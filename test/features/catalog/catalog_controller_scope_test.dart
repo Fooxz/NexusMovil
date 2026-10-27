@@ -10,7 +10,7 @@ void main() {
   setUp(() async {
     harness = CatalogControllerHarness(
       repository: CatalogFakeProductRepository(
-        products: const [catalogGpu, catalogCpu, catalogPrebuilt],
+        products: const [catalogGpu, catalogCpu, catalogRam],
       ),
     );
     await harness.load();
@@ -20,31 +20,20 @@ void main() {
 
   ProductFilters lastFilters() => harness.repository.requests.last.filters;
 
-  test('a part category implies the part family', () async {
+  test('a category filters the parts and drops the brand', () async {
+    await harness.controller.setBrand('NVIDIA');
     await harness.controller.setCategory(ProductCategory.gpu);
 
-    expect(harness.state.filters.family, ProductFamily.part);
+    expect(lastFilters().category, ProductCategory.gpu);
+    expect(lastFilters().brand, isNull);
     expect(harness.state.items, [catalogGpu]);
   });
 
-  test('choosing prebuilt computers drops the part category and brand', () async {
-    await harness.controller.setCategory(ProductCategory.gpu);
-    await harness.controller.setBrand('NVIDIA');
-
-    await harness.controller.setFamily(ProductFamily.prebuiltPc);
-
-    expect(lastFilters().family, ProductFamily.prebuiltPc);
-    expect(lastFilters().category, isNull);
-    expect(lastFilters().brand, isNull);
-    expect(harness.state.items, [catalogPrebuilt]);
-  });
-
-  test('choosing "Todo" also drops the category', () async {
+  test('choosing "Todo" drops the category', () async {
     await harness.controller.setCategory(ProductCategory.cpu);
 
-    await harness.controller.setFamily(null);
+    await harness.controller.setCategory(null);
 
-    expect(harness.state.filters.family, isNull);
     expect(harness.state.category, isNull);
     expect(harness.state.items, hasLength(3));
   });
@@ -74,10 +63,10 @@ void main() {
   });
 
   test('repeating the same filter does not request again', () async {
-    await harness.controller.setFamily(ProductFamily.part);
+    await harness.controller.setCategory(ProductCategory.ram);
     final requestCount = harness.repository.requests.length;
 
-    await harness.controller.setFamily(ProductFamily.part);
+    await harness.controller.setCategory(ProductCategory.ram);
     await harness.controller.setSort(ProductSort.relevance);
     await harness.controller.setBrand(null);
 

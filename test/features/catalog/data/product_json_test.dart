@@ -17,7 +17,6 @@ void main() {
     ]);
 
     final gpu = page.items.first;
-    expect(gpu.family, ProductFamily.part);
     expect(gpu.category, ProductCategory.gpu);
     expect(gpu.priceCents, 799600000);
     expect(gpu.oldPriceCents, 919600000);
@@ -43,14 +42,14 @@ void main() {
     expect(offer.stockLevel, StockLevel.stable);
   });
 
-  test('reads prebuilt computers', () {
+  test('skips prebuilt computers: NEXUS only sells parts', () {
     final product = productFromJson({
       ...contractDetailFixture,
       'family': 'prebuiltPc',
       'category': 'prebuiltPc',
-    })!;
+    });
 
-    expect(product.family, ProductFamily.prebuiltPc);
+    expect(product, isNull);
   });
 
   test('ignores unknown fields and treats unknown stock as out of stock', () {

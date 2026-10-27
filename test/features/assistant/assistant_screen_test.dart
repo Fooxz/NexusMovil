@@ -93,28 +93,6 @@ void main() {
     expect(cart.items.single.offerId, gpu.bestOfferId);
   });
 
-  testWidgets('a recommended prebuilt PC can be seen in 3D in the PC Builder', (tester) async {
-    final prebuilt = product(ProductCategory.prebuiltPc);
-    final (container, _) = await pumpAssistant(tester, [
-      AssistantRecommendation(
-        'Este equipo te sirve.',
-        products: [
-          RecommendedProduct(product: prebuilt, reason: 'Ocho núcleos.'),
-          RecommendedProduct(product: product(ProductCategory.gpu), reason: 'Rápida.'),
-        ],
-      ),
-    ]);
-    await ask(tester, 'Un PC para jugar');
-
-    expect(find.text('VISUALIZAR EN 3D'), findsOneWidget, reason: 'solo en el armado');
-    await tapAndSettle(tester, find.text('VISUALIZAR EN 3D'));
-
-    expect(selectedTab, NexusTab.pcBuilder);
-    expect(container.read(prebuiltPreviewProvider), prebuilt.id);
-    expect(container.read(pcBuilderControllerProvider).value?.isEmpty ?? true, isTrue,
-        reason: 'la configuración del cliente no cambia');
-  });
-
   testWidgets('a parts build opens in the PC Builder, never in the cart (RF-089)', (tester) async {
     final offers = [ScriptedBuilderRepository.ryzen, ScriptedBuilderRepository.z790];
     final validation = await engine.validate(offers);
@@ -132,7 +110,6 @@ void main() {
     await tapAndSettle(tester, find.text('VER EN EL PC BUILDER (3D)'));
 
     expect(selectedTab, NexusTab.pcBuilder);
-    expect(container.read(prebuiltPreviewProvider), isNull, reason: 'se ve la configuración');
     final build = container.read(pcBuilderControllerProvider).value!;
     expect(build.selection, {
       ProductCategory.cpu: ScriptedBuilderRepository.ryzen,

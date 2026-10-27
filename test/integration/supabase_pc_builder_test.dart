@@ -10,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:prueba01/core/config/env.dart';
 import 'package:prueba01/core/errors/app_failure.dart';
 import 'package:prueba01/features/catalog/domain/product.dart';
+import 'package:prueba01/features/pc_builder/domain/pc_builder_models.dart';
 import 'package:prueba01/features/pc_builder/data/supabase_pc_builder_repository.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthUser;
 
@@ -83,17 +84,16 @@ void main() {
   }, skip: skip);
 
   test('candidates come compatible first, with the reason otherwise', () async {
-    final gpus = await builder.candidates(ProductCategory.gpu, [
-      'off-tp-9950x',
-      'off-mp-rm850x',
-      'off-mp-o11evo',
-    ]);
+    const build = ['off-tp-9950x', 'off-mp-rm850x', 'off-mp-o11evo'];
+    final gpus = await builder.candidates(ProductCategory.gpu, build, cheapestFirst: false);
+    final firstIncompatible = gpus.indexWhere((c) => !c.compatible);
+    expect(gpus.take(firstIncompatible < 0 ? gpus.length : firstIncompatible),
+        everyElement(predicate<BuilderCandidate>((c) => c.compatible)));
 
-    expect(gpus.map((c) => '${c.product.id}:${c.compatible}'), [
-      'rtx-5080:true',
-      'rtx-5090:false',
-    ]);
-    expect(gpus.last.incompatibilityReason, contains('1100 W'));
+    final rtx5090 = await builder.candidates(ProductCategory.gpu, build, search: 'rtx 5090');
+    final reference = rtx5090.firstWhere((c) => c.product.id == 'rtx-5090');
+    expect(reference.compatible, isFalse);
+    expect(reference.incompatibilityReason, contains('1100 W'));
   }, skip: skip);
 
   test('the 3D scene brings downloadable models and real sizes', () async {
@@ -119,24 +119,7 @@ void main() {
     expect(bytes, greaterThan(1000));
   }, skip: skip);
 
-  test('a prebuilt PC comes by sections for the 3D view', () async {
-    final prebuilt = await builder.prebuiltScene('pc-workstation-r9-5080');
-
-    expect(prebuilt.product.category, ProductCategory.prebuiltPc);
-    expect(prebuilt.scene.parts.map((part) => part.category.name), [
-      'cpu', 'motherboard', 'ram', 'gpu', 'storage', 'psu', 'pcCase', 'cooling',
-    ]);
-    final cooling = prebuilt.scene.partFor(ProductCategory.cooling)!;
-    expect(cooling.text('cooling_type'), 'liquid', reason: 'medidas de la pieza enlazada');
-    expect(prebuilt.scene.partFor(ProductCategory.gpu)!.model, isNotNull);
-    await expectLater(builder.prebuiltScene('rtx-5080'), throwsA(isA<ValidationFailure>()));
-  }, skip: skip);
-
-  test('rejects prebuilt computers and repeated slots', () async {
-    await expectLater(
-      builder.validate(['off-tp-pcgamerpro']),
-      throwsA(isA<ValidationFailure>()),
-    );
+  test('rejects repeated slots', () async {
     await expectLater(
       builder.validate(['off-tp-9950x', 'off-tp-265k']),
       throwsA(isA<ValidationFailure>()),

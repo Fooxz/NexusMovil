@@ -33,7 +33,6 @@ void main() {
       pageSize: 10,
       filters: const ProductFilters(
         search: '  rtx  ',
-        family: ProductFamily.part,
         category: ProductCategory.pcCase,
         brand: 'Lian Li',
         minPriceCents: 100000,
@@ -48,7 +47,6 @@ void main() {
       'page': 2,
       'page_size': 10,
       'search': 'rtx',
-      'family': 'part',
       'category': 'pcCase',
       'brand': 'Lian Li',
       'min_price_cents': 100000,

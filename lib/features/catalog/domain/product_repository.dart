@@ -15,9 +15,6 @@ abstract class ProductRepository {
 
   Future<List<Product>> getRelated(String id, {int limit = 2});
 
-  /// Marcas con productos visibles para la familia y categoría dadas.
-  Future<List<String>> getBrands({
-    ProductFamily? family,
-    ProductCategory? category,
-  });
+  /// Marcas con productos visibles, de una categoría o de todas.
+  Future<List<String>> getBrands({ProductCategory? category});
 }

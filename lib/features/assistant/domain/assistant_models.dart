@@ -33,8 +33,9 @@ class AssistantNoMatch extends AssistantReply {
   const AssistantNoMatch(super.message);
 }
 
-/// Productos del catálogo y, si ningún armado sirve, una configuración de
-/// piezas validada por el motor de compatibilidad (RF-038 a RF-040).
+/// Piezas sueltas (si el cliente busca una pieza o mejorar su equipo) y/o
+/// una configuración completa validada por el motor de compatibilidad
+/// (RF-038 a RF-040).
 class AssistantRecommendation extends AssistantReply {
   const AssistantRecommendation(
     super.message, {

@@ -33,40 +33,40 @@ void main() {
   test('lists only visible products with their best offer', () async {
     final page = await repository.getProducts(pageSize: 50);
 
-    expect(page.total, 15);
-    final vengeance = page.items.firstWhere(
-      (product) => product.id == 'corsair-vengeance-ddr5-32gb',
-    );
+    expect(page.total, greaterThan(500), reason: 'seed.sql más el catálogo generado (seeds/)');
+    expect(page.items, hasLength(50));
+    final vengeance = await repository.getById('corsair-vengeance-ddr5-32gb');
     // La oferta más barata es de un proveedor pendiente: no debe contar.
-    expect(vengeance.priceCents, 54990000);
+    expect(vengeance!.priceCents, 54990000);
     expect(
-      page.items.firstWhere((p) => p.id == 'kraken-elite-360').stockLevel,
+      (await repository.getById('kraken-elite-360'))!.stockLevel,
       StockLevel.outOfStock,
     );
   }, skip: skip);
 
-  test('filters by family, brand, price and sorts by price', () async {
-    final prebuilt = await repository.getProducts(
+  test('filters by category, brand, price and sorts by price', () async {
+    final psus = await repository.getProducts(
       filters: const ProductFilters(
-        family: ProductFamily.prebuiltPc,
+        category: ProductCategory.psu,
         sort: ProductSort.priceAsc,
       ),
     );
-    expect(prebuilt.items.map((product) => product.id), [
-      'pc-oficina-i5-14400',
-      'pc-gamer-pro-r7-5070',
-      'pc-workstation-r9-5080',
-    ]);
+    final prices = psus.items.map((product) => product.priceCents).toList();
+    expect(prices, [...prices]..sort(), reason: 'de menor a mayor precio');
+    expect(psus.items.map((product) => product.category), everyElement(ProductCategory.psu));
 
     final nvidiaUnder2M = await repository.getProducts(
       filters: const ProductFilters(brand: 'nvidia', maxPriceCents: 200000000),
     );
-    expect(nvidiaUnder2M.items.map((product) => product.id), ['rtx-5080']);
+    expect(nvidiaUnder2M.items, isNotEmpty);
+    expect(nvidiaUnder2M.items.map((product) => product.priceCents), everyElement(lessThanOrEqualTo(200000000)));
+    expect(nvidiaUnder2M.items.map((product) => product.id), contains('rtx-5080'));
 
     final accented = await repository.getProducts(
       filters: const ProductFilters(search: 'REFRIGERACIÓN'),
     );
-    expect(accented.total, 2);
+    expect(accented.total, greaterThan(3));
+    expect(accented.items.map((product) => product.category), everyElement(ProductCategory.cooling));
   }, skip: skip);
 
   test('detail brings provider offers; unknown ids are null', () async {
@@ -81,10 +81,11 @@ void main() {
 
   test('related products and brands come from the backend', () async {
     final related = await repository.getRelated('rtx-5090', limit: 3);
-    expect(related.first.id, 'rtx-5080');
+    expect(related.map((product) => product.category), everyElement(ProductCategory.gpu),
+        reason: 'primero los de la misma categoría');
     expect(related.map((product) => product.id), isNot(contains('rtx-5090')));
 
-    final brands = await repository.getBrands(family: ProductFamily.prebuiltPc);
-    expect(brands, ['Mundo PC', 'TecnoPartes']);
+    final brands = await repository.getBrands(category: ProductCategory.gpu);
+    expect(brands, containsAll(['AMD', 'NVIDIA', 'ASUS', 'MSI']));
   }, skip: skip);
 }

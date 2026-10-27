@@ -10,17 +10,21 @@ abstract class PcBuilderRepository {
   /// Evalúa la configuración formada por [offerIds] (una oferta por ranura).
   Future<BuildValidation> validate(List<String> offerIds);
 
+  /// Piezas por página de [candidates].
+  static const candidatesPageSize = 30;
+
   /// Piezas de [category] para la configuración [offerIds]: primero las
-  /// compatibles y con stock, luego por precio.
+  /// compatibles y con stock, luego por precio (de menor a mayor si
+  /// [cheapestFirst]). [search] filtra por nombre o marca; [page] empieza en 0
+  /// y trae hasta [candidatesPageSize] piezas.
   Future<List<BuilderCandidate>> candidates(
     ProductCategory category,
-    List<String> offerIds,
-  );
+    List<String> offerIds, {
+    String search = '',
+    bool cheapestFirst = true,
+    int page = 0,
+  });
 
   /// Modelos 3D y atributos visuales de las piezas [offerIds] (RF-090).
   Future<BuildScene> scene(List<String> offerIds);
-
-  /// Componentes del computador armado [productId] por sección, para verlo
-  /// en 3D.
-  Future<PrebuiltScene> prebuiltScene(String productId);
 }

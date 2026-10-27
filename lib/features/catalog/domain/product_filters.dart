@@ -8,7 +8,6 @@ enum ProductSort { relevance, priceAsc, priceDesc }
 class ProductFilters {
   const ProductFilters({
     this.search = '',
-    this.family,
     this.category,
     this.brand,
     this.minPriceCents,
@@ -17,7 +16,6 @@ class ProductFilters {
   });
 
   final String search;
-  final ProductFamily? family;
   final ProductCategory? category;
   final String? brand;
   final int? minPriceCents;
@@ -27,7 +25,6 @@ class ProductFilters {
   /// El orden no cuenta como filtro: "Limpiar filtros" lo conserva.
   bool get hasActiveFilters =>
       search.isNotEmpty ||
-      family != null ||
       category != null ||
       brand != null ||
       minPriceCents != null ||
@@ -39,7 +36,6 @@ class ProductFilters {
   /// de "quitar el filtro" (`null`).
   ProductFilters copyWith({
     String? search,
-    Object? family = _unset,
     Object? category = _unset,
     Object? brand = _unset,
     Object? minPriceCents = _unset,
@@ -48,7 +44,6 @@ class ProductFilters {
   }) {
     return ProductFilters(
       search: search ?? this.search,
-      family: identical(family, _unset) ? this.family : family as ProductFamily?,
       category: identical(category, _unset)
           ? this.category
           : category as ProductCategory?,
@@ -67,7 +62,6 @@ class ProductFilters {
   bool operator ==(Object other) =>
       other is ProductFilters &&
       other.search == search &&
-      other.family == family &&
       other.category == category &&
       other.brand == brand &&
       other.minPriceCents == minPriceCents &&
@@ -77,7 +71,6 @@ class ProductFilters {
   @override
   int get hashCode => Object.hash(
     search,
-    family,
     category,
     brand,
     minPriceCents,

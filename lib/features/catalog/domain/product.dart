@@ -1,9 +1,7 @@
-/// Familias del catálogo: solo computadores armados y piezas (RN-010).
-enum ProductFamily { prebuiltPc, part }
-
-/// Los nombres coinciden con `category` del contrato (docs/API_CONTRATO.md).
+/// Tipos de pieza. NEXUS solo vende piezas de computador (RN-010, alcance
+/// 2026-10-27). Los nombres coinciden con `category` del contrato
+/// (docs/API_CONTRATO.md).
 enum ProductCategory {
-  prebuiltPc,
   cpu,
   gpu,
   ram,
@@ -12,13 +10,6 @@ enum ProductCategory {
   psu,
   pcCase,
   cooling,
-}
-
-extension ProductCategoryX on ProductCategory {
-  /// Mientras no se decida D8, `prebuiltPc` es la única categoría de su familia.
-  ProductFamily get family => this == ProductCategory.prebuiltPc
-      ? ProductFamily.prebuiltPc
-      : ProductFamily.part;
 }
 
 enum StockLevel { stable, critical, outOfStock }
@@ -103,8 +94,6 @@ class Product {
   final List<String> quickSpecs;
   final List<ProductSpec> specs;
   final List<ProductOffer> offers;
-
-  ProductFamily get family => category.family;
 
   Product copyWith({String? bestOfferId, List<ProductOffer>? offers}) => Product(
     id: id,

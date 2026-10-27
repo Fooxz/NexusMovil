@@ -39,10 +39,17 @@ class SupabasePcBuilderRepository implements PcBuilderRepository {
   @override
   Future<List<BuilderCandidate>> candidates(
     ProductCategory category,
-    List<String> offerIds,
-  ) => _call('get_builder_candidates', {
+    List<String> offerIds, {
+    String search = '',
+    bool cheapestFirst = true,
+    int page = 0,
+  }) => _call('get_builder_candidates', {
     'category': category.name,
     'offer_ids': offerIds,
+    'max_items': PcBuilderRepository.candidatesPageSize,
+    if (search.trim().isNotEmpty) 'search': search.trim(),
+    'sort': cheapestFirst ? 'priceAsc' : 'priceDesc',
+    'page': page,
   }, builderCandidatesFromJson);
 
   @override
@@ -50,13 +57,6 @@ class SupabasePcBuilderRepository implements PcBuilderRepository {
     'get_build_scene',
     {'offer_ids': offerIds},
     (json) => buildSceneFromJson(json, modelUrl: _modelUrl),
-  );
-
-  @override
-  Future<PrebuiltScene> prebuiltScene(String productId) => _call(
-    'get_prebuilt_scene',
-    {'product_id': productId},
-    (json) => prebuiltSceneFromJson(json, modelUrl: _modelUrl),
   );
 
   Future<T> _call<T>(

@@ -7,24 +7,27 @@ import '../../support/catalog_test_support.dart';
 
 void main() {
   CatalogFakeProductRepository repository() => CatalogFakeProductRepository(
-    products: const [catalogGpu, catalogCpu, catalogPrebuilt],
+    products: const [catalogGpu, catalogCpu, catalogRam],
   );
 
-  testWidgets('prebuilt family hides part chips and lists only computers', (
+  testWidgets('only part types are offered, with "Todo" to clear them', (
     tester,
   ) async {
     final fake = repository();
     await pumpCatalogScreen(tester, fake);
     await tester.pumpAndSettle();
-    expect(find.widgetWithText(ChoiceChip, 'GPU'), findsOneWidget);
+    expect(find.widgetWithText(ChoiceChip, 'Computadores armados'), findsNothing);
 
-    await tester.tap(find.widgetWithText(ChoiceChip, 'Computadores armados'));
+    await tester.tap(find.widgetWithText(ChoiceChip, 'RAM'));
     await tester.pumpAndSettle();
-
-    expect(find.widgetWithText(ChoiceChip, 'GPU'), findsNothing);
-    expect(find.text(catalogPrebuilt.name), findsOneWidget);
+    expect(find.text(catalogRam.name), findsOneWidget);
     expect(find.text(catalogGpu.name), findsNothing);
-    expect(fake.requests.last.filters.family, ProductFamily.prebuiltPc);
+    expect(fake.requests.last.filters.category, ProductCategory.ram);
+
+    await tester.tap(find.widgetWithText(ChoiceChip, 'Todo'));
+    await tester.pumpAndSettle();
+    expect(find.text(catalogGpu.name), findsOneWidget);
+    expect(fake.requests.last.filters.category, isNull);
   });
 
   testWidgets('sort menu changes the order sent to the repository', (

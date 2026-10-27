@@ -4,7 +4,7 @@ Este documento describe el código Dart actual de `lib/`, el punto de entrada, l
 
 ## Estado general
 
-NEXUS es una app Flutter de un marketplace de computadores armados y piezas. Con Supabase configurado, estas partes usan datos reales:
+NEXUS es una app Flutter de un marketplace de piezas de computador: el cliente arma su equipo en el PC Builder o con el asistente (desde el 2026-10-27 no se venden computadores armados). Con Supabase configurado, estas partes usan datos reales:
 - el catálogo (fase 3);
 - las cuentas: registro con consentimiento, inicio de sesión y recuperación (fase 4);
 - el perfil con direcciones de entrega (fase 4);
@@ -51,8 +51,7 @@ lib/
 |   |   |-- data/                     # RPC del motor y de la escena, lectura del JSON y mock que no verifica compatibilidad
 |   |   `-- presentation/
 |   |       |-- pc_builder_screen.dart # Ranuras, estado, avisos por pieza, resumen y "Agregar todo"
-|   |       |-- part_picker_screen.dart # Piezas de una ranura: compatibles primero, con la causa si no
-|   |       |-- prebuilt_preview.dart # Un computador armado por secciones y en 3D (solo para ver)
+|   |       |-- part_picker_screen.dart # Piezas de una ranura: búsqueda, orden por precio y "Ver más"; compatibles primero
 |   |       `-- viewer/               # Vista 3D: posición de cada pieza (scene_layout), widget y host por plataforma
 |   |-- checkout/
 |   |   |-- checkout_providers.dart   # Repositorio, pasarela, CheckoutController (form → pago → resultado)
@@ -182,10 +181,10 @@ Todas usan `AuthScaffold` (tarjeta centrada con botón de cerrar), validan antes
 
 ### Catálogo y detalle
 
-- `features/catalog/presentation/catalog_screen.dart`: observa `catalogControllerProvider` con `select` por partes y muestra carga, error o datos. Arriba están la búsqueda (con debounce), los chips de familia (Todo, Computadores armados, Piezas) y los chips de tipo de pieza, que se ocultan al ver solo armados. El encabezado muestra el total, el botón "Filtros" (hoja con marcas del repositorio y rangos de precio; indica cuántos están activos) y el menú de orden. La grilla usa slivers, carga páginas al acercarse al final y muestra la imagen del producto si existe.
+- `features/catalog/presentation/catalog_screen.dart`: observa `catalogControllerProvider` con `select` por partes y muestra carga, error o datos. Arriba están la búsqueda (con debounce) y los chips de tipo de pieza, con "Todo" para quitar el filtro. El encabezado muestra el total, el botón "Filtros" (hoja con marcas del repositorio y rangos de precio; indica cuántos están activos) y el menú de orden. La grilla usa slivers, carga páginas al acercarse al final y muestra la imagen del producto si existe.
 - `features/catalog/presentation/product_detail_screen.dart`: recibe `productId` y obtiene el producto mediante `productDetailProvider`. Muestra estado de carga, error recuperable o "Producto no encontrado". La imagen, marca, categoría, stock, precios, descuento, especificaciones y relacionados se derivan del producto y del repositorio. Si hay ofertas, lista cada proveedor con su precio y stock ("VENDIDO POR" u "OFERTAS DE PROVEEDORES"). Los productos agotados se identifican como "AGOTADO" en gris. Cantidad, compra y agregar al carrito siguen teniendo callbacks vacíos (fase 5).
-- `features/catalog/domain/` define `ProductFamily`, `ProductCategory` (incluye `prebuiltPc`), `StockLevel`, `ProductSpec`, `ProductOffer`, `Product`, `ProductFilters`, `ProductSort`, `ProductPage` y `ProductRepository` sin importar Flutter ni Riverpod. La familia y el descuento se derivan.
-- `features/catalog/data/`: `SupabaseProductRepository` llama a `get_products`, `get_product`, `get_related` y `get_catalog_brands` y traduce los errores a `AppFailure` (un `PRODUCT_NOT_FOUND` en el detalle se vuelve `null`). `product_json.dart` lee el JSON del contrato: ignora campos desconocidos, lee un `stockLevel` desconocido como agotado y omite productos de categorías desconocidas. `MockProductRepository` tiene ocho productos (incluidos dos armados y ofertas para la RTX 5090), simula 300 ms de latencia y aplica en memoria los mismos filtros.
+- `features/catalog/domain/` define `ProductCategory` (solo tipos de pieza), `StockLevel`, `ProductSpec`, `ProductOffer`, `Product`, `ProductFilters`, `ProductSort`, `ProductPage` y `ProductRepository` sin importar Flutter ni Riverpod. El descuento se deriva.
+- `features/catalog/data/`: `SupabaseProductRepository` llama a `get_products`, `get_product`, `get_related` y `get_catalog_brands` y traduce los errores a `AppFailure` (un `PRODUCT_NOT_FOUND` en el detalle se vuelve `null`). `product_json.dart` lee el JSON del contrato: ignora campos desconocidos, lee un `stockLevel` desconocido como agotado y omite productos de categorías desconocidas. `MockProductRepository` tiene seis piezas (con ofertas de dos proveedores para la RTX 5090), simula 300 ms de latencia y aplica en memoria los mismos filtros.
 - `features/catalog/catalog_providers.dart` es el único archivo que elige el repositorio: Supabase si `AppEnv.hasSupabase`, el mock si no. El catálogo usa un `AsyncNotifier` con `ProductFilters`, página y carga incremental; `catalogBrandsProvider` carga las marcas según familia y categoría; detalle y relacionados son `FutureProvider.autoDispose.family` que reciben el id.
 
 ### Carrito
@@ -217,9 +216,8 @@ Se agrega desde el ícono de carrito de las tarjetas del catálogo (la mejor ofe
 - **Inicio:** sugerencias que se envían con un toque, y un aviso fijo de que las respuestas las genera la IA a partir del catálogo (RNF-025).
 - **Respuestas:**
   - preguntas cuando falta el uso o el presupuesto;
-  - tarjetas de producto con el motivo, "Ver detalle" y "Agregar";
-  - configuración por piezas con su total y "Ver en el PC Builder (3D)", que la carga en el armador y cambia de pestaña;
-  - en los computadores armados, "Visualizar en 3D", que abre el armado en el PC Builder (`prebuilt_preview.dart`): sus componentes por sección y en 3D, el botón para agregarlo completo al carrito y "Volver a mi configuración".
+  - piezas sueltas (cuando el cliente busca una pieza o mejorar su equipo) con el motivo, "Ver detalle" y "Agregar";
+  - un computador completo por piezas con su total y "Ver en el PC Builder (3D)", que lo carga en el armador y cambia de pestaña.
 - **Errores:** "Reintentar". Si la IA no está disponible, atajos al catálogo y al PC Builder (RNF-018).
 - **Voz** (`voice_composer.dart`): el micrófono dicta en el campo y el cliente revisa el texto antes de enviarlo.
 
@@ -229,7 +227,7 @@ Se agrega desde el ícono de carrito de las tarjetas del catálogo (la mejor ofe
 - **Estado:** un aviso dice qué hacer (empezar por el procesador, qué falta, cuántas incompatibilidades hay, piezas sin stock o "Configuración compatible y completa") y cuántas piezas obligatorias van.
 - **Ranuras:** cada una muestra la pieza elegida con su proveedor y precio, sus incompatibilidades en lenguaje simple, "Cambiar" o "Ver alternativas", y "Quitar". Las vacías dicen si son obligatorias u opcionales.
 - **Resumen:** precio por pieza, total, "Agregar todo al carrito" (solo si la configuración es válida y tiene stock) y "Empezar de nuevo".
-- **Selector** (`part_picker_screen.dart`): lista las piezas de la ranura con COMPATIBLE o NO COMPATIBLE y el motivo; las agotadas no se pueden elegir.
+- **Selector** (`part_picker_screen.dart`): lista las piezas de la ranura con COMPATIBLE o NO COMPATIBLE y el motivo; las agotadas no se pueden elegir. Con cientos de piezas por tipo, tiene un buscador (espera 300 ms a que se termine de escribir), orden por menor o mayor precio y "Ver más" de a 30 (`CandidatesController`).
 - **Vista 3D** (`viewer/pc_viewer.dart`, RF-090): el gabinete con las piezas elegidas.
   - Se gira y se acerca; las piezas incompatibles se ven en rosa y tocar una pieza abre su selector.
   - Usa los modelos `.glb` del backend y genera las piezas que no tienen modelo. "Créditos de los modelos 3D" muestra los autores y las licencias.
@@ -330,10 +328,14 @@ Pasos completados:
   revalidación del carrito, intento de pago firmado en el servidor, resultado
   idempotente por webhook o consulta, orden con una sub-orden por proveedor,
   comisión sobre el valor sin IVA y descuento de stock.
+- **Solo piezas (2026-10-27, contrato v0.11):** salen los computadores armados,
+  la vista 3D de armados y el filtro por familia. El asistente arma equipos
+  completos por piezas o recomienda piezas sueltas, y el catálogo de desarrollo
+  suma piezas de gama de entrada y media.
 
 La hoja de ruta vigente está en [docs/PLAN_IMPLEMENTACION.md](docs/PLAN_IMPLEMENTACION.md).
 Los requisitos son los de [docs/REQUISITOS.md](docs/REQUISITOS.md) (análisis v2):
-el catálogo se limita a computadores armados y piezas, el asistente de
+el catálogo se limita a piezas de computador (cambio de alcance del 2026-10-27), el asistente de
 recomendación es el núcleo del producto y los proveedores publican por API.
 El antiguo paso 5D (carrito) es ahora la fase 5, y el paso 7 (PC Builder) es la
 fase 6. Autenticación pasa a ser la fase 4.
@@ -351,6 +353,17 @@ El árbol anterior refleja los archivos Dart actuales bajo `lib/`. Las pruebas d
 - **Inicio:** de 32 a 412 px.
 
 `test/integration/` prueba los repositorios reales contra el Supabase local y se salta sin configuración.
+
+**Validación del catálogo grande (760 piezas):**
+- `flutter test`: 246 pruebas aprobadas; integración contra el backend local: 20 aprobadas. pgTAP: 194. Asistente: 21.
+- Tiempos en local: listado del catálogo 105 ms, búsqueda 45 ms, candidatos de una ranura entre 150 y 700 ms según cuántas piezas hay que evaluar.
+- Con Gemini real, "Quiero un PC para jugar en 4K, mi presupuesto es de 15 millones" devolvió una configuración válida de $12.589.200 (Ryzen 7 9800X3D y RTX 5080) en 6 llamadas.
+
+**Validación del cambio a solo piezas:**
+- `dart analyze` sin hallazgos. `flutter test`: 242 pruebas aprobadas y 21 de integración saltadas; contra el backend local pasan las 20 de integración (la que llama a Gemini se corre aparte).
+- pgTAP: 189 pruebas. Asistente: 21 pruebas con `node --test`.
+- La migración se probó sobre una base con los armados cargados: quedaron 12 piezas y 8 categorías.
+- Con Gemini real: "Ármame un computador de oficina por menos de 3 millones" devolvió una configuración válida de $2.659.400; una consulta por una tarjeta gráfica devolvió dos piezas sueltas justificadas con la fuente y el gabinete del cliente.
 
 **Validación de la fase 8:**
 - `dart analyze` sin hallazgos y `flutter build apk --debug` correcto.

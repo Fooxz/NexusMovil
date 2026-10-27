@@ -19,7 +19,7 @@ categories 1─* attribute_definitions          (plantilla por categoría)
 
 | Tabla | Para qué | Notas |
 |---|---|---|
-| `categories` | Familias y tipos de pieza (RF-012). | `code` es el valor `category` del contrato. `family`: `prebuiltPc` o `part`. `search_terms` alimenta la búsqueda (`procesador`, `placa base`...). Datos de referencia en la migración. |
+| `categories` | Tipos de pieza (RF-012). | `code` es el valor `category` del contrato. `family` siempre es `part`: la restricción `categories_parts_only` impide otra familia (solo piezas, 2026-10-27). `search_terms` alimenta la búsqueda (`procesador`, `placa base`...). Datos de referencia en la migración. |
 | `attribute_definitions` | Plantilla de atributos técnicos por categoría (RF-013, RNF-027). | `data_type`: `number`, `text`, `boolean`, `enum`, `enumList`; `unit`, `is_required`, `allowed_values`. Agregar un tipo de pieza o atributo es un `insert`, sin cambios de código. |
 | `products` | El producto del catálogo, independiente de quién lo vende. | `specs` y `quick_specs` son texto **solo para mostrar**. |
 | `product_attributes` | Valores tipados de cada producto. | Un valor por fila, en la columna de su tipo (`value_number`, `value_text`, `value_bool`, `value_list`). Un trigger exige que el atributo sea de la categoría del producto y que el valor respete el tipo y los valores permitidos (RN-032). Lo usarán el PC Builder (fase 6) y el asistente (fase 7). |
@@ -143,19 +143,9 @@ La cuenta (correo y contraseña) vive en `auth.users`, que administra Supabase A
 - **Validaciones:** solo archivos `.glb`, rotación de tres ángulos, el producto debe ser de la categoría y CC BY exige el enlace a la obra. La tabla se audita.
 - **Sin modelo**, la app genera la pieza con su forma y las medidas de sus atributos (largo de la GPU, formato de la placa...). Cómo agregar modelos: `backend/MODELOS_3D.md`.
 
-### Componentes de los armados
+### Componentes de los armados (retirada)
 
-| Tabla | Para qué | Acceso de clientes |
-|---|---|---|
-| `prebuilt_components` | Qué componente ocupa cada sección del PC Builder en un computador armado: nombre, pieza del catálogo si se vende suelta y medidas para la vista 3D. | Ninguno (lo entrega `get_prebuilt_scene`). |
-
-- **Validaciones:**
-  - solo computadores armados;
-  - una fila por sección;
-  - la pieza enlazada debe ser de esa sección;
-  - `attributes` solo admite los atributos visuales (`private.visual_attribute_keys`).
-- **Bitácora:** la tabla se audita.
-- **Pendiente para la fase 10:** que los proveedores envíen los componentes por la API. Hoy se cargan en `seed.sql`.
+La tabla `prebuilt_components` y la RPC `get_prebuilt_scene` mostraban en 3D los componentes de un computador armado. Se eliminaron el 2026-10-27, cuando NEXUS pasó a vender solo piezas (ver "Solo piezas" más abajo).
 
 ## Asistente (fase 7)
 
@@ -220,12 +210,29 @@ payment_events
 - **Envío:** sin costo adicional para el cliente.
 - **IVA:** se asume del 19 % para todo el catálogo. Algunos computadores están excluidos de IVA en Colombia según su valor; si aplica, `vat_rate` debe pasar a ser por producto.
 
+## Solo piezas (cambio de alcance, 2026-10-27)
+
+NEXUS vende solo piezas de computador: el cliente arma su equipo en el PC Builder o con el asistente. La migración
+`20261027010000_parts_only.sql`:
+- borra los computadores armados con sus ofertas, atributos, imágenes, modelos 3D, reglas de comisión y líneas de carrito;
+- borra la categoría `prebuiltPc` con su plantilla de atributos y la vista 3D de armados;
+- agrega `categories_parts_only` y hace que el filtro `family` solo admita `part`.
+
+Si algún armado ya estuviera en una orden, la migración se detiene: las órdenes conservan sus ítems (RN-026) y ese armado
+habría que retirarlo a mano. El valor `prebuiltPc` sigue en el tipo `product_family`, porque PostgreSQL no permite quitar
+valores de un enum, pero ninguna categoría puede usarlo.
+
 ## Datos de desarrollo
 
 `backend/supabase/seed.sql` (lo carga `npx supabase db reset`) contiene:
 - **3 proveedores:** 2 activos y 1 pendiente.
-- **15 productos:** los 6 del mock de la app con los mismos ids, 6 piezas más y 3 computadores armados, con sus atributos tipados.
-- **18 ofertas:** incluyen un producto con dos proveedores, niveles `stable`, `critical` y `outOfStock`, una oferta de un proveedor pendiente y una en borrador. Estas dos últimas no deben verse.
+- **26 piezas** con sus atributos tipados: las 6 del mock de la app con los mismos ids, 6 de gama alta y 14 de gama de entrada y media (Ryzen 5 8600G, Core i5-14400, placas microATX, DDR4 y DDR5, RTX 5060, RX 9060 XT, fuentes de 600 y 750 W...). Alcanzan para armar equipos válidos de oficina desde unos $2.300.000 y de gaming desde unos $4.500.000.
+- **29 ofertas:** incluyen un producto con dos proveedores, niveles `stable`, `critical` y `outOfStock`, una oferta de un proveedor pendiente y una en borrador. Estas dos últimas no deben verse.
 - **3 modelos 3D genéricos:** CPU, RAM y gráfica, descargados de Poly Pizza (ver `backend/MODELOS_3D.md`).
+
+**Catálogo grande** (`backend/supabase/seeds/catalog_generated.sql`, se carga después de `seed.sql`):
+- **734 piezas más** (760 en total): 58 procesadores AM4, AM5, LGA1700 y LGA1851; 194 placas madre de 15 chipsets; 80 kits de RAM DDR4 y DDR5; 148 gráficas de NVIDIA, AMD e Intel en versiones de varios ensambladores; 73 unidades de almacenamiento; 55 fuentes; 59 gabinetes y 67 sistemas de refrigeración.
+- **4 proveedores activos más** (6 en total) y **964 ofertas**: un 30 % de las piezas tiene dos proveedores, un 15 % trae descuento, un 15 % queda en stock crítico y un 10 % agotado.
+- Lo genera `tool/catalog/generate_catalog.mjs` con una semilla fija: siempre produce el mismo archivo. Los nombres siguen líneas reales de cada marca, pero no todas las combinaciones existen; especificaciones aproximadas y precios de ejemplo.
 
 No trae usuarios: las cuentas se crean desde la app, que pasa por el trigger de consentimiento.

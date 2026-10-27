@@ -57,8 +57,6 @@ class _PcViewerState extends ConsumerState<PcViewer> {
   Widget build(BuildContext context) {
     final host = ref.watch(viewerHostProvider);
     final scene = ref.watch(viewerSceneProvider);
-    // En la vista de un armado no hay piezas que cambiar.
-    final previewing = ref.watch(prebuiltPreviewProvider.select((id) => id != null));
 
     final Widget stage;
     if (host == null || _failed) {
@@ -120,11 +118,9 @@ class _PcViewerState extends ConsumerState<PcViewer> {
         ),
         const SizedBox(height: 6),
         if (host != null && !_failed)
-          Text(
-            previewing
-                ? 'Arrastra para girar y pellizca para acercar.'
-                : 'Arrastra para girar, pellizca para acercar y toca una pieza '
-                      'para cambiarla.',
+          const Text(
+            'Arrastra para girar, pellizca para acercar y toca una pieza para '
+            'cambiarla.',
             style: _hintStyle,
           ),
         if (_missingModels > 0)

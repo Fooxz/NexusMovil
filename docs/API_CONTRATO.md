@@ -1,4 +1,4 @@
-# Contrato de API: NEXUS Movil (v0.10, borrador)
+# Contrato de API: NEXUS Movil (v0.12, borrador)
 
 **Estado:** borrador. Parte 1: catalogo (secciones 1 a 5). Parte 2: carrito (seccion 10). Parte 3: PC Builder y vista 3D (seccion 11). Parte 4: asistente (seccion 12). Parte 5: checkout y pagos (seccion 13). Implementado en el backend (`backend/`) y consumido por el front desde las fases 3, 5, 6, 6.1, 7 y 8 de `docs/PLAN_IMPLEMENTACION.md`.
 **Quien lo escribe:** el front, a partir de sus modelos reales (`lib/features/catalog/domain`).
@@ -64,7 +64,7 @@
 | `id` | string | si | Unico y estable. |
 | `name` | string | si | Nombre completo para mostrar. |
 | `brand` | string | si | |
-| `family` | string (enum) | si | `prebuiltPc` (computador armado) o `part` (pieza). Ver abajo. |
+| `family` | string (enum) | si | Siempre `part` (pieza). Se conserva por compatibilidad (v0.11). Ver abajo. |
 | `category` | string (enum) | si | Ver tabla de categorias. |
 | `priceCents` | entero (64 bits) | si | Precio de la **mejor oferta disponible** (la mas barata con stock; si ninguna tiene stock, la mas barata), en centavos de COP, mayor o igual a 0 y multiplo de 100. |
 | `oldPriceCents` | entero o `null` | no | Precio anterior de esa misma oferta. Solo si hay descuento; si existe debe ser mayor que `priceCents`. |
@@ -76,13 +76,11 @@
 | `specs` | lista de `{label, value}` | si (puede ser `[]`) | Ficha tecnica **solo para mostrar**, en texto. |
 | `offers` | lista de `Offer` | si (puede ser `[]`) | Ofertas de cada proveedor (RF-014). **Solo se llena en el detalle (3.2)**; en el listado y en relacionados se envia `[]`. |
 
-**`family`:** `prebuiltPc`, `part`. El catalogo solo admite computadores armados y piezas de computador (RN-010); no hay celulares ni otras categorias.
+**`family`:** siempre `part`. **NEXUS solo vende piezas de computador** (RN-010, cambio de alcance del 2026-10-27): no hay computadores armados, celulares ni otras categorias. El campo queda por compatibilidad; el front no lo usa.
 
-**`category`:** `prebuiltPc`, `cpu`, `gpu`, `ram`, `motherboard`, `storage`, `psu`, `pcCase`, `cooling`.
+**`category`:** `cpu`, `gpu`, `ram`, `motherboard`, `storage`, `psu`, `pcCase`, `cooling`.
 
-- Si `family` es `prebuiltPc`, `category` es `prebuiltPc`. Mientras no se decida si hay portatiles (D8), los armados tienen una sola categoria.
-- Si `family` es `part`, `category` es uno de los tipos de pieza (`cpu` a `cooling`).
-- Valor eliminado en v0.3: `phone`.
+- Valores eliminados: `phone` (v0.3) y `prebuiltPc` (v0.11). Un front anterior que reciba `prebuiltPc` omite el producto, como cualquier categoria desconocida.
 
 ### 2.1 Modelo `Offer`
 
@@ -123,8 +121,8 @@
 | `page` | entero | `0` | Base 0. Si es negativo, `400`. |
 | `pageSize` | entero | `20` | Maximo `50`. Si pide mas, el backend usa 50 y **devuelve el valor realmente usado** en la respuesta. |
 | `search` | string | (vacio) | Sin distinguir mayusculas y sin acentos. Busca en `name`, `brand` y categoria. Vacio o ausente significa "sin filtro". |
-| `family` | string (enum) | (ausente) | `prebuiltPc` o `part`. Si es invalido, `400`. |
-| `category` | string (enum) | (ausente) | Un valor de `category`. Si es invalido, `400`. Si se envia junto con `family` y no corresponde a ella, la respuesta es `200` con `items: []`. |
+| `family` | string (enum) | (ausente) | Solo `part`, que equivale a no filtrar (v0.11). Cualquier otro valor, incluido `prebuiltPc`: `400`. |
+| `category` | string (enum) | (ausente) | Un valor de `category`. Si es invalido, `400`. |
 | `brand` | string | (ausente) | Marca exacta, sin distinguir mayusculas. Los valores validos salen de 3.5. |
 | `minPriceCents` | entero (64 bits) | (ausente) | Precio minimo **inclusivo**, sobre `priceCents` (la mejor oferta). Negativo: `400`. |
 | `maxPriceCents` | entero (64 bits) | (ausente) | Precio maximo **inclusivo**. Negativo o menor que `minPriceCents`: `400`. |
@@ -289,7 +287,7 @@ Ambos lados deben poder usar este JSON como dato de prueba: el back para comprob
 | D5 | **Orden y `sort`.** `relevance`, `priceAsc` y `priceDesc` (seccion 3.1). Un puntaje real de relevancia para la busqueda queda para despues. | **Cerrada (v0.4)** |
 | D6 | **Ocultar agotados.** Hoy los `outOfStock` se listan. Opcion futura: parametro `availableOnly=true`. | Pendiente |
 | D7 | **Unidades disponibles.** El front no recibe las unidades: cada linea del carrito trae `maxQuantity` (el stock con un tope de 10 por linea) y el backend valida cada cambio (seccion 10). | **Cerrada (v0.5)** |
-| D8 | **Tipos de computador armado.** Si se aceptan escritorio, portatil o ambos, y equipos usados o reacondicionados (vacio de informacion del analisis v2). Hasta decidirlo, `prebuiltPc` es la unica categoria de la familia. | Pendiente (negocio) |
+| D8 | **Computadores armados.** No se venden: NEXUS vende solo piezas y el cliente arma su equipo en el PC Builder o con el asistente (decision del 2026-10-27). | **Cerrada (v0.11)** |
 | D9 | **Perifericos.** Si las piezas incluyen monitor, teclado o mouse. Supuesto S-10: no, solo componentes internos. | Pendiente (negocio) |
 
 ---
@@ -327,6 +325,8 @@ Cambios compatibles (agregar un campo opcional, un endpoint nuevo): no rompen a 
 | 0.9 | Seccion 11.5: `get_prebuilt_scene`, componentes de un computador armado para verlo en 3D. Endpoint nuevo; sin cambios en los existentes. |
 | 0.8 | Parte 4: asistente (seccion 12), la Edge Function `assistant`. Nuevos codigos `RATE_LIMITED` y `ASSISTANT_UNAVAILABLE`. Endpoint nuevo; sin cambios en los existentes. |
 | 0.10 | Parte 5: checkout y pagos con Wompi (seccion 13): la Edge Function `checkout` y el webhook `payment-webhook`. Nuevos codigos `CART_EMPTY`, `CART_CHANGED`, `PRICE_CHANGED`, `ADDRESS_NOT_FOUND`, `PAYMENT_NOT_FOUND` y `PAYMENTS_UNAVAILABLE`. Endpoints nuevos; sin cambios en los existentes. |
+| 0.11 | **Solo piezas** (cierra D8): se eliminan la categoria `prebuiltPc` y la seccion 11.5 (`get_prebuilt_scene`). `family` queda siempre en `part` y el parametro `family` solo admite `part`. El asistente recomienda piezas sueltas o una configuracion completa. Cambio que rompe para un front que dependa de los armados; el front actual ya no los usa. |
+| 0.12 | Seccion 11.3: `get_builder_candidates` acepta `search`, `max_price_cents`, `sort` y `page`, para elegir entre cientos de piezas por tipo. Parametros opcionales: compatible. |
 
 ---
 
@@ -444,19 +444,25 @@ Parametro: `offer_ids`, una lista de 0 a 12 ids de oferta, con una sola pieza po
 | `issues[].offerIds` | Piezas que causan el problema. En la falta de potencia incluye la fuente y las piezas que consumen. Puede ser `[]` para avisos generales. |
 | `parts[].available` | `false` si la oferta ya no se puede comprar. |
 
-Errores: `400 VALIDATION_ERROR` (mas de 12 ofertas, dos piezas de la misma ranura o un computador armado) y `404 OFFER_NOT_FOUND`.
+Errores: `400 VALIDATION_ERROR` (mas de 12 ofertas o dos piezas de la misma ranura) y `404 OFFER_NOT_FOUND`.
 
 ### 11.3 Piezas para una ranura: `get_builder_candidates`
 
-Parametros: `category` (una ranura), `offer_ids` (la configuracion actual; la pieza de esa ranura se ignora) y `max_items` (defecto 30, maximo 50).
+Parametros:
+- `category` (una ranura) y `offer_ids` (la configuracion actual; la pieza de esa ranura se ignora).
+- `max_items`: tamano de pagina, defecto 30, maximo 50.
+- `search` (v0.12): texto del nombre, la marca o el tipo, sin distinguir mayusculas ni acentos.
+- `max_price_cents` (v0.12): precio maximo inclusivo, sobre la mejor oferta.
+- `sort` (v0.12): `priceAsc` (defecto) o `priceDesc`.
+- `page` (v0.12): base 0. La siguiente pagina se pide si la anterior vino llena.
 
 `200`: lista de `Product` (seccion 2) con dos campos mas:
 - `compatible` (bool): si al ponerla en la ranura no aparece ninguna incompatibilidad que la involucre;
 - `incompatibilityReason` (string o `null`): el primer motivo, si no es compatible.
 
-Orden: primero las compatibles, luego las que tienen stock, luego por precio. La pieza se agrega con su `bestOfferId`.
+Orden: primero las compatibles, luego las que tienen stock, luego por precio (segun `sort`). La pieza se agrega con su `bestOfferId`.
 
-Errores: `400 VALIDATION_ERROR` si `category` no es una ranura del armador.
+Errores: `400 VALIDATION_ERROR` si `category` no es una ranura del armador, `sort` es otro valor, o `page` o `max_price_cents` son negativos.
 
 ### 11.4 Escena para la vista 3D: `get_build_scene` (v0.7)
 
@@ -500,37 +506,9 @@ Parametro: `offer_ids`, con las mismas reglas y errores que `validate_build`.
   - `rotation` son los grados (X, Y, Z) que dejan el modelo en la orientacion de su categoria.
   - `license` es `CC0-1.0`, `CC-BY-3.0`, `CC-BY-4.0` o `propia`. Con CC BY, la app muestra titulo, autor, licencia y `sourceUrl`.
 
-### 11.5 Computador armado en 3D: `get_prebuilt_scene` (v0.9)
+### 11.5 Computador armado en 3D (retirado en v0.11)
 
-Parametro: `product_id` de un computador armado visible.
-
-`200`:
-
-```json
-{
-  "product": { "id": "pc-gamer-pro-r7-5070", "...": "Product (seccion 2)" },
-  "parts": [
-    {
-      "componentId": "pc-gamer-pro-r7-5070:gpu",
-      "category": "gpu",
-      "name": "NVIDIA GeForce RTX 5070 12 GB",
-      "partProductId": null,
-      "attributes": { "length_mm": 242 },
-      "model": { "path": "generic/gpu.glb", "rotation": [0, 180, 0], "generic": true,
-                 "title": "Graphics card", "author": "pgonarg", "license": "CC-BY-3.0",
-                 "sourceUrl": "https://poly.pizza/m/i45v5trpyR" }
-    }
-  ]
-}
-```
-
-- Un componente por seccion del PC Builder, en el orden de las ranuras. Una seccion sin componente no viene; por ejemplo, la grafica de un equipo con graficos integrados.
-- `componentId` es estable y reemplaza a `offerId` en la vista 3D. Los componentes **no se compran por separado**: el armado se compra completo con su `bestOfferId`.
-- `partProductId` enlaza la pieza del catalogo si tambien se vende suelta. En ese caso, `attributes` suma sus medidas.
-- `attributes` y `model` tienen el mismo significado que en 11.4.
-- `parts` vacio: el armado aun no tiene sus componentes registrados.
-
-Errores: `404 PRODUCT_NOT_FOUND` si no existe o no esta visible; `400 VALIDATION_ERROR` si no es un computador armado.
+`get_prebuilt_scene` existio de la v0.9 a la v0.10 para ver en 3D los componentes de un computador armado. Se elimino junto con los armados: la vista 3D muestra la configuracion de piezas del cliente (11.4).
 
 ---
 
@@ -560,10 +538,10 @@ Asistente de recomendacion (HU-006, RF-036 a RF-045, RF-089). Es una Edge Functi
 ```json
 {
   "type": "recommendation",
-  "message": "Para editar video dentro de tu presupuesto te recomiendo este equipo.",
+  "message": "Para jugar en 1080p con tu fuente de 650 W, estas tarjetas te sirven.",
   "products": [
-    { "product": { "id": "pc-gamer-pro-r7-5070", "...": "Product (seccion 2)" },
-      "reason": "Tiene 8 nucleos y 32 GB de RAM DDR5, de sobra para editar video." }
+    { "product": { "id": "rtx-5060", "...": "Product (seccion 2)" },
+      "reason": "8 GB de memoria de video y pide una fuente de 550 W: la tuya alcanza." }
   ],
   "build": null,
   "interactionId": "f7b369de-20e2-4a23-ab7a-896e450fb762",
@@ -574,7 +552,7 @@ Asistente de recomendacion (HU-006, RF-036 a RF-045, RF-089). Es una Edge Functi
 | `type` | Significado | Campos |
 |---|---|---|
 | `question` | Falta informacion, por ejemplo el uso o el presupuesto (RF-037). | `message` es la pregunta. |
-| `recommendation` | Recomendacion (RF-038 a RF-040). | `products` (hasta 3) y/o `build`. |
+| `recommendation` | Recomendacion (RF-038 a RF-040). | `products` (hasta 3 piezas sueltas, cuando el cliente busca una pieza o mejorar su equipo) y/o `build` (un computador completo por piezas). |
 | `noMatch` | No hay nada adecuado o la peticion no es sobre computadores (RF-041). | `message` explica que si puede hacer. |
 
 - `products[].product` es un `Product` completo (seccion 2) y `reason` explica por que le sirve, con sus atributos reales.

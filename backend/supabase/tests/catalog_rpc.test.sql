@@ -2,7 +2,7 @@
 -- Los datos de prueba llevan "zztest" en el nombre para aislarlos del seed.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(24);
+select plan(25);
 
 insert into public.providers (id, legal_name, display_name, tax_id, contact_email, status) values
   ('zz-prov-a', 'ZZ A S.A.S.', 'Proveedor A', 'zz-1', 'a@zz.test', 'active'),
@@ -13,7 +13,7 @@ insert into public.products (id, name, brand, category_code) values
   ('zz-gpu', 'ZZTEST Gráfica', 'Marca', 'gpu'),
   ('zz-cpu', 'ZZTEST Procesador', 'Marca', 'cpu'),
   ('zz-hidden-suspended', 'ZZTEST Oculto suspendido', 'Marca', 'cpu'),
-  ('zz-hidden-draft', 'ZZTEST Oculto borrador', 'Marca', 'prebuiltPc');
+  ('zz-hidden-draft', 'ZZTEST Oculto borrador', 'Marca', 'storage');
 
 insert into public.offers (id, product_id, provider_id, external_sku, price_cents, old_price_cents, stock_units, status) values
   -- La más barata está agotada: la mejor oferta es la de B, con stock.
@@ -29,7 +29,7 @@ set local role anon;
 select is((select count(*) from public.offers), 0::bigint, 'anon no ve ofertas');
 select is((select count(*) from public.providers), 0::bigint, 'anon no ve proveedores');
 select is((select count(*) from public.products), 0::bigint, 'anon no ve productos');
-select ok((select count(*) from public.categories) = 9, 'anon ve las 9 categorías');
+select ok((select count(*) from public.categories) = 8, 'anon ve las 8 categorías de piezas');
 
 -- Listado
 select is((public.get_products(search => 'zztest') ->> 'total')::integer, 2,
@@ -57,8 +57,11 @@ select is(
 select is((public.get_products(search => 'ZZTÉST gráfica') ->> 'total')::integer, 1,
   'busca sin distinguir mayúsculas ni acentos');
 
-select is((public.get_products(search => 'zztest', family => 'prebuiltPc') ->> 'total')::integer, 0,
-  'filtra por familia');
+select is((public.get_products(search => 'zztest', family => 'part') ->> 'total')::integer,
+  (public.get_products(search => 'zztest') ->> 'total')::integer,
+  'family "part" equivale a no filtrar: todo el catálogo son piezas');
+select throws_ok($$ select public.get_products(family => 'prebuiltPc') $$, 'PGRST', null,
+  'ya no hay computadores armados (alcance 2026-10-27)');
 
 select is((public.get_products(search => 'zztest', category => 'cpu') ->> 'total')::integer, 1,
   'filtra por categoría');

@@ -33,7 +33,7 @@ export const toolDeclarations: FunctionDeclaration[] = [
   {
     name: 'search_catalog',
     description:
-      'Busca productos publicados del catálogo de NEXUS. Devuelve hasta 8, con precio en ' +
+      'Busca piezas publicadas del catálogo de NEXUS. Devuelve hasta 8, con precio en ' +
       'pesos colombianos, disponibilidad, su oferta (offerId) y sus atributos técnicos.',
     parameters: {
       type: 'object',
@@ -42,14 +42,9 @@ export const toolDeclarations: FunctionDeclaration[] = [
           type: 'string',
           description:
             'Texto del nombre, la marca o el modelo (por ejemplo "RTX" o "Ryzen"). ' +
-            'Para buscar por tipo de producto, omítelo y usa family o category.',
+            'Para buscar por tipo de pieza, omítelo y usa category.',
         },
-        family: {
-          type: 'string',
-          enum: ['prebuiltPc', 'part'],
-          description: 'prebuiltPc: computador armado. part: pieza.',
-        },
-        category: { type: 'string', enum: ['prebuiltPc', ...partCategories] },
+        category: { type: 'string', enum: partCategories },
         max_price_cop: { type: 'integer', description: 'Precio máximo en pesos colombianos.' },
         sort: { type: 'string', enum: ['relevance', 'priceAsc', 'priceDesc'] },
       },
@@ -66,7 +61,22 @@ export const toolDeclarations: FunctionDeclaration[] = [
       properties: {
         categories: { type: 'array', items: { type: 'string', enum: partCategories } },
         offer_ids: offerIds,
-        max_price_cop: { type: 'integer', description: 'Precio máximo por pieza, en pesos.' },
+        max_price_cop: { type: 'integer', description: 'Precio máximo por pieza, en pesos, para todos los tipos.' },
+        budgets: {
+          type: 'object',
+          description:
+            'Precio máximo de cada tipo, en pesos, por ejemplo {"gpu": 6000000, "psu": 800000}. ' +
+            'Tiene prioridad sobre max_price_cop.',
+          properties: Object.fromEntries(partCategories.map((category) => [category, { type: 'integer' }])),
+        },
+        query: { type: 'string', description: 'Texto del nombre o la marca, por ejemplo "RTX 5070".' },
+        sort: {
+          type: 'string',
+          enum: ['priceAsc', 'priceDesc'],
+          description:
+            'priceAsc: las más económicas primero. priceDesc: las más potentes que caben en ' +
+            'max_price_cop primero (útil con presupuesto alto).',
+        },
       },
       required: ['categories'],
     },
@@ -100,7 +110,9 @@ export const toolDeclarations: FunctionDeclaration[] = [
         message: { type: 'string', description: 'Resumen para el cliente, en español sencillo.' },
         products: {
           type: 'array',
-          description: 'Hasta 3 productos: computadores armados o piezas.',
+          description:
+            'Hasta 3 piezas sueltas, cuando el cliente busca una pieza en particular o mejorar ' +
+            'su computador.',
           items: {
             type: 'object',
             properties: {
@@ -116,8 +128,8 @@ export const toolDeclarations: FunctionDeclaration[] = [
         build: {
           type: 'object',
           description:
-            'Configuración de piezas, cuando ningún computador armado sirve. El servidor la ' +
-            'valida: si tiene problemas, te los devuelve para corregir.',
+            'Configuración completa de piezas, cuando el cliente quiere un computador. El ' +
+            'servidor la valida: si tiene problemas, te los devuelve para corregir.',
           properties: { offer_ids: offerIds, reason: { type: 'string' } },
           required: ['offer_ids', 'reason'],
         },
@@ -176,7 +188,6 @@ function productSummary(product: Json, attributes: Map<string, string[]>): Json 
     productId: product.id,
     name: product.name,
     brand: product.brand,
-    family: product.family,
     category: product.category,
     priceCOP: pesos(product.priceCents),
     stock: stockText[String(product.stockLevel)] ?? product.stockLevel,
@@ -201,7 +212,6 @@ export async function runTool(rpc: Rpc, name: string, args: Json = {}): Promise<
           page: 0,
           page_size: 8,
           search: text(args.query),
-          family: text(args.family),
           category: text(args.category),
           max_price_cents: maxPrice === null ? null : maxPrice * 100,
           sort: text(args.sort) ?? 'relevance',
@@ -212,7 +222,7 @@ export async function runTool(rpc: Rpc, name: string, args: Json = {}): Promise<
           total: page.total,
           products: items.map((item) => productSummary(item, attributes)),
           ...(items.length === 0 && text(args.query)
-            ? { hint: 'Sin resultados para ese texto: busca sin query, por family o category.' }
+            ? { hint: 'Sin resultados para ese texto: busca sin query, por category.' }
             : {}),
         };
       }
@@ -223,15 +233,18 @@ export async function runTool(rpc: Rpc, name: string, args: Json = {}): Promise<
         if (categories.length === 0) return { error: 'Indica al menos un tipo de pieza en categories.' };
         // Con varios tipos, menos piezas por tipo para no gastar tokens.
         const perCategory = categories.length > 2 ? 4 : 8;
-        const byCategory = await Promise.all(categories.map(async (category) =>
-          ((await rpc('get_builder_candidates', {
+        const budgets = (args.budgets && typeof args.budgets === 'object' ? args.budgets : {}) as Json;
+        const byCategory = await Promise.all(categories.map(async (category) => {
+          const budget = integer(budgets[category]) ?? maxPrice;
+          return (await rpc('get_builder_candidates', {
             category,
             offer_ids: stringList(args.offer_ids),
-            max_items: 20,
-          })) as Json[]).filter(
-            (item) => maxPrice === null || (pesos(item.priceCents) ?? 0) <= maxPrice,
-          ).slice(0, perCategory)
-        ));
+            max_items: perCategory,
+            search: text(args.query),
+            max_price_cents: budget === null ? null : budget * 100,
+            sort: text(args.sort) === 'priceDesc' ? 'priceDesc' : 'priceAsc',
+          })) as Json[];
+        }));
         const attributes = await attributesByProduct(
           rpc,
           byCategory.flat().map((item) => String(item.id)),

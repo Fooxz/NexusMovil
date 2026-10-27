@@ -58,15 +58,6 @@ const catalogOutOfStock = Product(
   specs: [ProductSpec(label: 'MODEL', value: 'TEST')],
 );
 
-const catalogPrebuilt = Product(
-  id: 'prebuilt-test',
-  name: 'PC ARMADO TEST',
-  brand: 'NEXUS',
-  category: ProductCategory.prebuiltPc,
-  priceCents: 500000000,
-  stockLevel: StockLevel.stable,
-);
-
 const catalogGpuWithOffers = Product(
   id: 'gpu-offers-test',
   name: 'GPU CON OFERTAS',
@@ -122,7 +113,7 @@ class CatalogFakeProductRepository implements ProductRepository {
   final bool failProductLookup;
   final CatalogPageLoader? pageLoader;
   final requests = <CatalogPageRequest>[];
-  final brandRequests = <({ProductFamily? family, ProductCategory? category})>[];
+  final brandRequests = <ProductCategory?>[];
   var productPageRequests = 0;
 
   @override
@@ -148,8 +139,6 @@ class CatalogFakeProductRepository implements ProductRepository {
 
     final normalizedSearch = filters.search.toLowerCase().trim();
     final matches = products.where((product) {
-      final matchesFamily =
-          filters.family == null || product.family == filters.family;
       final matchesCategory =
           filters.category == null || product.category == filters.category;
       final matchesBrand =
@@ -158,7 +147,7 @@ class CatalogFakeProductRepository implements ProductRepository {
           normalizedSearch.isEmpty ||
           product.name.toLowerCase().contains(normalizedSearch) ||
           product.brand.toLowerCase().contains(normalizedSearch);
-      return matchesFamily && matchesCategory && matchesBrand && matchesSearch;
+      return matchesCategory && matchesBrand && matchesSearch;
     }).toList();
     final start = page * pageSize;
     return Future.value(
@@ -182,17 +171,10 @@ class CatalogFakeProductRepository implements ProductRepository {
       products.where((product) => product.id != id).take(limit).toList();
 
   @override
-  Future<List<String>> getBrands({
-    ProductFamily? family,
-    ProductCategory? category,
-  }) async {
-    brandRequests.add((family: family, category: category));
+  Future<List<String>> getBrands({ProductCategory? category}) async {
+    brandRequests.add(category);
     return products
-        .where(
-          (product) =>
-              (family == null || product.family == family) &&
-              (category == null || product.category == category),
-        )
+        .where((product) => category == null || product.category == category)
         .map((product) => product.brand)
         .toSet()
         .toList();

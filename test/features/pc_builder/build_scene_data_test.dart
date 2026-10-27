@@ -7,7 +7,6 @@ import 'package:prueba01/features/pc_builder/data/mock_pc_builder_repository.dar
 import 'package:prueba01/features/pc_builder/data/supabase_pc_builder_repository.dart';
 import 'package:prueba01/features/pc_builder/presentation/viewer/viewer_host.dart';
 
-import '../../support/contract_fixtures.dart';
 
 /// Respuesta de `get_build_scene` (API_CONTRATO, parte 3).
 const sceneJson = {
@@ -103,47 +102,6 @@ void main() {
 
     expect(scene.parts.single.category, ProductCategory.gpu);
     expect(scene.parts.single.model, isNull);
-  });
-
-  test('reads a prebuilt PC by sections, with component ids', () async {
-    final calls = <(String, Map<String, Object?>)>[];
-    final repository = SupabasePcBuilderRepository((function, params) async {
-      calls.add((function, params));
-      return {
-        'product': contractDetailFixture,
-        'parts': [
-          {
-            'componentId': 'pc-1:gpu',
-            'category': 'gpu',
-            'name': 'NVIDIA GeForce RTX 5070 12 GB',
-            'partProductId': null,
-            'attributes': {'length_mm': 242},
-            'model': (sceneJson['parts']! as List).first['model'],
-          },
-          {'componentId': 'pc-1:speakers', 'category': 'speakers', 'name': 'x'},
-        ],
-      };
-    }, modelUrl: bucket);
-
-    final prebuilt = await repository.prebuiltScene('pc-1');
-
-    expect(calls.single.$1, 'get_prebuilt_scene');
-    expect(calls.single.$2, {'product_id': 'pc-1'});
-    expect(prebuilt.product.id, contractDetailFixture['id']);
-    final gpu = prebuilt.scene.parts.single;
-    expect(gpu.offerId, 'pc-1:gpu');
-    expect(gpu.productName, 'NVIDIA GeForce RTX 5070 12 GB');
-    expect(gpu.number('length_mm'), 242);
-    expect(gpu.model!.url, bucket('generic/gpu.glb'));
-  });
-
-  test('the mock shows prebuilt PCs without components', () async {
-    final products = MockProductRepository(latency: Duration.zero);
-    final repository = MockPcBuilderRepository(products);
-
-    final prebuilt = await repository.prebuiltScene('pc-oficina-i5-14400');
-    expect(prebuilt.hasComponents, isFalse);
-    await expectLater(repository.prebuiltScene('rtx-5080'), throwsA(isA<ValidationFailure>()));
   });
 
   group('viewer events', () {

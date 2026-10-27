@@ -12,9 +12,9 @@ const product = (id: string, extra: Json = {}): Json => ({
   id,
   name: id.toUpperCase(),
   brand: 'Marca',
-  family: 'prebuiltPc',
-  category: 'prebuiltPc',
-  priceCents: 349990000,
+  family: 'part',
+  category: 'gpu',
+  priceCents: 149990000,
   stockLevel: 'stable',
   bestOfferId: `off-${id}`,
   quickSpecs: [],
@@ -23,26 +23,26 @@ const product = (id: string, extra: Json = {}): Json => ({
   ...extra,
 });
 
-/** Catálogo falso: dos armados (uno agotado) y un motor que acepta "off-ok". */
+/** Catálogo falso: dos gráficas (una agotada) y un motor que acepta "off-ok". */
 function fakeRpc(calls: [string, Json][] = []): Rpc {
   const catalog: Record<string, Json> = {
-    'pc-oficina': product('pc-oficina'),
-    'pc-agotado': product('pc-agotado', { stockLevel: 'outOfStock', bestOfferId: null }),
+    'gpu-media': product('gpu-media'),
+    'gpu-agotada': product('gpu-agotada', { stockLevel: 'outOfStock', bestOfferId: null }),
   };
   return async (fn, params) => {
     calls.push([fn, params]);
     switch (fn) {
       case 'get_products':
         return {
-          items: params.search === 'nada' ? [] : [catalog['pc-oficina']],
+          items: params.search === 'nada' ? [] : [catalog['gpu-media']],
           total: params.search === 'nada' ? 0 : 1,
         };
       case 'get_product_attributes':
         return [{
-          productId: 'pc-oficina',
+          productId: 'gpu-media',
           attributes: [
-            { key: 'cpu_cores', label: 'Núcleos del procesador', value: 6, unit: null },
-            { key: 'ram_gb', label: 'Memoria RAM', value: 16, unit: 'GB' },
+            { key: 'vram_gb', label: 'Memoria de video', value: 8, unit: 'GB' },
+            { key: 'tdp_w', label: 'Consumo (TDP)', value: 145, unit: 'W' },
           ],
         }];
       case 'get_product': {
@@ -96,7 +96,7 @@ const ask = (text: string) => [{ role: 'user' as const, text }];
 describe('runAssistant', () => {
   test('asks for what is missing before recommending (RF-037)', async () => {
     const { model } = scriptedModel([['ask_user', { question: '¿Cuál es tu presupuesto?' }]]);
-    const result = await runAssistant(ask('Necesito un computador de oficina'), { model, rpc: fakeRpc() });
+    const result = await runAssistant(ask('Necesito armar un computador de oficina'), { model, rpc: fakeRpc() });
 
     assert.equal(result.reply.type, 'question');
     assert.equal(result.reply.message, '¿Cuál es tu presupuesto?');
@@ -106,24 +106,24 @@ describe('runAssistant', () => {
   test('searches the catalog and recommends with the real product (RF-038)', async () => {
     const calls: [string, Json][] = [];
     const { model, requests } = scriptedModel([
-      ['search_catalog', { family: 'prebuiltPc', max_price_cop: 4000000 }],
+      ['search_catalog', { category: 'gpu', max_price_cop: 2000000 }],
       ['recommend', {
-        message: 'Te sirve este equipo.',
-        products: [{ product_id: 'pc-oficina', reason: '6 núcleos y 16 GB para editar.' }],
+        message: 'Te sirve esta tarjeta.',
+        products: [{ product_id: 'gpu-media', reason: '8 GB de memoria de video para jugar en 1080p.' }],
       }],
     ]);
-    const result = await runAssistant(ask('Oficina y editar video, 4 millones'), { model, rpc: fakeRpc(calls) });
+    const result = await runAssistant(ask('Quiero mejorar la tarjeta gráfica, tengo 2 millones'), { model, rpc: fakeRpc(calls) });
 
     assert.equal(result.reply.type, 'recommendation');
-    assert.equal(result.reply.products[0].product.id, 'pc-oficina');
-    assert.equal(result.reply.products[0].reason, '6 núcleos y 16 GB para editar.');
-    assert.deepEqual(result.productIds, ['pc-oficina']);
+    assert.equal(result.reply.products[0].product.id, 'gpu-media');
+    assert.equal(result.reply.products[0].reason, '8 GB de memoria de video para jugar en 1080p.');
+    assert.deepEqual(result.productIds, ['gpu-media']);
     assert.deepEqual(result.toolCalls.map((c) => c.name), ['search_catalog', 'recommend'],
       'queda el rastro de herramientas (RF-043)');
 
     assert.deepEqual(calls[0], ['get_products', {
-      page: 0, page_size: 8, search: null, family: 'prebuiltPc', category: null,
-      max_price_cents: 400000000, sort: 'relevance',
+      page: 0, page_size: 8, search: null, category: 'gpu',
+      max_price_cents: 200000000, sort: 'relevance',
     }]);
     // El modelo recibe un resumen compacto, en pesos y con atributos legibles.
     const second = requests[1].contents;
@@ -131,15 +131,14 @@ describe('runAssistant', () => {
     const response = second[2].parts[0].functionResponse!;
     assert.equal(response.id, 'call-1');
     assert.deepEqual((response.response.products as Json[])[0], {
-      productId: 'pc-oficina',
-      name: 'PC-OFICINA',
+      productId: 'gpu-media',
+      name: 'GPU-MEDIA',
       brand: 'Marca',
-      family: 'prebuiltPc',
-      category: 'prebuiltPc',
-      priceCOP: 3499900,
+      category: 'gpu',
+      priceCOP: 1499900,
       stock: 'disponible',
-      offerId: 'off-pc-oficina',
-      attributes: ['Núcleos del procesador: 6', 'Memoria RAM: 16 GB'],
+      offerId: 'off-gpu-media',
+      attributes: ['Memoria de video: 8 GB', 'Consumo (TDP): 145 W'],
     });
   });
 
@@ -148,18 +147,18 @@ describe('runAssistant', () => {
       ['recommend', {
         message: 'Mira estos.',
         products: [
-          { product_id: 'pc-inventado', reason: 'x' },
-          { product_id: 'pc-agotado', reason: 'y' },
+          { product_id: 'gpu-inventada', reason: 'x' },
+          { product_id: 'gpu-agotada', reason: 'y' },
         ],
       }],
-      ['recommend', { message: 'Este sí.', products: [{ product_id: 'pc-oficina', reason: 'z' }] }],
+      ['recommend', { message: 'Este sí.', products: [{ product_id: 'gpu-media', reason: 'z' }] }],
     ]);
     const result = await runAssistant(ask('Un PC'), { model, rpc: fakeRpc() });
 
     const correction = requests[1].contents[2].parts[0].functionResponse!.response.error as string;
-    assert.match(correction, /pc-inventado no existe/);
-    assert.match(correction, /pc-agotado está agotado/);
-    assert.deepEqual(result.reply.products.map((p) => p.product.id), ['pc-oficina']);
+    assert.match(correction, /gpu-inventada no existe/);
+    assert.match(correction, /gpu-agotada está agotado/);
+    assert.deepEqual(result.reply.products.map((p) => p.product.id), ['gpu-media']);
   });
 
   test('a parts build is delivered only when valid and purchasable (RF-040)', async () => {
@@ -181,8 +180,8 @@ describe('runAssistant', () => {
     const { model } = scriptedModel([
       ['recommend', {
         message: 'Arma esto.',
-        products: [{ product_id: 'pc-oficina', reason: 'x' }],
-        build: { offer_ids: ['off-ok-pc-oficina', 'off-ok-2'], reason: 'r' },
+        products: [{ product_id: 'gpu-media', reason: 'x' }],
+        build: { offer_ids: ['off-ok-gpu-media', 'off-ok-2'], reason: 'r' },
       }],
     ]);
     const result = await runAssistant(ask('Arma un PC'), { model, rpc: fakeRpc() });
@@ -193,7 +192,7 @@ describe('runAssistant', () => {
   });
 
   test('after the corrections run out it keeps only what is valid', async () => {
-    const bad = ['recommend', { message: 'm', products: [{ product_id: 'pc-inventado', reason: 'x' }] }] as [string, Json];
+    const bad = ['recommend', { message: 'm', products: [{ product_id: 'gpu-inventada', reason: 'x' }] }] as [string, Json];
     const { model } = scriptedModel(Array(limits.maxCorrections + 1).fill(bad));
     const result = await runAssistant(ask('Un PC'), { model, rpc: fakeRpc() });
 
@@ -278,7 +277,7 @@ describe('runTool', () => {
   test('suggests searching by type when the text finds nothing', async () => {
     const result = await runTool(fakeRpc(), 'search_catalog', { query: 'nada' });
     assert.equal(result.total, 0);
-    assert.match(String(result.hint), /family o category/);
+    assert.match(String(result.hint), /por category/);
   });
 
   test('summarizes a validation in pesos with its problems', async () => {
@@ -311,6 +310,7 @@ describe('runTool', () => {
       categories: ['ram', 'pcCase', 'ram', 'speakers'],
       offer_ids: ['off-cpu'],
       max_price_cop: 800000,
+      budgets: { pcCase: 500000 },
     });
 
     assert.deepEqual(Object.keys(result), ['ram', 'pcCase'], 'sin repetidos ni tipos desconocidos');
@@ -318,8 +318,13 @@ describe('runTool', () => {
       calls.filter(([fn]) => fn === 'get_builder_candidates').map(([, p]) => p.category),
       ['ram', 'pcCase'],
     );
-    assert.deepEqual((result.ram as Json[]).map((p) => p.productId), ['ram-a'], 'filtra por precio');
+    const [, ramCall] = calls.find(([fn, p]) => fn === 'get_builder_candidates' && p.category === 'ram')!;
+    assert.equal(ramCall.max_price_cents, 80000000, 'el precio máximo lo aplica la base, en centavos');
+    assert.equal(ramCall.sort, 'priceAsc');
+    const [, caseCall] = calls.find(([fn, p]) => fn === 'get_builder_candidates' && p.category === 'pcCase')!;
+    assert.equal(caseCall.max_price_cents, 50000000, 'el presupuesto del tipo manda sobre el general');
     assert.equal((result.ram as Json[])[0].compatible, true);
+    assert.equal((result.ram as Json[])[1].reason, 'No cabe.', 'explica por qué no sirve');
   });
 
   test('database errors go back to the model as text', async () => {

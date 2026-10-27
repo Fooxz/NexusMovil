@@ -15,7 +15,6 @@ import '../../catalog/presentation/product_visuals.dart';
 import '../domain/pc_builder_models.dart';
 import '../pc_builder_providers.dart';
 import 'part_picker_screen.dart';
-import 'prebuilt_preview.dart';
 import 'viewer/pc_viewer.dart';
 
 /// PC Builder (HU-008): una pieza por ranura, validada por el motor de reglas
@@ -28,13 +27,9 @@ class PcBuilderScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final slots = ref.watch(builderSlotsProvider);
     final builder = ref.watch(pcBuilderControllerProvider);
-    final preview = ref.watch(prebuiltPreviewProvider);
 
     final Widget content;
-    if (preview != null && slots.value != null) {
-      // "Visualizar en 3D" de un computador armado (desde el asistente).
-      content = PrebuiltPreviewView(productId: preview, slots: slots.value!);
-    } else if (slots.value case final slots? when builder.value != null) {
+    if (slots.value case final slots? when builder.value != null) {
       content = _BuilderContent(slots: slots, state: builder.value!);
     } else if (slots.hasError || builder.hasError) {
       content = NexusErrorState(

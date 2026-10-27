@@ -116,32 +116,12 @@ class CatalogController extends AsyncNotifier<CatalogState> {
     });
   }
 
-  /// La categoría solo se conserva si pertenece a la nueva familia; elegir
-  /// "Todo" (`null`) la quita también.
-  Future<void> setFamily(ProductFamily? family) {
-    final filters = _current.filters;
-    if (filters.family == family) return Future.value();
-    final category = filters.category;
-    return _applyFilters(
-      filters.copyWith(
-        family: family,
-        category: category?.family == family ? category : null,
-        brand: null,
-      ),
-    );
-  }
-
-  /// La categoría implica su familia.
+  /// `null` muestra todas las piezas. La marca se quita: puede no existir en
+  /// la nueva categoría.
   Future<void> setCategory(ProductCategory? category) {
     final filters = _current.filters;
     if (filters.category == category) return Future.value();
-    return _applyFilters(
-      filters.copyWith(
-        category: category,
-        family: category?.family ?? filters.family,
-        brand: null,
-      ),
-    );
+    return _applyFilters(filters.copyWith(category: category, brand: null));
   }
 
   Future<void> setBrand(String? brand) =>
@@ -262,17 +242,14 @@ class CatalogController extends AsyncNotifier<CatalogState> {
   }
 }
 
-/// Marcas para el filtro, según la familia y categoría seleccionadas.
+/// Marcas para el filtro, según la categoría seleccionada.
 final catalogBrandsProvider = FutureProvider.autoDispose<List<String>>((ref) {
-  final scope = ref.watch(
-    catalogControllerProvider.select((value) {
-      final filters = value.asData?.value.filters;
-      return (family: filters?.family, category: filters?.category);
-    }),
+  final category = ref.watch(
+    catalogControllerProvider.select(
+      (value) => value.asData?.value.filters.category,
+    ),
   );
-  return ref
-      .watch(productRepositoryProvider)
-      .getBrands(family: scope.family, category: scope.category);
+  return ref.watch(productRepositoryProvider).getBrands(category: category);
 });
 
 final productDetailProvider = FutureProvider.autoDispose

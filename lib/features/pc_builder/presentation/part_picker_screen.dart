@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -16,41 +18,130 @@ import '../domain/pc_builder_models.dart';
 import '../pc_builder_providers.dart';
 
 /// Piezas para una ranura (RF-049): primero las compatibles con lo ya elegido
-/// y con stock. Las incompatibles explican por qué no sirven.
-class PartPickerScreen extends ConsumerWidget {
+/// y con stock. Las incompatibles explican por qué no sirven. Con un catálogo
+/// grande, se buscan por nombre o marca, se ordenan por precio y se cargan de
+/// a 30 con "Ver más".
+class PartPickerScreen extends ConsumerStatefulWidget {
   const PartPickerScreen({super.key, required this.slot});
 
   final BuilderSlot slot;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<PartPickerScreen> createState() => _PartPickerScreenState();
+}
+
+class _PartPickerScreenState extends ConsumerState<PartPickerScreen> {
+  Timer? _debounce;
+
+  BuilderSlot get slot => widget.slot;
+
+  CandidatesController get _controller =>
+      ref.read(builderCandidatesProvider(slot.category).notifier);
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    super.dispose();
+  }
+
+  void _onSearch(String text) {
+    _debounce?.cancel();
+    _debounce = Timer(
+      const Duration(milliseconds: 300),
+      () => _controller.setSearch(text),
+    );
+  }
+
+  Future<void> _loadMore() async {
+    try {
+      await _controller.loadMore();
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(cartErrorMessage(error))),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final candidates = ref.watch(builderCandidatesProvider(slot.category));
     final selectedOfferId = ref.watch(
       pcBuilderControllerProvider.select(
         (state) => state.value?.selection[slot.category],
       ),
     );
+    final current = candidates.value;
 
     return NexusPage.slivers(
       title: slot.label.toUpperCase(),
       showBack: true,
       showCart: false,
       slivers: [
-        switch (candidates) {
-          AsyncValue(value: final items?) when items.isEmpty =>
-            const SliverToBoxAdapter(
-              child: NexusEmptyState(message: 'No hay piezas de este tipo por ahora.'),
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+          sliver: SliverToBoxAdapter(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                NexusTextField(
+                  hint: 'Buscar por nombre o marca',
+                  prefixIcon: Icons.search,
+                  onChanged: _onSearch,
+                  textInputAction: TextInputAction.search,
+                ),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8,
+                  children: [
+                    for (final (cheapest, label) in const [
+                      (true, 'Menor precio'),
+                      (false, 'Mayor precio'),
+                    ])
+                      ChoiceChip(
+                        label: Text(label),
+                        selected: (current?.cheapestFirst ?? true) == cheapest,
+                        onSelected: (_) => _controller.setCheapestFirst(cheapest),
+                      ),
+                  ],
+                ),
+                if (current?.refreshing ?? false)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 8),
+                    child: LinearProgressIndicator(color: NexusColors.cyan),
+                  ),
+              ],
             ),
-          AsyncValue(value: final items?) => SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            sliver: SliverList.builder(
-              itemCount: items.length,
-              itemBuilder: (context, index) => _CandidateCard(
-                key: ValueKey(items[index].product.id),
-                slot: slot,
-                candidate: items[index],
-                selected: items[index].product.bestOfferId == selectedOfferId,
+          ),
+        ),
+        switch (candidates) {
+          AsyncValue(value: final state?) when state.items.isEmpty =>
+            SliverToBoxAdapter(
+              child: NexusEmptyState(
+                message: state.search.isEmpty
+                    ? 'No hay piezas de este tipo por ahora.'
+                    : 'No encontramos piezas con "${state.search}".',
               ),
+            ),
+          AsyncValue(value: final state?) => SliverPadding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+            sliver: SliverList.builder(
+              itemCount: state.items.length + (state.hasMore ? 1 : 0),
+              itemBuilder: (context, index) {
+                if (index == state.items.length) {
+                  return NexusOutlineButton(
+                    label: state.loadingMore ? 'Cargando…' : 'Ver más',
+                    onPressed: state.loadingMore ? null : _loadMore,
+                  );
+                }
+                final candidate = state.items[index];
+                return _CandidateCard(
+                  key: ValueKey(candidate.product.id),
+                  slot: slot,
+                  candidate: candidate,
+                  selected: candidate.product.bestOfferId == selectedOfferId,
+                );
+              },
             ),
           ),
           AsyncValue(:final error?) => SliverToBoxAdapter(

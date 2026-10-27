@@ -114,22 +114,157 @@ class PcBuilderController extends AsyncNotifier<BuilderState> {
   }
 }
 
-/// Piezas para una ranura, según la configuración actual (RF-049). Se recarga
-/// cuando cambia la selección.
-final builderCandidatesProvider = FutureProvider.autoDispose
-    .family<List<BuilderCandidate>, ProductCategory>((ref, category) {
-      // La clave de texto evita recargar si la selección no cambió.
-      ref.watch(
-        pcBuilderControllerProvider.select(
-          (state) => state.value?.offerIds.join(',') ?? '',
+/// Piezas que se ven en el selector de una ranura: la búsqueda, el orden y
+/// las páginas cargadas.
+class CandidatesState {
+  const CandidatesState({
+    required this.items,
+    this.search = '',
+    this.cheapestFirst = true,
+    this.hasMore = false,
+    this.loadingMore = false,
+    this.refreshing = false,
+  });
+
+  final List<BuilderCandidate> items;
+  final String search;
+  final bool cheapestFirst;
+
+  /// La última página vino llena: puede haber más.
+  final bool hasMore;
+  final bool loadingMore;
+
+  /// Cargando otra búsqueda u orden: se sigue mostrando la lista anterior.
+  final bool refreshing;
+
+  CandidatesState copyWith({
+    List<BuilderCandidate>? items,
+    bool? hasMore,
+    bool? loadingMore,
+    bool? refreshing,
+  }) => CandidatesState(
+    items: items ?? this.items,
+    search: search,
+    cheapestFirst: cheapestFirst,
+    hasMore: hasMore ?? this.hasMore,
+    loadingMore: loadingMore ?? this.loadingMore,
+    refreshing: refreshing ?? this.refreshing,
+  );
+}
+
+/// Piezas para una ranura, según la configuración actual (RF-049). Con un
+/// catálogo grande se buscan, se ordenan por precio y se cargan por páginas.
+/// Se recarga cuando cambia la selección, conservando la búsqueda y el orden.
+final builderCandidatesProvider = AsyncNotifierProvider.autoDispose
+    .family<CandidatesController, CandidatesState, ProductCategory>(
+      CandidatesController.new,
+    );
+
+class CandidatesController extends AsyncNotifier<CandidatesState> {
+  CandidatesController(this.category);
+
+  final ProductCategory category;
+  String _search = '';
+  bool _cheapestFirst = true;
+  int _page = 0;
+
+  /// Cada carga invalida las anteriores: una respuesta lenta de una búsqueda
+  /// vieja no pisa la nueva.
+  int _generation = 0;
+
+  List<String> get _offerIds =>
+      ref.read(pcBuilderControllerProvider).value?.offerIds ?? const [];
+
+  @override
+  Future<CandidatesState> build() {
+    // La clave de texto evita recargar si la selección no cambió.
+    ref.watch(
+      pcBuilderControllerProvider.select(
+        (state) => state.value?.offerIds.join(',') ?? '',
+      ),
+    );
+    ref.watch(pcBuilderRepositoryProvider);
+    return _firstPage();
+  }
+
+  Future<CandidatesState> _firstPage() async {
+    _page = 0;
+    final items = await ref
+        .read(pcBuilderRepositoryProvider)
+        .candidates(
+          category,
+          _offerIds,
+          search: _search,
+          cheapestFirst: _cheapestFirst,
+        );
+    return CandidatesState(
+      items: items,
+      search: _search,
+      cheapestFirst: _cheapestFirst,
+      hasMore: items.length >= PcBuilderRepository.candidatesPageSize,
+    );
+  }
+
+  Future<void> _reload() async {
+    final generation = ++_generation;
+    if (state.value case final current?) {
+      state = AsyncData(current.copyWith(refreshing: true));
+    }
+    try {
+      final next = await _firstPage();
+      if (generation == _generation) state = AsyncData(next);
+    } catch (error, stackTrace) {
+      if (generation == _generation) state = AsyncError(error, stackTrace);
+    }
+  }
+
+  Future<void> setSearch(String search) {
+    if (search.trim() == _search) return Future.value();
+    _search = search.trim();
+    return _reload();
+  }
+
+  Future<void> setCheapestFirst(bool cheapestFirst) {
+    if (cheapestFirst == _cheapestFirst) return Future.value();
+    _cheapestFirst = cheapestFirst;
+    return _reload();
+  }
+
+  /// Agrega la página siguiente. Si falla, se conserva lo que había y el
+  /// error se lanza para mostrarlo.
+  Future<void> loadMore() async {
+    final current = state.value;
+    if (current == null || !current.hasMore || current.loadingMore) return;
+    final generation = _generation;
+    state = AsyncData(current.copyWith(loadingMore: true));
+    try {
+      final next = await ref
+          .read(pcBuilderRepositoryProvider)
+          .candidates(
+            category,
+            _offerIds,
+            search: _search,
+            cheapestFirst: _cheapestFirst,
+            page: _page + 1,
+          );
+      if (generation != _generation) return;
+      _page++;
+      state = AsyncData(
+        current.copyWith(
+          items: [...current.items, ...next],
+          hasMore: next.length >= PcBuilderRepository.candidatesPageSize,
+          loadingMore: false,
         ),
       );
-      final offerIds =
-          ref.read(pcBuilderControllerProvider).value?.offerIds ?? const [];
-      return ref
-          .watch(pcBuilderRepositoryProvider)
-          .candidates(category, offerIds);
-    });
+    } catch (_) {
+      if (generation == _generation) {
+        state = AsyncData(current.copyWith(loadingMore: false));
+      }
+      rethrow;
+    }
+  }
+}
+
 
 /// Modelos y atributos visuales de la configuración actual (RF-090). Se
 /// recarga cuando cambia la selección.
@@ -144,43 +279,12 @@ final buildSceneProvider = FutureProvider.autoDispose<BuildScene>((ref) {
   return ref.watch(pcBuilderRepositoryProvider).scene(offerIds);
 });
 
-/// Computador armado que se está viendo en el PC Builder ("Visualizar en
-/// 3D"), o nulo. Es una vista aparte: no toca la configuración del cliente,
-/// que vuelve al cerrarla.
-final prebuiltPreviewProvider =
-    NotifierProvider<PrebuiltPreviewController, String?>(
-      PrebuiltPreviewController.new,
-    );
-
-class PrebuiltPreviewController extends Notifier<String?> {
-  @override
-  String? build() => null;
-
-  void show(String productId) => state = productId;
-
-  void close() => state = null;
-}
-
-/// Componentes del armado [productId] por sección.
-final prebuiltSceneProvider = FutureProvider.autoDispose
-    .family<PrebuiltScene, String>(
-      (ref, productId) =>
-          ref.watch(pcBuilderRepositoryProvider).prebuiltScene(productId),
-    );
-
 /// Escena lista para el visor: dónde va cada pieza y cuáles están marcadas
 /// por una incompatibilidad. Se calcula aquí y no en `build` (R3). Mientras
-/// recarga conserva la escena anterior. Con un armado en vista, muestra el
-/// armado.
+/// recarga conserva la escena anterior.
 final viewerSceneProvider = Provider.autoDispose<AsyncValue<ViewerScene>>((
   ref,
 ) {
-  final preview = ref.watch(prebuiltPreviewProvider);
-  if (preview != null) {
-    return ref
-        .watch(prebuiltSceneProvider(preview))
-        .whenData((prebuilt) => layoutScene(prebuilt.scene));
-  }
   // Texto ordenado: un Set nuevo en cada evaluación no sería igual al anterior.
   final errorKey = ref.watch(
     pcBuilderControllerProvider.select((state) {

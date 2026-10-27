@@ -3,7 +3,7 @@
 ## Contexto
 
 La versión 2 del análisis de requisitos (`NEXUS_Analisis_de_Requisitos.md`) cambia el enfoque del negocio:
-- el catálogo queda en **solo computadores armados y piezas**;
+- el catálogo queda en **solo computadores armados y piezas**. **Cambio posterior (2026-10-27): solo piezas.** Los armados salen porque el asistente aporta más ayudando a escoger piezas compatibles que eligiendo un equipo cerrado;
 - se elimina el comparador de celulares;
 - el **asistente de recomendación** pasa a ser el núcleo del producto;
 - los proveedores publican **por API**.
@@ -26,8 +26,8 @@ Elijo Supabase en lugar de Firebase porque el dominio es relacional (órdenes, s
 | Módulo | Qué incluye | Prioridad | Dónde vive |
 |---|---|---|---|
 | Cuentas y cumplimiento | Registro con términos y consentimiento, login, recuperación, perfil y direcciones (RF-001 a 007) | Must | App + Supabase Auth |
-| Catálogo | Dos familias (armado / pieza por tipo), plantillas de atributos tipados, varias ofertas por producto, imágenes, búsqueda y filtros (RF-012 a 016, RF-032 a 035) | Must | App + BD |
-| Asistente | Necesidad en lenguaje natural, repreguntas, recomendación de armados con justificación por atributos reales, propuesta de piezas si ningún armado sirve, sin compra automática (RF-036 a 045); entrada por voz y llenado del PC Builder (RF-089) | Must (diferenciador) | App + Edge Function + LLM |
+| Catálogo | Piezas por tipo (los armados salieron el 2026-10-27), plantillas de atributos tipados, varias ofertas por producto, imágenes, búsqueda y filtros (RF-012 a 016, RF-032 a 035) | Must | App + BD |
+| Asistente | Necesidad en lenguaje natural, repreguntas, configuración completa por piezas o piezas sueltas para mejorar un equipo, con justificación por atributos reales, sin compra automática (RF-036 a 045); entrada por voz y llenado del PC Builder (RF-089) | Must (diferenciador) | App + Edge Function + LLM |
 | PC Builder | Slots por tipo de pieza, motor de reglas determinista y versionado, faltantes, sugerencias, total y paso al carrito (RF-046 a 052); visor 3D con un modelo por componente (RF-090) | Must (visor: Should) | App + BD + Storage |
 | Comercio | Carrito persistente, checkout con revalidación de precio y stock, pasarela, sub-órdenes por proveedor, descuento de stock, seguimiento (RF-053 a 070) | Must | App + Edge Functions |
 | Comisiones y liquidación | Comisión por proveedor o producto con vigencia (prevalece la del producto, S-05), snapshot por ítem, liquidaciones (RF-071 a 079) | Must | Solo backend |
@@ -62,7 +62,7 @@ prueba01/                          # raíz del repo git
 │   └── supabase/
 │       ├── config.toml
 │       ├── migrations/            # SQL versionado (CLI de Supabase)
-│       ├── seed.sql               # datos de desarrollo (los 6 productos mock + armados)
+│       ├── seed.sql               # datos de desarrollo (los 6 productos mock + piezas de varias gamas)
 │       ├── tests/                 # pgTAP: RLS, triggers, RPCs
 │       └── functions/
 │           ├── _shared/           # auth, errores, cliente BD, compat-engine.ts
@@ -199,7 +199,7 @@ Objetivo: ver cómo se vería el computador con las piezas elegidas, ya sea a ma
   - JSON, controlador y pantalla en Flutter;
   - integración contra la función. La que llama a Gemini es opcional (`ASSISTANT_LIVE=true`) porque gasta cuota.
   - El flujo completo se revisó en la app web: pregunta, presupuesto, configuración, PC Builder y 3D.
-- **Visualizar en 3D un armado recomendado** (RF-090): tabla `prebuilt_components` y RPC `get_prebuilt_scene`. Muestra sus componentes en las secciones del PC Builder y en la vista 3D, sin tocar la configuración del cliente. El armado se compra completo.
+- **Visualizar en 3D un armado recomendado** (RF-090), **retirado el 2026-10-27** con los armados: tabla `prebuilt_components` y RPC `get_prebuilt_scene`. Muestra sus componentes en las secciones del PC Builder y en la vista 3D, sin tocar la configuración del cliente. El armado se compra completo.
 - **Cambio frente al plan:** no hay una herramienta `get_product_attributes` separada. Las búsquedas ya traen los atributos legibles (RPC `get_product_attributes`), así se ahorran llamadas al modelo.
 
 ### Fase 8: checkout, pagos y comisión — hecha
@@ -235,6 +235,23 @@ Objetivo: ver cómo se vería el computador con las piezas elegidas, ya sea a ma
 - **Pendiente:**
   - probar con llaves reales del sandbox de Wompi y registrar la URL de eventos en su dashboard (ver `backend/README.md`);
   - reservar stock durante el pago (RF-067, Could).
+
+### Cambio de alcance: solo piezas (2026-10-27) — hecho
+- **Decisión del equipo:** NEXUS vende solo piezas de computador. Con equipos cerrados el asistente solo elegía entre unos pocos; con piezas ayuda a escoger cada componente según el uso, el presupuesto y la compatibilidad.
+- **Backend:** migración `20261027010000_parts_only.sql`. Borra los armados, la categoría `prebuiltPc`, `prebuilt_components` y `get_prebuilt_scene`, y agrega la restricción `categories_parts_only`. El filtro `family` solo admite `part` (API_CONTRATO v0.11, cierra D8).
+- **Seed:** 14 piezas de gama de entrada y media reemplazan a los 3 armados, para que el asistente pueda armar equipos de oficina y de gaming de distintos presupuestos.
+- **Asistente:** arma un computador completo por piezas (validado por el motor) o recomienda piezas sueltas para mejorar un equipo, teniendo en cuenta las piezas que el cliente dice tener. Si piden un armado, explica que NEXUS vende piezas y ofrece armarlo.
+- **Flutter:** sin familias ni categoría de armados en el catálogo (chips "Todo" + tipos de pieza), sin "Visualizar en 3D" de armados, sugerencias del asistente y textos de Inicio actualizados.
+- **Pendiente:**
+  - aplicar la migración en la nube (`db push`, con confirmación) y cargar ahí las piezas nuevas;
+  - `docs/REQUISITOS.md`: ya se actualizaron las reglas, requisitos y criterios principales (marca **[Alcance 2026-10]**) y una nota al inicio dice que la decisión prevalece; conviene que el equipo revise las preguntas abiertas y los riesgos que todavía mencionan armados;
+  - el texto legal 1.0 (borrador) todavía dice "computadores armados y piezas": se corrige cuando se redacte la versión definitiva, porque cambiarlo exige una versión nueva que los usuarios vuelven a aceptar.
+
+### Catálogo grande de desarrollo (2026-10-27) — hecho
+- **760 piezas y 6 proveedores** en local: `tool/catalog/generate_catalog.mjs` genera `backend/supabase/seeds/catalog_generated.sql` (determinista), que el reset carga después de `seed.sql`.
+- **PC Builder con volumen** (API_CONTRATO v0.12): `get_builder_candidates` filtra por texto y precio máximo, ordena por precio y pagina, y el selector tiene buscador, orden y "Ver más". Antes solo se veían las 30 piezas compatibles más baratas.
+- **Asistente:** `list_compatible_parts` pasa a la base el presupuesto de cada tipo (`budgets`) y el orden, y las instrucciones dan una guía para repartir el presupuesto. Los ids de oferta generados son legibles (`off-tp-<producto>`), porque con ids opacos el modelo inventaba alguno.
+- **Pendiente:** cargar el catálogo en la nube (con confirmación) y, si se quiere, imágenes reales por producto.
 
 ### Fase 9: órdenes y seguimiento
 - `order_status_history` con transiciones válidas forzadas por trigger (RN-029).

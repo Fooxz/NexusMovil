@@ -36,7 +36,6 @@ class SupabaseProductRepository implements ProductRepository {
       'page': page,
       'page_size': pageSize,
       if (filters.search.trim().isNotEmpty) 'search': filters.search.trim(),
-      if (filters.family != null) 'family': filters.family!.name,
       if (filters.category != null) 'category': filters.category!.name,
       if (filters.brand != null) 'brand': filters.brand,
       if (filters.minPriceCents != null)
@@ -70,12 +69,8 @@ class SupabaseProductRepository implements ProductRepository {
   }
 
   @override
-  Future<List<String>> getBrands({
-    ProductFamily? family,
-    ProductCategory? category,
-  }) async {
+  Future<List<String>> getBrands({ProductCategory? category}) async {
     final json = await _call('get_catalog_brands', {
-      if (family != null) 'family': family.name,
       if (category != null) 'category': category.name,
     });
     return _parse(() {

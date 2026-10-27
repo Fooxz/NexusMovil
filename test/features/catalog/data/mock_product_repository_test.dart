@@ -19,10 +19,10 @@ void main() {
     final firstPage = await repository.getProducts(pageSize: 4);
     final secondPage = await repository.getProducts(page: 1, pageSize: 4);
 
-    expect(firstPage.total, 8);
+    expect(firstPage.total, 6);
     expect(firstPage.items, hasLength(4));
     expect(firstPage.hasMore, isTrue);
-    expect(secondPage.items, hasLength(4));
+    expect(secondPage.items, hasLength(2));
     expect(secondPage.hasMore, isFalse);
   });
 
@@ -34,10 +34,7 @@ void main() {
       filters: const ProductFilters(search: 'tarjetas gráficas'),
     );
 
-    expect(byName.items.map((product) => product.id), [
-      'ryzen-9-9950x',
-      'pc-gamer-pro-r7-5070',
-    ]);
+    expect(byName.items.map((product) => product.id), ['ryzen-9-9950x']);
     expect(byCategory.items.map((product) => product.id), [
       'rtx-5090',
       'rtx-5080',
@@ -84,11 +81,7 @@ void main() {
     ]);
   });
 
-  test('filters by family, brand and price range', () async {
-    expect(
-      await ids(const ProductFilters(family: ProductFamily.prebuiltPc)),
-      ['pc-gamer-pro-r7-5070', 'pc-oficina-i5-14400'],
-    );
+  test('filters by brand and price range', () async {
     expect(
       await ids(const ProductFilters(brand: 'nvidia')),
       ['rtx-5090', 'rtx-5080'],
@@ -100,14 +93,13 @@ void main() {
           maxPriceCents: 260000000,
         ),
       ),
-      ['ryzen-9-9950x', 'cooler-master-elite-liquid-360', 'pc-oficina-i5-14400'],
+      ['ryzen-9-9950x', 'cooler-master-elite-liquid-360'],
     );
   });
 
   test('sorts by price in both directions', () async {
     final ascending = await ids(
       const ProductFilters(
-        family: ProductFamily.part,
         category: ProductCategory.gpu,
         sort: ProductSort.priceAsc,
       ),
@@ -123,10 +115,10 @@ void main() {
     expect(descending, ['rtx-5090', 'rtx-5080']);
   });
 
-  test('lists brands for the selected family', () async {
+  test('lists brands for the selected category', () async {
     expect(
-      await repository.getBrands(family: ProductFamily.prebuiltPc),
-      ['Mundo PC', 'TecnoPartes'],
+      await repository.getBrands(category: ProductCategory.gpu),
+      ['NVIDIA'],
     );
   });
 

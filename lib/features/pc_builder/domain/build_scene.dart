@@ -95,18 +95,3 @@ class ModelCredit {
   @override
   int get hashCode => Object.hash(title, author, license, sourceUrl);
 }
-
-/// Un computador armado visto por secciones del PC Builder (RF-090): qué
-/// componente ocupa cada ranura, para mostrarlo en 3D. Es solo para ver: el
-/// armado se compra completo, con [product].
-class PrebuiltScene {
-  const PrebuiltScene({required this.product, required this.scene});
-
-  final Product product;
-
-  /// Un componente por sección. [ScenePart.offerId] es el id del componente
-  /// y [ScenePart.productName] su nombre.
-  final BuildScene scene;
-
-  bool get hasComponents => scene.parts.isNotEmpty;
-}

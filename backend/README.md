@@ -83,7 +83,8 @@ Proyecto `fzapwqaadxivadtlpthj` (plan gratuito, us-east-1, Postgres 17). La CLI 
    documentos legales y configuración).
 2. **Catálogo:** se exportó de local con `npx supabase db dump --local --data-only`, solo con las tablas
    `providers`, `products`, `product_attributes`, `product_images`, `offers`, `component_models` y
-   `prebuilt_components`. Se importó con `npx supabase db query --linked -f` en una transacción. No se migraron
+   `prebuilt_components` (esta última ya no existe: los armados salieron el 2026-10-27). Se importó con
+   `npx supabase db query --linked -f` en una transacción. No se migraron
    las cuentas de prueba, `auth`, los carritos ni las bitácoras.
 3. `npx supabase seed buckets --project-ref fzapwqaadxivadtlpthj`: el bucket `component-models` y sus `.glb`.
 4. `npx supabase secrets set --env-file supabase/functions/.env` y
@@ -123,11 +124,20 @@ función: `npx supabase functions deploy assistant --no-verify-jwt --use-api`.
 
 ```powershell
 npx supabase migration new <nombre>   # crea supabase/migrations/<fecha>_<nombre>.sql
-npx supabase db reset                 # recrea la BD local: migraciones + seed.sql
+npx supabase db reset                 # recrea la BD local: migraciones + seed.sql + seeds/*.sql
 npx supabase test db                  # pruebas pgTAP de supabase/tests/
 ```
 
 Las migraciones son la única fuente del esquema: no se cambian tablas a mano desde Studio.
+
+**Catálogo grande de desarrollo.** `supabase/seeds/catalog_generated.sql` suma unas 730 piezas con atributos y
+ofertas. No se edita a mano: se cambia `tool/catalog/generate_catalog.mjs` y se regenera desde la raíz del repo con
+`node tool/catalog/generate_catalog.mjs`. Usa una semilla fija, así que el archivo solo cambia si cambia el
+generador. El reset tarda unos 40 s más por este archivo.
+
+**En la nube** no se carga solo: `db push` aplica migraciones, no seeds. Para subir el catálogo hay que ejecutar el
+archivo con `npx supabase db query --linked -f supabase/seeds/catalog_generated.sql`, con confirmación, porque
+escribe datos en producción.
 
 ## Estructura
 

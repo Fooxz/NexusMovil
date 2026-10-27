@@ -26,9 +26,9 @@ class AssistantScreen extends StatelessWidget {
   const AssistantScreen({super.key});
 
   static const suggestions = [
-    'Necesito un computador de oficina para trabajar y editar videos',
-    'Quiero jugar en 4K y tengo unos 9 millones',
-    'Ármame un PC por piezas para diseño gráfico',
+    'Ármame un computador de oficina por menos de 3 millones',
+    'Quiero un PC para jugar en 1080p con unos 5 millones',
+    'Busco una tarjeta gráfica para mejorar mi computador',
   ];
 
   @override
@@ -338,31 +338,9 @@ class _RecommendedProductCard extends ConsumerWidget {
               ),
             ],
           ),
-          if (product.category == ProductCategory.prebuiltPc) ...[
-            const SizedBox(height: 8),
-            NexusOutlineButton(
-              label: 'VISUALIZAR EN 3D',
-              color: NexusColors.cyan,
-              borderColor: NexusColors.cyan,
-              onPressed: () => _visualize(context, ref, product.id),
-            ),
-          ],
         ],
       ),
     );
-  }
-
-  /// Abre el armado en el PC Builder: sus componentes por sección y en 3D.
-  void _visualize(BuildContext context, WidgetRef ref, String productId) {
-    ref.read(prebuiltPreviewProvider.notifier).show(productId);
-    final shell = MainShellScope.maybeOf(context);
-    if (shell != null) {
-      shell.selectTab(NexusTab.pcBuilder);
-    } else {
-      Navigator.of(context).push(
-        MaterialPageRoute<void>(builder: (_) => const PcBuilderScreen()),
-      );
-    }
   }
 }
 
@@ -387,8 +365,6 @@ class _BuildProposalCardState extends ConsumerState<_BuildProposalCard> {
     final navigator = Navigator.of(context);
     try {
       await ref.read(pcBuilderControllerProvider.notifier).loadBuild(widget.build.offerIds);
-      // Si había un armado en vista, se cierra para mostrar esta configuración.
-      ref.read(prebuiltPreviewProvider.notifier).close();
       if (shell != null) {
         shell.selectTab(NexusTab.pcBuilder);
       } else {
