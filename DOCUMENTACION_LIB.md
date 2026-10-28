@@ -354,6 +354,13 @@ El árbol anterior refleja los archivos Dart actuales bajo `lib/`. Las pruebas d
 
 `test/integration/` prueba los repositorios reales contra el Supabase local y se salta sin configuración. Las cifras de pruebas y resultados de las fases siguientes son registros históricos, no sustituyen ejecutar la suite en el estado actual.
 
+**Validación de los roles y el marketplace por tienda (2026-10-27, en local):**
+- `dart analyze` sin hallazgos. `flutter test`: 313 pruebas aprobadas y 21 de integración saltadas; contra el backend local pasan las 22 de integración, incluido el flujo administrador → tienda → catálogo con los repositorios reales (la que llama a Gemini se corre aparte).
+- pgTAP: 369 pruebas (las 194 anteriores sin cambios). `db lint` sin hallazgos. `node --test`: 21 de `admin-providers` y 41 de pagos y asistente.
+- Prueba de migración sobre datos existentes (`backend/supabase/upgrade_check/`): OK en 51 comprobaciones.
+- De punta a punta con Auth, Storage y la Edge Function reales: 29 comprobaciones del alta de tiendas y 19 de publicaciones. Encontró que la API de administración de Auth escribe `app_metadata` después de insertar el usuario; se resolvió con un ticket de alta.
+- Falta llevar las migraciones y la función a la nube, con autorización.
+
 **Validación del catálogo grande (760 piezas):**
 - `flutter test`: 246 pruebas aprobadas; integración contra el backend local: 20 aprobadas. pgTAP: 194. Asistente: 21.
 - Tiempos en local: listado del catálogo 105 ms, búsqueda 45 ms, candidatos de una ranura entre 150 y 700 ms según cuántas piezas hay que evaluar.

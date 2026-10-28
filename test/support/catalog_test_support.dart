@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:prueba01/features/catalog/catalog_providers.dart';
+import 'package:prueba01/features/catalog/domain/catalog_offer.dart';
 import 'package:prueba01/features/catalog/domain/product.dart';
 import 'package:prueba01/features/catalog/domain/product_filters.dart';
 import 'package:prueba01/features/catalog/domain/product_page.dart';
@@ -116,6 +117,32 @@ class CatalogFakeProductRepository implements ProductRepository {
   final brandRequests = <ProductCategory?>[];
   var productPageRequests = 0;
 
+  /// Una tarjeta por oferta de cada producto de la página de `getProducts`
+  /// (así se reutilizan sus cargadores, fallas y registro de peticiones). Un
+  /// producto sin ofertas tiene una de "Tienda Test".
+  @override
+  Future<OfferPage> getOffers({
+    int page = 0,
+    int pageSize = 20,
+    ProductFilters filters = const ProductFilters(),
+  }) async {
+    final products = await getProducts(page: page, pageSize: pageSize, filters: filters);
+    return OfferPage(
+      items: [for (final product in products.items) ...catalogOffersOf(product)],
+      total: products.total,
+      page: products.page,
+      pageSize: products.pageSize,
+    );
+  }
+
+  @override
+  Future<List<CatalogStore>> getStores({ProductCategory? category}) async => [
+    for (final offer in products
+        .where((product) => category == null || product.category == category)
+        .expand(catalogOffersOf))
+      CatalogStore(id: offer.providerId, displayName: offer.providerName, offerCount: 1),
+  ];
+
   @override
   Future<ProductPage> getProducts({
     int page = 0,
@@ -179,6 +206,47 @@ class CatalogFakeProductRepository implements ProductRepository {
         .toSet()
         .toList();
   }
+}
+
+/// Tarjetas de un producto: una por oferta, o una de "Tienda Test".
+List<CatalogOffer> catalogOffersOf(Product product) => [
+  if (product.offers.isEmpty)
+    CatalogOffer(
+      offerId: product.bestOfferId ?? 'offer-${product.id}',
+      productId: product.id,
+      name: product.name,
+      brand: product.brand,
+      category: product.category,
+      providerId: 'provider-test',
+      providerName: 'Tienda Test',
+      priceCents: product.priceCents,
+      oldPriceCents: product.oldPriceCents,
+      stockLevel: product.stockLevel,
+      imageUrl: product.imageUrl,
+      summary: product.summary,
+    )
+  else
+    for (final offer in product.offers)
+      CatalogOffer(
+        offerId: offer.id,
+        productId: product.id,
+        name: product.name,
+        brand: product.brand,
+        category: product.category,
+        providerId: offer.providerId,
+        providerName: offer.providerName,
+        priceCents: offer.priceCents,
+        oldPriceCents: offer.oldPriceCents,
+        stockLevel: offer.stockLevel,
+        imageUrl: product.imageUrl,
+        summary: product.summary,
+        offerCount: product.offers.length,
+      ),
+];
+
+extension CatalogStateIds on CatalogState {
+  /// Productos de las tarjetas, en orden.
+  List<String> get productIds => [for (final item in items) item.productId];
 }
 
 CatalogFakeProductRepository createRetryablePageRepository() {
@@ -294,12 +362,15 @@ Widget catalogTestApp(
     home: const CatalogScreen(),
     onGenerateRoute: (settings) {
       if (settings.name != NexusRoutes.productDetail) return null;
-      final productId = settings.arguments;
+      final arguments = settings.arguments;
       return MaterialPageRoute<void>(
         settings: settings,
-        builder: (_) => ProductDetailScreen(
-          productId: productId is String ? productId : '',
-        ),
+        builder: (_) => switch (arguments) {
+          ProductDetailArgs(:final productId, :final offerId) =>
+            ProductDetailScreen(productId: productId, initialOfferId: offerId),
+          final String productId => ProductDetailScreen(productId: productId),
+          _ => const ProductDetailScreen(productId: ''),
+        },
       );
     },
   ),

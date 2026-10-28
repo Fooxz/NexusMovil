@@ -414,6 +414,12 @@ verify_jwt = false
 [functions.payment-webhook]
 verify_jwt = false
 
+# Alta de cuentas de tienda (roles). Como checkout, la función valida la sesión
+# contra Auth y exige el rol administrador leyéndolo de la base en cada
+# llamada. Usa la clave de servicio del entorno; no necesita secretos propios.
+[functions.admin-providers]
+verify_jwt = false
+
 [analytics]
 enabled = true
 port = 54327

@@ -10,6 +10,7 @@ class ProductFilters {
     this.search = '',
     this.category,
     this.brand,
+    this.providerId,
     this.minPriceCents,
     this.maxPriceCents,
     this.sort = ProductSort.relevance,
@@ -18,6 +19,9 @@ class ProductFilters {
   final String search;
   final ProductCategory? category;
   final String? brand;
+
+  /// Tienda (id) del catálogo por oferta. `getProducts` lo ignora.
+  final String? providerId;
   final int? minPriceCents;
   final int? maxPriceCents;
   final ProductSort sort;
@@ -27,6 +31,7 @@ class ProductFilters {
       search.isNotEmpty ||
       category != null ||
       brand != null ||
+      providerId != null ||
       minPriceCents != null ||
       maxPriceCents != null;
 
@@ -38,6 +43,7 @@ class ProductFilters {
     String? search,
     Object? category = _unset,
     Object? brand = _unset,
+    Object? providerId = _unset,
     Object? minPriceCents = _unset,
     Object? maxPriceCents = _unset,
     ProductSort? sort,
@@ -48,6 +54,9 @@ class ProductFilters {
           ? this.category
           : category as ProductCategory?,
       brand: identical(brand, _unset) ? this.brand : brand as String?,
+      providerId: identical(providerId, _unset)
+          ? this.providerId
+          : providerId as String?,
       minPriceCents: identical(minPriceCents, _unset)
           ? this.minPriceCents
           : minPriceCents as int?,
@@ -64,6 +73,7 @@ class ProductFilters {
       other.search == search &&
       other.category == category &&
       other.brand == brand &&
+      other.providerId == providerId &&
       other.minPriceCents == minPriceCents &&
       other.maxPriceCents == maxPriceCents &&
       other.sort == sort;
@@ -73,6 +83,7 @@ class ProductFilters {
     search,
     category,
     brand,
+    providerId,
     minPriceCents,
     maxPriceCents,
     sort,

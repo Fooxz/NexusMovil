@@ -11,15 +11,33 @@ import '../../../widgets/nexus_product_card.dart';
 import '../../../widgets/nexus_product_image.dart';
 import '../../../widgets/nexus_quantity_stepper.dart';
 import '../../../widgets/nexus_widgets.dart';
+import '../../account/account_providers.dart';
 import '../catalog_providers.dart';
 import '../domain/product.dart';
 import '../../cart/presentation/cart_actions.dart';
 import 'product_visuals.dart';
 
-class ProductDetailScreen extends ConsumerWidget {
-  const ProductDetailScreen({super.key, required this.productId});
+/// Argumentos de `NexusRoutes.productDetail` desde una tarjeta del catálogo:
+/// el producto y la oferta de la tienda de esa tarjeta. Las demás pantallas
+/// envían solo el id del producto (`String`).
+class ProductDetailArgs {
+  const ProductDetailArgs(this.productId, {this.offerId});
 
   final String productId;
+  final String? offerId;
+}
+
+class ProductDetailScreen extends ConsumerWidget {
+  const ProductDetailScreen({
+    super.key,
+    required this.productId,
+    this.initialOfferId,
+  });
+
+  final String productId;
+
+  /// Oferta seleccionada al abrir; si no, la mejor.
+  final String? initialOfferId;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -45,30 +63,65 @@ class ProductDetailScreen extends ConsumerWidget {
                     ),
                   ),
                 )
-              : _ProductDetailContent(product: product),
+              : _ProductDetailContent(
+                  product: product,
+                  initialOfferId: initialOfferId,
+                ),
         ),
       ],
     );
   }
 }
 
-class _ProductDetailContent extends ConsumerWidget {
-  const _ProductDetailContent({required this.product});
+/// Ficha del producto con la oferta seleccionada: el precio, el descuento y
+/// el stock que se muestran son los de esa tienda.
+class _ProductDetailContent extends ConsumerStatefulWidget {
+  const _ProductDetailContent({required this.product, this.initialOfferId});
 
   final Product product;
+  final String? initialOfferId;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_ProductDetailContent> createState() => _ProductDetailContentState();
+}
+
+class _ProductDetailContentState extends ConsumerState<_ProductDetailContent> {
+  late String? _offerId = _initialOfferId();
+
+  Product get product => widget.product;
+
+  String? _initialOfferId() {
+    final requested = widget.initialOfferId;
+    if (requested != null && product.offers.any((offer) => offer.id == requested)) {
+      return requested;
+    }
+    return product.bestOfferId ??
+        product.offers
+            .where((offer) => offer.stockLevel != StockLevel.outOfStock)
+            .firstOrNull
+            ?.id;
+  }
+
+  ProductOffer? get _selected =>
+      product.offers.where((offer) => offer.id == _offerId).firstOrNull;
+
+  @override
+  Widget build(BuildContext context) {
     final visuals = ProductVisuals.forCategory(product.category);
-    final stockLabel = switch (product.stockLevel) {
+    final selected = _selected;
+    final stockLevel = selected?.stockLevel ?? product.stockLevel;
+    final priceCents = selected?.priceCents ?? product.priceCents;
+    final oldPriceCents = selected == null ? product.oldPriceCents : selected.oldPriceCents;
+    final hasDiscount = oldPriceCents != null && oldPriceCents > priceCents;
+    final stockLabel = switch (stockLevel) {
       StockLevel.stable => 'EN STOCK',
       StockLevel.critical => 'CRÍTICO',
-      StockLevel.outOfStock => ProductVisuals.stockLabel(product.stockLevel),
+      StockLevel.outOfStock => ProductVisuals.stockLabel(stockLevel),
     };
-    final stockColor = switch (product.stockLevel) {
+    final stockColor = switch (stockLevel) {
       StockLevel.stable => NexusColors.green,
       StockLevel.critical => NexusColors.pink,
-      StockLevel.outOfStock => ProductVisuals.stockColor(product.stockLevel),
+      StockLevel.outOfStock => ProductVisuals.stockColor(stockLevel),
     };
 
     return Column(
@@ -122,28 +175,35 @@ class _ProductDetailContent extends ConsumerWidget {
           runSpacing: 4,
           children: [
             Text(
-              formatPrice(product.priceCents),
+              formatPrice(priceCents),
               style: const TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.w800,
                 color: NexusColors.cyan,
               ),
             ),
-            if (product.hasDiscount) ...[
+            if (hasDiscount) ...[
               Text(
-                formatPrice(product.oldPriceCents!),
+                formatPrice(oldPriceCents),
                 style: const TextStyle(
                   fontSize: 13,
                   color: NexusColors.textFaint,
                   decoration: TextDecoration.lineThrough,
                 ),
               ),
-              NexusDiscountBadge(label: '-${product.discountPercent}%'),
+              NexusDiscountBadge(
+                label: '-${((oldPriceCents - priceCents) * 100 / oldPriceCents).round()}%',
+              ),
             ],
           ],
         ),
         const SizedBox(height: 18),
-        _PurchasePanel(product: product),
+        _PurchasePanel(
+          product: product,
+          offerId: _offerId,
+          stockLevel: stockLevel,
+          onSelectOffer: (offerId) => setState(() => _offerId = offerId),
+        ),
         if (product.quickSpecs.isNotEmpty) ...[
           const SizedBox(height: 18),
           const NexusUnderlineTitle('SPECS RÁPIDAS'),
@@ -187,13 +247,22 @@ class _ProductDetailContent extends ConsumerWidget {
   }
 }
 
-/// Compra (HU-005): oferta de qué proveedor, cuántas unidades y agregar al
-/// carrito. NEXUS es intermediario: cada proveedor vende y despacha su oferta
-/// (RN-009). Sin stock, los botones quedan deshabilitados.
+/// Compra (HU-005): comparar las ofertas de cada tienda, elegir una, cuántas
+/// unidades y agregar al carrito. NEXUS es intermediario: cada tienda vende y
+/// despacha su oferta (RN-009). Sin stock, los botones quedan deshabilitados.
+/// Las cuentas que no compran (tiendas y administradores) solo comparan.
 class _PurchasePanel extends ConsumerStatefulWidget {
-  const _PurchasePanel({required this.product});
+  const _PurchasePanel({
+    required this.product,
+    required this.offerId,
+    required this.stockLevel,
+    required this.onSelectOffer,
+  });
 
   final Product product;
+  final String? offerId;
+  final StockLevel stockLevel;
+  final ValueChanged<String> onSelectOffer;
 
   @override
   ConsumerState<_PurchasePanel> createState() => _PurchasePanelState();
@@ -204,23 +273,18 @@ class _PurchasePanelState extends ConsumerState<_PurchasePanel> {
   /// además contra el stock y responde cuántas quedan.
   static const _maxQuantity = 10;
 
-  late String? _offerId =
-      widget.product.bestOfferId ??
-      widget.product.offers
-          .where((offer) => offer.stockLevel != StockLevel.outOfStock)
-          .firstOrNull
-          ?.id;
   var _quantity = 1;
   var _adding = false;
 
-  StockLevel get _stockLevel {
-    for (final offer in widget.product.offers) {
-      if (offer.id == _offerId) return offer.stockLevel;
-    }
-    return widget.product.stockLevel;
-  }
+  String? get _offerId => widget.offerId;
 
-  bool get _canBuy => _offerId != null && _stockLevel != StockLevel.outOfStock;
+  bool get _canBuy => _offerId != null && widget.stockLevel != StockLevel.outOfStock;
+
+  @override
+  void didUpdateWidget(covariant _PurchasePanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.offerId != widget.offerId) _quantity = 1;
+  }
 
   Future<void> _add({required bool openCart}) async {
     final offerId = _offerId;
@@ -239,13 +303,14 @@ class _PurchasePanelState extends ConsumerState<_PurchasePanel> {
   @override
   Widget build(BuildContext context) {
     final offers = widget.product.offers;
+    final accountCanBuy = ref.watch(canBuyProvider);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         if (offers.isNotEmpty) ...[
           NexusUnderlineTitle(
-            offers.length == 1 ? 'VENDIDO POR' : 'ELIGE EL PROVEEDOR',
+            offers.length == 1 ? 'VENDIDO POR' : 'COMPARAR TIENDAS',
           ),
           const SizedBox(height: 4),
           NexusCard(
@@ -258,10 +323,7 @@ class _PurchasePanelState extends ConsumerState<_PurchasePanel> {
                     offer: offers[index],
                     selectable: offers.length > 1,
                     selected: offers[index].id == _offerId,
-                    onSelect: () => setState(() {
-                      _offerId = offers[index].id;
-                      _quantity = 1;
-                    }),
+                    onSelect: () => widget.onSelectOffer(offers[index].id),
                   ),
                 ],
               ],
@@ -269,59 +331,70 @@ class _PurchasePanelState extends ConsumerState<_PurchasePanel> {
           ),
           const SizedBox(height: 14),
         ],
-        if (!_canBuy)
-          const Padding(
-            padding: EdgeInsets.only(bottom: 10),
-            child: Text(
-              'Agotado: por ahora no se puede agregar al carrito.',
-              style: TextStyle(fontSize: 11.5, color: NexusColors.pink),
-            ),
-          ),
-        Row(
-          children: [
-            NexusQuantityStepper(
-              value: _quantity,
-              onDecrement: _canBuy && _quantity > 1
-                  ? () => setState(() => _quantity--)
-                  : null,
-              onIncrement: _canBuy && _quantity < _maxQuantity
-                  ? () => setState(() => _quantity++)
-                  : null,
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: NexusPrimaryButton(
-                label: 'COMPRAR AHORA',
-                enabled: _canBuy && !_adding,
-                onPressed: () => _add(openCart: true),
-                color: NexusColors.pink,
-                foregroundColor: Colors.white,
-                fullWidth: false,
-                fontSize: 10.5,
-                padding: const EdgeInsets.symmetric(vertical: 13),
-                borderRadius: 8,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: NexusPrimaryButton(
-                label: 'AGREGAR AL CARRITO',
-                enabled: _canBuy,
-                loading: _adding,
-                onPressed: () => _add(openCart: false),
-                color: NexusColors.cyan,
-                foregroundColor: NexusColors.onCyan,
-                icon: Icons.shopping_cart,
-                fullWidth: false,
-                fontSize: 9,
-                padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 4),
-                borderRadius: 8,
-              ),
-            ),
-          ],
-        ),
+        if (!accountCanBuy)
+          const Text(
+            'Las cuentas de tienda y de administración no compran en NEXUS.',
+            style: TextStyle(fontSize: 11.5, color: NexusColors.textDim),
+          )
+        else ..._buyControls(),
       ],
     );
+  }
+
+  List<Widget> _buyControls() {
+    return [
+      if (!_canBuy)
+        const Padding(
+          padding: EdgeInsets.only(bottom: 10),
+          child: Text(
+            'Agotado: por ahora no se puede agregar al carrito.',
+            style: TextStyle(fontSize: 11.5, color: NexusColors.pink),
+          ),
+        ),
+      Row(
+        children: [
+          NexusQuantityStepper(
+            value: _quantity,
+            onDecrement: _canBuy && _quantity > 1
+                ? () => setState(() => _quantity--)
+                : null,
+            onIncrement: _canBuy && _quantity < _maxQuantity
+                ? () => setState(() => _quantity++)
+                : null,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: NexusPrimaryButton(
+              label: 'COMPRAR AHORA',
+              enabled: _canBuy && !_adding,
+              onPressed: () => _add(openCart: true),
+              color: NexusColors.pink,
+              foregroundColor: Colors.white,
+              fullWidth: false,
+              fontSize: 10.5,
+              padding: const EdgeInsets.symmetric(vertical: 13),
+              borderRadius: 8,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: NexusPrimaryButton(
+              label: 'AGREGAR AL CARRITO',
+              enabled: _canBuy,
+              loading: _adding,
+              onPressed: () => _add(openCart: false),
+              color: NexusColors.cyan,
+              foregroundColor: NexusColors.onCyan,
+              icon: Icons.shopping_cart,
+              fullWidth: false,
+              fontSize: 9,
+              padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 4),
+              borderRadius: 8,
+            ),
+          ),
+        ],
+      ),
+    ];
   }
 }
 

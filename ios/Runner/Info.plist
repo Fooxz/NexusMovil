@@ -6,6 +6,8 @@
 	<string>NEXUS usa el micrófono para que le dictes al asistente el computador que necesitas.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>NEXUS convierte tu voz en texto para que el asistente entienda qué computador necesitas.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>NEXUS usa tus fotos para que agregues las imágenes de los productos que publica tu tienda.</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>

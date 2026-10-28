@@ -34,6 +34,7 @@ class MockAuthRepository implements AuthRepository {
   final Duration latency;
   final _accounts = <String, ({String id, String password, String fullName})>{};
   final _pendingResets = <String>{};
+  final _passwordChanged = <String>{};
   final _changes = StreamController<AuthUser?>.broadcast();
   AuthUser? _currentUser;
   var _nextId = 1;
@@ -143,6 +144,64 @@ class MockAuthRepository implements AuthRepository {
       fullName: account.fullName,
     );
     _setUser(AuthUser(id: account.id, email: key));
+  }
+
+  @override
+  Future<void> changePassword(String newPassword) async {
+    await _simulateLatency();
+    final user = _currentUser;
+    final account = user == null ? null : _accounts[user.email];
+    if (user == null || account == null) throw const UnauthorizedFailure();
+    _checkPassword(newPassword);
+    // Supabase responde `same_password`, que la app muestra como contraseña débil.
+    if (newPassword == account.password) throw const WeakPasswordFailure();
+    _accounts[user.email] = (
+      id: account.id,
+      password: newPassword,
+      fullName: account.fullName,
+    );
+    _passwordChanged.add(account.id);
+  }
+
+  /// Si el usuario cambió su contraseña desde que se la asignaron. Hace las
+  /// veces del trigger que quita la marca de contraseña temporal.
+  bool hasChangedPassword(String userId) => _passwordChanged.contains(userId);
+
+  /// Cuenta creada por un administrador (cuentas de tienda), sin iniciar
+  /// sesión. Devuelve el id.
+  String createAccount({
+    required String email,
+    required String fullName,
+    required String password,
+  }) {
+    final key = _key(email);
+    if (_accounts.containsKey(key)) throw const StoreEmailTakenFailure();
+    final id = 'mock-user-${_nextId++}';
+    _accounts[key] = (id: id, password: password, fullName: fullName.trim());
+    return id;
+  }
+
+  /// Asigna una contraseña nueva (temporal) a la cuenta [userId].
+  void setPassword(String userId, String password) {
+    for (final entry in _accounts.entries) {
+      if (entry.value.id == userId) {
+        _accounts[entry.key] = (
+          id: userId,
+          password: password,
+          fullName: entry.value.fullName,
+        );
+        _passwordChanged.remove(userId);
+        return;
+      }
+    }
+  }
+
+  /// Correo de la cuenta [userId], o null si no existe.
+  String? emailOf(String userId) {
+    for (final entry in _accounts.entries) {
+      if (entry.value.id == userId) return entry.key;
+    }
+    return null;
   }
 
   @override

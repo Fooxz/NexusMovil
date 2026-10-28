@@ -71,7 +71,7 @@ class NexusTopBar extends StatelessWidget {
               ],
             ),
           ),
-          if (showCart) const _CartButton(),
+          if (showCart && NexusCartBadge.enabledOf(context)) const _CartButton(),
         ],
       ),
     );

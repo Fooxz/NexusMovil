@@ -1,3 +1,4 @@
+import '../domain/catalog_offer.dart';
 import '../domain/product.dart';
 import '../domain/product_filters.dart';
 import '../domain/product_page.dart';
@@ -149,6 +150,105 @@ class MockProductRepository implements ProductRepository {
     return generated;
   }
 
+  /// Como `get_offers`: una tarjeta por oferta, filtrada por tienda y por el
+  /// precio de cada oferta. La búsqueda también encuentra por tienda.
+  @override
+  Future<OfferPage> getOffers({
+    int page = 0,
+    int pageSize = 20,
+    ProductFilters filters = const ProductFilters(),
+  }) async {
+    if (page < 0) {
+      throw ArgumentError.value(page, 'page', 'Must not be negative');
+    }
+    if (pageSize <= 0) {
+      throw ArgumentError.value(pageSize, 'pageSize', 'Must be greater than 0');
+    }
+
+    await Future<void>.delayed(latency);
+    final offers = _filterOffers(filters);
+    return OfferPage(
+      items: offers.skip(page * pageSize).take(pageSize).toList(),
+      total: offers.length,
+      page: page,
+      pageSize: pageSize,
+    );
+  }
+
+  @override
+  Future<List<CatalogStore>> getStores({ProductCategory? category}) async {
+    await Future<void>.delayed(latency);
+    final counts = <String, ({String name, int count})>{};
+    for (final offer in _filterOffers(ProductFilters(category: category))) {
+      final current = counts[offer.providerId];
+      counts[offer.providerId] = (
+        name: offer.providerName,
+        count: (current?.count ?? 0) + 1,
+      );
+    }
+    return [
+      for (final entry in counts.entries)
+        CatalogStore(id: entry.key, displayName: entry.value.name, offerCount: entry.value.count),
+    ]..sort((a, b) => a.displayName.toLowerCase().compareTo(b.displayName.toLowerCase()));
+  }
+
+  List<CatalogOffer> _filterOffers(ProductFilters filters) {
+    final search = _normalizeSearch(filters.search);
+    final products = _filter(
+      ProductFilters(category: filters.category, brand: filters.brand),
+    );
+    final offers = <CatalogOffer>[];
+    for (final product in products) {
+      final productOffers = _offersOf(product);
+      // Como el backend: dentro de un producto, primero con stock y por precio.
+      final ordered = [...productOffers]..sort((a, b) {
+          final byStock = (a.stockLevel == StockLevel.outOfStock ? 1 : 0)
+              .compareTo(b.stockLevel == StockLevel.outOfStock ? 1 : 0);
+          return byStock != 0 ? byStock : a.priceCents.compareTo(b.priceCents);
+        });
+      for (final offer in ordered) {
+        if (filters.providerId != null && offer.providerId != filters.providerId) continue;
+        if (filters.minPriceCents != null && offer.priceCents < filters.minPriceCents!) continue;
+        if (filters.maxPriceCents != null && offer.priceCents > filters.maxPriceCents!) continue;
+        if (search.isNotEmpty &&
+            !_matchesSearch(product, search) &&
+            !_normalizeSearch(offer.providerName).contains(search)) {
+          continue;
+        }
+        offers.add(
+          CatalogOffer(
+            offerId: offer.id,
+            productId: product.id,
+            name: product.name,
+            brand: product.brand,
+            category: product.category,
+            providerId: offer.providerId,
+            providerName: offer.providerName,
+            priceCents: offer.priceCents,
+            oldPriceCents: offer.oldPriceCents,
+            stockLevel: offer.stockLevel,
+            imageUrl: product.imageUrl,
+            summary: product.summary,
+            quickSpecs: product.quickSpecs,
+            offerCount: productOffers.length,
+          ),
+        );
+      }
+    }
+
+    if (filters.sort != ProductSort.relevance) {
+      final positions = {for (var i = 0; i < offers.length; i++) offers[i].offerId: i};
+      final ascending = filters.sort == ProductSort.priceAsc;
+      offers.sort((a, b) {
+        final byPrice = ascending
+            ? a.priceCents.compareTo(b.priceCents)
+            : b.priceCents.compareTo(a.priceCents);
+        return byPrice != 0 ? byPrice : positions[a.offerId]!.compareTo(positions[b.offerId]!);
+      });
+    }
+    return offers;
+  }
+
   @override
   Future<ProductPage> getProducts({
     int page = 0,
@@ -226,12 +326,7 @@ class MockProductRepository implements ProductRepository {
         return false;
       }
       if (normalizedSearch.isEmpty) return true;
-
-      return _normalizeSearch(product.name).contains(normalizedSearch) ||
-          _normalizeSearch(product.brand).contains(normalizedSearch) ||
-          _categorySearchTerms(product.category).any(
-            (term) => _normalizeSearch(term).contains(normalizedSearch),
-          );
+      return _matchesSearch(product, normalizedSearch);
     }).toList();
 
     // En `relevance` el mock conserva el orden de inserción (el backend ordena
@@ -246,6 +341,13 @@ class MockProductRepository implements ProductRepository {
     }
     return matches;
   }
+
+  static bool _matchesSearch(Product product, String normalizedSearch) =>
+      _normalizeSearch(product.name).contains(normalizedSearch) ||
+      _normalizeSearch(product.brand).contains(normalizedSearch) ||
+      _categorySearchTerms(product.category).any(
+        (term) => _normalizeSearch(term).contains(normalizedSearch),
+      );
 
   void _stableSortByPrice(List<Product> products, {required bool ascending}) {
     final positions = {
@@ -274,6 +376,20 @@ class MockProductRepository implements ProductRepository {
 
   static String _syntheticOfferId(String productId) => 'mock-offer-$productId';
 
+  /// Ofertas de un producto: las explícitas o una sintética de "Tienda demo".
+  static List<ProductOffer> _offersOf(Product product) =>
+      _offersByProductId[product.id] ??
+      [
+        ProductOffer(
+          id: _syntheticOfferId(product.id),
+          providerId: 'prov-demo',
+          providerName: 'Tienda demo',
+          priceCents: product.priceCents,
+          oldPriceCents: product.oldPriceCents,
+          stockLevel: product.stockLevel,
+        ),
+      ];
+
   /// Stock simulado según el nivel: el mock no maneja unidades reales.
   static int _unitsFor(StockLevel level) => switch (level) {
     StockLevel.stable => 20,
@@ -293,18 +409,7 @@ class MockProductRepository implements ProductRepository {
     String offerId,
   ) {
     for (final product in _products) {
-      final offers = _offersByProductId[product.id] ??
-          [
-            ProductOffer(
-              id: _syntheticOfferId(product.id),
-              providerId: 'prov-demo',
-              providerName: 'Tienda demo',
-              priceCents: product.priceCents,
-              oldPriceCents: product.oldPriceCents,
-              stockLevel: product.stockLevel,
-            ),
-          ];
-      for (final offer in offers) {
+      for (final offer in _offersOf(product)) {
         if (offer.id == offerId) {
           return (
             product: product,

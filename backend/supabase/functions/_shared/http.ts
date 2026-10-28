@@ -6,10 +6,10 @@ export const cors = {
   'access-control-allow-methods': 'GET, POST, OPTIONS',
 };
 
-export function json(status: number, body: unknown): Response {
+export function json(status: number, body: unknown, headers: Record<string, string> = {}): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...cors, 'content-type': 'application/json; charset=utf-8' },
+    headers: { ...cors, 'content-type': 'application/json; charset=utf-8', ...headers },
   });
 }
 
@@ -55,6 +55,21 @@ export async function callRpc(
       body?.details ?? null);
   }
   return body;
+}
+
+/** Id del usuario dueño del token según Auth, o null si no es una sesión válida. */
+export async function authenticateUser(
+  supabaseUrl: string,
+  anonKey: string,
+  token: string,
+): Promise<string | null> {
+  if (token.split('.').length !== 3) return null;
+  const response = await fetch(`${supabaseUrl}/auth/v1/user`, {
+    headers: { apikey: anonKey, authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) return null;
+  const user = await response.json().catch(() => null);
+  return typeof user?.id === 'string' ? user.id : null;
 }
 
 export function bearer(request: Request): string | null {

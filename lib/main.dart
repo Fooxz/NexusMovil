@@ -19,7 +19,7 @@ import 'features/cart/presentation/cart_screen.dart';
 import 'features/checkout/presentation/checkout_screen.dart';
 import 'routes.dart';
 import 'features/catalog/presentation/product_detail_screen.dart';
-import 'screens/shell/main_shell.dart';
+import 'screens/shell/role_home.dart';
 import 'theme/nexus_theme.dart';
 
 Future<void> main() async {
@@ -62,10 +62,11 @@ class NexusApp extends StatelessWidget {
       // El contador del ícono del carrito, para todas las pantallas.
       builder: (context, child) => CartBadgeHost(child: child!),
       // El catálogo se puede recorrer sin cuenta; la sesión se pide al
-      // comprar (RN-027) o desde la pestaña PERFIL.
+      // comprar (RN-027) o desde la pestaña PERFIL. Con sesión, la pantalla
+      // inicial depende del rol (cliente, tienda o administrador).
       initialRoute: NexusRoutes.home,
       routes: {
-        NexusRoutes.home: (_) => const MainShell(),
+        NexusRoutes.home: (_) => const RoleHome(),
       },
       onGenerateRoute: generateNexusRoute,
     );
@@ -98,11 +99,16 @@ Route<Object?>? generateNexusRoute(RouteSettings settings) {
       settings: settings,
       builder: (_) => const CheckoutScreen(),
     ),
+    // Desde una tarjeta del catálogo llegan el producto y la oferta de su
+    // tienda; desde las demás pantallas, solo el id del producto.
     NexusRoutes.productDetail => MaterialPageRoute<void>(
       settings: settings,
-      builder: (_) => ProductDetailScreen(
-        productId: arguments is String ? arguments : '',
-      ),
+      builder: (_) => switch (arguments) {
+        ProductDetailArgs(:final productId, :final offerId) =>
+          ProductDetailScreen(productId: productId, initialOfferId: offerId),
+        final String productId => ProductDetailScreen(productId: productId),
+        _ => const ProductDetailScreen(productId: ''),
+      },
     ),
     _ => null,
   };

@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/errors/app_failure.dart';
@@ -204,4 +205,120 @@ Future<void> showLegalDocument(BuildContext context, LegalDocument document) {
       ),
     ),
   );
+}
+
+/// "He leído y acepto los Términos y condiciones y la Política de ...", con
+/// un enlace a cada documento. La usan el registro y el primer ingreso de las
+/// cuentas de tienda.
+class LegalConsentCheckbox extends StatefulWidget {
+  const LegalConsentCheckbox({
+    super.key,
+    required this.documents,
+    required this.value,
+    required this.showError,
+    required this.onChanged,
+    this.errorText = 'Debes aceptar los documentos para crear tu cuenta.',
+  });
+
+  final List<LegalDocument> documents;
+  final bool value;
+  final bool showError;
+  final ValueChanged<bool> onChanged;
+  final String errorText;
+
+  @override
+  State<LegalConsentCheckbox> createState() => _LegalConsentCheckboxState();
+}
+
+class _LegalConsentCheckboxState extends State<LegalConsentCheckbox> {
+  final _recognizers = <TapGestureRecognizer>[];
+
+  @override
+  void dispose() {
+    for (final recognizer in _recognizers) {
+      recognizer.dispose();
+    }
+    super.dispose();
+  }
+
+  static int _order(String code) => code == 'terms' ? 0 : 1;
+
+  static String _article(String code) => switch (code) {
+    'terms' => 'los ',
+    'privacy' => 'la ',
+    _ => '',
+  };
+
+  TextSpan _link(LegalDocument document) {
+    final recognizer = TapGestureRecognizer()
+      ..onTap = () => showLegalDocument(context, document);
+    _recognizers.add(recognizer);
+    return TextSpan(
+      text: document.title,
+      recognizer: recognizer,
+      style: const TextStyle(
+        color: NexusColors.cyan,
+        fontWeight: FontWeight.bold,
+        decoration: TextDecoration.underline,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    for (final recognizer in _recognizers) {
+      recognizer.dispose();
+    }
+    _recognizers.clear();
+
+    // "He leído y acepto los Términos y condiciones y la Política de ..."
+    final documents = [...widget.documents]
+      ..sort((a, b) => _order(a.code).compareTo(_order(b.code)));
+    final spans = <InlineSpan>[const TextSpan(text: 'He leído y acepto ')];
+    for (var index = 0; index < documents.length; index++) {
+      if (index > 0) {
+        spans.add(
+          TextSpan(text: index == documents.length - 1 ? ' y ' : ', '),
+        );
+      }
+      spans.add(TextSpan(text: _article(documents[index].code)));
+      spans.add(_link(documents[index]));
+    }
+    spans.add(const TextSpan(text: '.'));
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Checkbox(
+              value: widget.value,
+              onChanged: (value) => widget.onChanged(value ?? false),
+              side: BorderSide(
+                color: widget.showError ? NexusColors.pink : NexusColors.border,
+              ),
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Text.rich(
+                  TextSpan(children: spans),
+                  style: const TextStyle(fontSize: 11.5, color: NexusColors.text),
+                ),
+              ),
+            ),
+          ],
+        ),
+        if (widget.showError)
+          Padding(
+            padding: const EdgeInsets.only(left: 12),
+            child: Text(
+              widget.errorText,
+              style: const TextStyle(fontSize: 10, color: NexusColors.pink),
+            ),
+          ),
+      ],
+    );
+  }
 }

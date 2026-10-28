@@ -9,7 +9,7 @@ void main() {
     addTearDown(harness.dispose);
 
     final state = await harness.load();
-    expect(state.items, [catalogGpu, catalogCpu]);
+    expect(state.productIds, [catalogGpu.id, catalogCpu.id]);
     expect(state.total, 2);
     expect(state.page, 0);
     expect(harness.repository.requests, hasLength(1));

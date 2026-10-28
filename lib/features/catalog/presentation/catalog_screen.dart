@@ -12,10 +12,13 @@ import '../../../widgets/nexus_loading.dart';
 import '../../../widgets/nexus_page.dart';
 import '../../../widgets/nexus_product_card.dart';
 import '../../../widgets/nexus_widgets.dart';
+import '../../account/account_providers.dart';
 import '../catalog_providers.dart';
+import '../domain/catalog_offer.dart';
 import '../domain/product.dart';
 import '../domain/product_filters.dart';
 import '../../cart/presentation/cart_actions.dart';
+import 'product_detail_screen.dart';
 import 'product_visuals.dart';
 
 class CatalogScreen extends ConsumerWidget {
@@ -156,7 +159,9 @@ class CatalogResultsHeader extends ConsumerWidget {
       children: [
         Expanded(
           child: Text(
-            '$total productos',
+            // Una tarjeta por oferta: el mismo producto puede aparecer una
+            // vez por cada tienda que lo vende.
+            total == 1 ? '1 resultado' : '$total resultados',
             style: const TextStyle(fontSize: 12, color: NexusColors.textDim),
           ),
         ),
@@ -199,7 +204,8 @@ class CatalogSortMenu extends ConsumerWidget {
   }
 }
 
-/// Abre la hoja de marca y precio. Indica cuántos de esos filtros están activos.
+/// Abre la hoja de tienda, marca y precio. Indica cuántos de esos filtros
+/// están activos.
 class CatalogFiltersButton extends ConsumerWidget {
   const CatalogFiltersButton({super.key});
 
@@ -209,7 +215,8 @@ class CatalogFiltersButton extends ConsumerWidget {
       catalogControllerProvider.select((value) {
         final filters = value.asData?.value.filters;
         if (filters == null) return 0;
-        return (filters.brand != null ? 1 : 0) +
+        return (filters.providerId != null ? 1 : 0) +
+            (filters.brand != null ? 1 : 0) +
             (filters.minPriceCents != null || filters.maxPriceCents != null
                 ? 1
                 : 0);
@@ -275,7 +282,7 @@ class _HeaderPill extends StatelessWidget {
   }
 }
 
-/// Rangos de precio sobre el precio de la mejor oferta, en centavos de COP.
+/// Rangos de precio sobre el precio de cada oferta, en centavos de COP.
 const catalogPriceRanges = [
   (min: null, max: 100000000),
   (min: 100000000, max: 300000000),
@@ -292,7 +299,7 @@ String catalogPriceRangeLabel(({int? min, int? max}) range) =>
       _ => 'Cualquier precio',
     };
 
-/// Filtros por marca y precio. Cada selección se aplica de inmediato.
+/// Filtros por tienda, marca y precio. Cada selección se aplica de inmediato.
 class CatalogFiltersSheet extends ConsumerWidget {
   const CatalogFiltersSheet({super.key});
 
@@ -303,6 +310,7 @@ class CatalogFiltersSheet extends ConsumerWidget {
         (value) => value.asData?.value.filters ?? const ProductFilters(),
       ),
     );
+    final stores = ref.watch(catalogStoresProvider);
     final brands = ref.watch(catalogBrandsProvider);
     final controller = ref.read(catalogControllerProvider.notifier);
 
@@ -312,6 +320,35 @@ class CatalogFiltersSheet extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            const NexusUnderlineTitle('TIENDA'),
+            const SizedBox(height: 10),
+            stores.when(
+              loading: () => const NexusLoading(),
+              error: (error, _) => NexusErrorState(
+                message: 'No se pudieron cargar las tiendas.\n$error',
+                onRetry: () => ref.invalidate(catalogStoresProvider),
+              ),
+              data: (stores) => Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  ChoiceChip(
+                    label: const Text('Todas las tiendas'),
+                    selected: filters.providerId == null,
+                    onSelected: (_) => controller.setStore(null),
+                  ),
+                  // Por id: dos tiendas distintas pueden llamarse igual.
+                  for (final store in stores)
+                    ChoiceChip(
+                      label: Text(store.displayName),
+                      selected: filters.providerId == store.id,
+                      onSelected: (selected) =>
+                          controller.setStore(selected ? store.id : null),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
             const NexusUnderlineTitle('MARCA'),
             const SizedBox(height: 10),
             brands.when(
@@ -441,12 +478,15 @@ class _CatalogResults extends ConsumerWidget {
                   crossAxisCount: 2,
                   crossAxisSpacing: 10,
                   mainAxisSpacing: 10,
-                  // 0.70 deja aire suficiente para teléfonos de 360 px.
-                  childAspectRatio: 0.70,
+                  // 0.64 deja aire para la línea de la tienda en teléfonos de
+                  // 360 px.
+                  childAspectRatio: 0.64,
                 ),
-                itemBuilder: (context, index) => _CatalogProductCard(
-                  key: ValueKey(state.items[index].id),
-                  product: state.items[index],
+                // La clave es la oferta: el mismo producto aparece una vez
+                // por cada tienda.
+                itemBuilder: (context, index) => _CatalogOfferCard(
+                  key: ValueKey(state.items[index].offerId),
+                  offer: state.items[index],
                 ),
               ),
               SliverToBoxAdapter(
@@ -519,58 +559,62 @@ class _CatalogListFooter extends StatelessWidget {
   }
 }
 
-class _CatalogProductCard extends StatelessWidget {
-  const _CatalogProductCard({super.key, required this.product});
+/// Tarjeta de la oferta de UNA tienda: su nombre, su precio, su descuento y
+/// su stock (API_CONTRATO, parte 6).
+class _CatalogOfferCard extends StatelessWidget {
+  const _CatalogOfferCard({super.key, required this.offer});
 
-  final Product product;
+  final CatalogOffer offer;
+
+  void _openDetail(BuildContext context) => Navigator.of(context).pushNamed(
+    NexusRoutes.productDetail,
+    arguments: ProductDetailArgs(offer.productId, offerId: offer.offerId),
+  );
 
   @override
   Widget build(BuildContext context) {
-    final visuals = ProductVisuals.forCategory(product.category);
+    final visuals = ProductVisuals.forCategory(offer.category);
 
     return NexusProductCard(
-      imageUrl: product.imageUrl,
+      imageUrl: offer.imageUrl,
       icon: visuals.icon,
       gradientColors: visuals.gradientColors,
-      discountLabel: product.hasDiscount
-          ? '-${product.discountPercent}%'
-          : null,
-      brand: '${product.brand} / ${visuals.shortCategoryLabel}',
-      status: ProductVisuals.stockLabel(product.stockLevel),
-      statusColor: ProductVisuals.stockColor(product.stockLevel),
-      name: product.name,
-      specs: product.summary,
-      oldPriceCents: product.hasDiscount ? product.oldPriceCents : null,
-      priceCents: product.priceCents,
-      onTap: () =>
-          Navigator.of(context)
-              .pushNamed(NexusRoutes.productDetail, arguments: product.id),
-      actions: _CardActions(product: product),
+      discountLabel: offer.hasDiscount ? '-${offer.discountPercent}%' : null,
+      brand: '${offer.brand} / ${visuals.shortCategoryLabel}',
+      status: ProductVisuals.stockLabel(offer.stockLevel),
+      statusColor: ProductVisuals.stockColor(offer.stockLevel),
+      name: offer.name,
+      specs: offer.summary,
+      seller: offer.providerName,
+      sellerNote: offer.offerCount > 1 ? 'Comparar ${offer.offerCount}' : null,
+      oldPriceCents: offer.hasDiscount ? offer.oldPriceCents : null,
+      priceCents: offer.priceCents,
+      onTap: () => _openDetail(context),
+      actions: _CardActions(offer: offer, onOpen: () => _openDetail(context)),
     );
   }
 }
 
-/// "Ver" y agregar al carrito la mejor oferta (`bestOfferId`). Sin stock o
-/// sin oferta, el botón del carrito queda deshabilitado.
+/// "Ver" y agregar al carrito la oferta de esta tarjeta. Sin stock, el botón
+/// del carrito queda deshabilitado; las cuentas que no compran no lo ven.
 class _CardActions extends ConsumerWidget {
-  const _CardActions({required this.product});
+  const _CardActions({required this.offer, required this.onOpen});
 
-  final Product product;
+  final CatalogOffer offer;
+  final VoidCallback onOpen;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final offerId = product.bestOfferId;
-    final canAdd =
-        offerId != null && product.stockLevel != StockLevel.outOfStock;
+    final offerId = offer.offerId;
+    final canAdd = offer.stockLevel != StockLevel.outOfStock;
+    final accountCanBuy = ref.watch(canBuyProvider);
 
     return Row(
       children: [
         Expanded(
           child: NexusOutlineButton(
             label: 'Ver',
-            onPressed: () => Navigator.of(
-              context,
-            ).pushNamed(NexusRoutes.productDetail, arguments: product.id),
+            onPressed: onOpen,
             color: NexusColors.text,
             borderColor: NexusColors.border,
             compact: true,
@@ -580,27 +624,29 @@ class _CardActions extends ConsumerWidget {
             bold: false,
           ),
         ),
-        const SizedBox(width: 6),
-        Tooltip(
-          message: canAdd ? 'Agregar al carrito' : 'Sin stock',
-          child: InkWell(
-            onTap: canAdd
-                ? () => addToCart(context, ref, offerId: offerId)
-                : null,
-            child: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: canAdd ? NexusColors.cyan : NexusColors.border,
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Icon(
-                Icons.shopping_cart,
-                size: 15,
-                color: canAdd ? NexusColors.onCyan : NexusColors.textFaint,
+        if (accountCanBuy) ...[
+          const SizedBox(width: 6),
+          Tooltip(
+            message: canAdd ? 'Agregar al carrito' : 'Sin stock',
+            child: InkWell(
+              onTap: canAdd
+                  ? () => addToCart(context, ref, offerId: offerId)
+                  : null,
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: canAdd ? NexusColors.cyan : NexusColors.border,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Icon(
+                  Icons.shopping_cart,
+                  size: 15,
+                  color: canAdd ? NexusColors.onCyan : NexusColors.textFaint,
+                ),
               ),
             ),
           ),
-        ),
+        ],
       ],
     );
   }

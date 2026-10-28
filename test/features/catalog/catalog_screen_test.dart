@@ -29,7 +29,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.text('2 productos'), findsOneWidget);
+    expect(find.text('2 resultados'), findsOneWidget);
     expect(find.text(catalogGpu.name), findsOneWidget);
     expect(find.text(catalogCpu.name), findsOneWidget);
   });
@@ -143,7 +143,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('4 productos'), findsOneWidget);
+    expect(find.text('4 resultados'), findsOneWidget);
   });
 
   testWidgets('Kraken card labels out-of-stock inventory as AGOTADO', (

@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/network/supabase_providers.dart';
 import 'data/mock_product_repository.dart';
 import 'data/supabase_product_repository.dart';
+import 'domain/catalog_offer.dart';
 import 'domain/product.dart';
 import 'domain/product_filters.dart';
 import 'domain/product_repository.dart';
@@ -35,7 +36,8 @@ class CatalogState {
     this.loadMoreError,
   });
 
-  final List<Product> items;
+  /// Una tarjeta por oferta de cada tienda (API_CONTRATO, parte 6).
+  final List<CatalogOffer> items;
   final int total;
   final int page;
   final int pageSize;
@@ -50,7 +52,7 @@ class CatalogState {
       CatalogState(items: const [], total: 0, page: 0, pageSize: pageSize);
 
   CatalogState copyWith({
-    List<Product>? items,
+    List<CatalogOffer>? items,
     int? total,
     int? page,
     int? pageSize,
@@ -116,16 +118,22 @@ class CatalogController extends AsyncNotifier<CatalogState> {
     });
   }
 
-  /// `null` muestra todas las piezas. La marca se quita: puede no existir en
-  /// la nueva categoría.
+  /// `null` muestra todas las piezas. La marca y la tienda se quitan: pueden
+  /// no tener piezas de la nueva categoría.
   Future<void> setCategory(ProductCategory? category) {
     final filters = _current.filters;
     if (filters.category == category) return Future.value();
-    return _applyFilters(filters.copyWith(category: category, brand: null));
+    return _applyFilters(
+      filters.copyWith(category: category, brand: null, providerId: null),
+    );
   }
 
   Future<void> setBrand(String? brand) =>
       _applyFilters(_current.filters.copyWith(brand: brand));
+
+  /// Filtro por tienda (id). `null` muestra todas.
+  Future<void> setStore(String? providerId) =>
+      _applyFilters(_current.filters.copyWith(providerId: providerId));
 
   Future<void> setPriceRange({int? minPriceCents, int? maxPriceCents}) =>
       _applyFilters(
@@ -202,7 +210,7 @@ class CatalogController extends AsyncNotifier<CatalogState> {
     }
 
     try {
-      final pageResult = await repository.getProducts(
+      final pageResult = await repository.getOffers(
         page: page,
         pageSize: pageSize,
         filters: effectiveFilters,
@@ -250,6 +258,16 @@ final catalogBrandsProvider = FutureProvider.autoDispose<List<String>>((ref) {
     ),
   );
   return ref.watch(productRepositoryProvider).getBrands(category: category);
+});
+
+/// Tiendas para el filtro, según la categoría seleccionada.
+final catalogStoresProvider = FutureProvider.autoDispose<List<CatalogStore>>((ref) {
+  final category = ref.watch(
+    catalogControllerProvider.select(
+      (value) => value.asData?.value.filters.category,
+    ),
+  );
+  return ref.watch(productRepositoryProvider).getStores(category: category);
 });
 
 final productDetailProvider = FutureProvider.autoDispose

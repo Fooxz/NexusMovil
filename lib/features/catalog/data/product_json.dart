@@ -1,3 +1,4 @@
+import '../domain/catalog_offer.dart';
 import '../domain/product.dart';
 import '../domain/product_page.dart';
 
@@ -90,6 +91,78 @@ ProductOffer _offerFromJson(Object? json) {
     );
   }
   throw FormatException('Oferta inválida', json);
+}
+
+/// Página de `get_offers` (API_CONTRATO, parte 6): una tarjeta por oferta.
+OfferPage offerPageFromJson(Object? json) {
+  if (json case {
+    'items': List<Object?> items,
+    'total': int total,
+    'page': int page,
+    'pageSize': int pageSize,
+  }) {
+    return OfferPage(
+      items: [for (final item in items) ?catalogOfferFromJson(item)],
+      total: total,
+      page: page,
+      pageSize: pageSize,
+    );
+  }
+  throw FormatException('Página de ofertas inválida', json);
+}
+
+/// Una tarjeta del catálogo, o `null` si su categoría es desconocida.
+CatalogOffer? catalogOfferFromJson(Object? json) {
+  if (json case {
+    'offerId': String offerId,
+    'productId': String productId,
+    'name': String name,
+    'brand': String brand,
+    'category': String categoryName,
+    'providerId': String providerId,
+    'providerName': String providerName,
+    'priceCents': int priceCents,
+    'stockLevel': String stockLevelName,
+  }) {
+    final category = ProductCategory.values.asNameMap()[categoryName];
+    if (category == null) return null;
+    return CatalogOffer(
+      offerId: offerId,
+      productId: productId,
+      name: name,
+      brand: brand,
+      category: category,
+      providerId: providerId,
+      providerName: providerName,
+      priceCents: priceCents,
+      oldPriceCents: _optional<int>(json, 'oldPriceCents'),
+      stockLevel: _stockLevel(stockLevelName),
+      imageUrl: _optional<String>(json, 'imageUrl'),
+      summary: _optional<String>(json, 'summary'),
+      quickSpecs: [
+        for (final spec in _list(json, 'quickSpecs'))
+          if (spec is String) spec,
+      ],
+      offerCount: _optional<int>(json, 'offerCount') ?? 1,
+    );
+  }
+  throw FormatException('Oferta del catálogo inválida', json);
+}
+
+/// Tiendas de `get_catalog_providers`.
+List<CatalogStore> catalogStoresFromJson(Object? json) {
+  if (json is! List<Object?>) {
+    throw FormatException('Lista de tiendas inválida', json);
+  }
+  return [
+    for (final store in json)
+      if (store case {
+        'id': String id,
+        'displayName': String displayName,
+        'offerCount': int offerCount,
+      })
+        CatalogStore(id: id, displayName: displayName, offerCount: offerCount),
+  ];
 }
 
 StockLevel _stockLevel(String name) =>

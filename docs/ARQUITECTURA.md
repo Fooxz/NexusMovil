@@ -23,12 +23,16 @@ lib/
     |-- cart/                     # carrito de invitado y persistente
     |-- pc_builder/               # selección y compatibilidad
     |-- assistant/                # conversación y recomendaciones
-    `-- checkout/                 # pedido, pago y resultado
+    |-- checkout/                 # pedido, pago y resultado
+    |-- account/                  # rol de la cuenta, primer ingreso de tiendas y pestaña CUENTA
+    |-- provider_portal/          # publicaciones de la tienda: ofertas, fichas e imágenes
+    `-- admin/                    # tiendas: alta con cuenta, habilitar y suspender
 ```
 
 El catálogo, cuentas y perfil se conectaron primero al backend; el carrito,
 PC Builder, asistente y checkout también cuentan con implementaciones por
-feature. Inicio y el shell de navegación permanecen en `lib/screens/`. La
+feature. Inicio y los shells de navegación (`MainShell`, `RoleHome` y los de
+tienda y administrador en `role_shell.dart`) permanecen en `lib/screens/`. La
 descripción del estado y las fases futuras está en
 [`docs/PLAN_IMPLEMENTACION.md`](PLAN_IMPLEMENTACION.md). No se crean carpetas
 vacías por adelantado.
@@ -54,6 +58,7 @@ repositorio queda centralizada en los providers de cada feature.
 ### Catálogo como ejemplo
 
 **Dominio** (`features/catalog/domain/`):
+- `CatalogOffer`: una tarjeta del catálogo, la oferta de una tienda (ver "Catálogo por oferta").
 - `Product` con categoría, estado de stock, imagen y ofertas (`ProductOffer`).
 - `ProductFilters`: búsqueda, categoría, marca, rango de precio y orden. El
   contrato conserva `family=part`, pero el catálogo ya no ofrece un filtro de
@@ -107,6 +112,56 @@ sin acoplar el dominio del catálogo al PC Builder.
   el botón (`NexusPrimaryButton.loading`) y su `error` (un `AppFailure`) se muestra en
   `AuthErrorBanner`. Las acciones de la lista de direcciones usan su propio provider,
   para que un error ahí no aparezca en el formulario.
+
+### Roles y navegación (2026-10-27)
+
+- **Tres roles exclusivos** (API_CONTRATO, parte 7): cliente, tienda y administrador. El
+  backend valida el rol en cada función; en la app solo decide la navegación. Ocultar un
+  botón nunca es la protección.
+- **`accountProvider`** (`features/account/account_providers.dart`) pide `get_my_account`
+  cuando cambia el usuario; `canBuyProvider` dice si la cuenta compra (sin sesión, cargando
+  o con error, se asume cliente: el backend igual rechaza a quien no lo es).
+- **`RoleHome`** (`screens/shell/role_home.dart`) es la ruta inicial:
+  - sin sesión o cliente: `MainShell`, igual que antes;
+  - tienda: su primer ingreso (`StoreSetupScreen`: cambiar la contraseña temporal y aceptar
+    los documentos) y después `ProviderShell` (PUBLICACIONES, CATÁLOGO, CUENTA);
+  - administrador: `AdminShell` (TIENDAS, CATÁLOGO, CUENTA).
+  Mientras la cuenta carga conserva la pantalla anterior: un cliente que inicia sesión no
+  pierde la pestaña en la que estaba, y nunca se muestra por defecto el shell de otro rol.
+- **Carrito:** `CartController` no consulta el carrito guardado de una cuenta que no compra,
+  y `CartBadgeHost` le avisa a `NexusTopBar` (vía `NexusCartBadge.enabled`) que oculte el
+  ícono. Las tarjetas y el detalle tampoco muestran los botones de compra.
+- **Mocks:** `MockDirectory` (`features/account/data/`) guarda roles y tiendas en memoria y lo
+  comparten los mocks de cuenta, publicaciones y administración, como en Supabase lo
+  comparten `profiles` y `providers`.
+
+### Catálogo por oferta (2026-10-27)
+
+- El catálogo principal pide `get_offers`: **una tarjeta por oferta** (API_CONTRATO, parte 6).
+  `CatalogState.items` son `CatalogOffer`; la clave de cada tarjeta es el id de la oferta.
+- La tarjeta muestra la tienda (`NexusProductCard.seller`) y "Comparar N" si otras tiendas
+  venden el producto. "Agregar" lleva al carrito la oferta de esa tarjeta.
+- El detalle se abre con `ProductDetailArgs(productId, offerId)` y selecciona esa tienda; el
+  precio, el descuento y el stock del encabezado siguen a la tienda elegida.
+- El filtro por tienda (`ProductFilters.providerId`, `catalogStoresProvider`) usa el id.
+- El PC Builder y el asistente siguen con `get_products` y la mejor oferta.
+
+### Portal de la tienda y panel del administrador (2026-10-27)
+
+- **`features/provider_portal`:** "Mis publicaciones" (`MyOffersController`, con el filtro de
+  estado en `myOffersStatusProvider`), "Publicar" (primero se busca la ficha con
+  `search_catalog_sheets`; si no existe se registra) y los formularios de oferta y ficha. Los
+  atributos salen de la plantilla de la categoría (`attributeTemplateProvider`) y la ficha
+  para mostrar se arma con ellos. Las imágenes se eligen con `ProductImagePicker`
+  (`image_picker`, reemplazable en las pruebas) y se suben a la carpeta de la tienda.
+  `PortalActionController` ejecuta las acciones y deja el error (por ejemplo
+  `ProductExistsFailure`) para que el formulario ofrezca publicar sobre el producto existente.
+- **`features/admin`:** lista y detalle de tiendas, alta con cuenta y regenerar la
+  contraseña temporal por la Edge Function `admin-providers`. La contraseña se muestra una sola
+  vez en `showTemporaryPassword` y no se guarda.
+- **Errores:** `AppFailure.fromApiError` mapea los códigos de las partes 7 y 8. Los
+  `VALIDATION_ERROR` con `details.field` llegan como `FieldValidationFailure` con el mensaje del
+  backend, que está escrito para el usuario.
 
 ### Carrito (fase 5)
 

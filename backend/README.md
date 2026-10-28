@@ -115,6 +115,48 @@ carga del inventario (arriba) y despliegue de `assistant`, `checkout` y `payment
 **Al agregar una migración:** `npx supabase db push --dry-run` y después `npx supabase db push`. Si cambia la
 función: `npx supabase functions deploy assistant --no-verify-jwt --use-api`.
 
+**Roles y tiendas (2026-10-27): pendiente en la nube, con autorización.** Las migraciones `20261027030000` a
+`20261027050000` y la función `admin-providers` están probadas en local (ver "Roles y tiendas"). Para llevarlas:
+1. Confirmar, con una consulta de solo lectura en el SQL Editor, que la clave contra duplicados no choca con los datos
+   (debe devolver 0 filas):
+   ```sql
+   -- La misma normalización que private.name_key (que todavía no existe en la nube).
+   select category_code,
+          regexp_replace(lower(extensions.unaccent(brand)), '[^a-z0-9]', '', 'g') as brand_key,
+          regexp_replace(lower(extensions.unaccent(model)), '[^a-z0-9]', '', 'g') as model_key,
+          count(*)
+   from public.products where model is not null
+   group by 1, 2, 3 having count(*) > 1;
+   ```
+2. `npx supabase db push --dry-run`, revisar que solo lista esas tres migraciones, y `npx supabase db push`.
+3. `npx supabase functions deploy admin-providers --no-verify-jwt --use-api`. No necesita secretos: usa la clave de
+   servicio que Supabase inyecta en las funciones.
+4. Habilitar el primer administrador (abajo).
+
+## Roles y tiendas
+
+Tres roles exclusivos: cliente, tienda y administrador (`docs/API_CONTRATO.md`, partes 6 a 8).
+
+- **Primer administrador:** solo por SQL, nunca desde la app. La cuenta debe existir (registro normal en la app, o
+  *Authentication > Add user* en el panel) y no puede ser de una tienda. En local:
+  `npx supabase db query --local "select private.grant_admin('correo@dominio.com')"`; en la nube, el mismo `select`
+  en el SQL Editor. Para quitarlo: `private.revoke_admin('correo@dominio.com')`. El esquema `private` no está
+  expuesto en la API y nadie con sesión puede ejecutar esas funciones.
+- **Cuentas de tienda:** las crea un administrador desde la app (pestaña TIENDAS), o se crea la cuenta de una tienda
+  que ya existía. La función `admin-providers` genera una contraseña temporal aleatoria que se muestra una sola vez;
+  NEXUS no la guarda ni la escribe en los logs. La tienda la cambia y acepta los documentos en su primer ingreso; hasta
+  entonces no puede publicar.
+- **Servir la función en local:** `npx supabase functions serve admin-providers`. Al arrancar, Kong recarga su
+  configuración: si la API deja de responder (conexiones cortadas), reiniciar con `npx supabase stop` y
+  `npx supabase start`, que conservan los datos.
+- **Corregir una ficha compartida** (la registró una tienda y ya la venden otras): solo un administrador, por SQL. Queda
+  en `audit_log`.
+- **Prueba de migración** sobre datos existentes: `supabase/upgrade_check/README.md`.
+- **Pruebas:** `npx supabase test db` (pgTAP), `node --test supabase/functions/admin-providers/handler.test.ts` y la
+  integración de Flutter `test/integration/supabase_roles_test.dart`, que necesita la función servida y un
+  administrador:
+  `flutter test test/integration --dart-define-from-file=env.json --dart-define=INTEGRATION_ADMIN_EMAIL=... --dart-define=INTEGRATION_ADMIN_PASSWORD=...`
+
 ## Cuentas y correos en local
 
 - Los correos que manda Supabase Auth, como el código de recuperación, no salen a internet: se ven en
@@ -159,11 +201,13 @@ backend/supabase/
 ├── migrations/      # esquema versionado (ver docs/MODELO_DATOS.md)
 ├── seed.sql         # datos de desarrollo
 ├── tests/           # pruebas pgTAP
+├── upgrade_check/   # prueba de migración sobre datos existentes (solo local)
 ├── models/          # modelos 3D que se suben al bucket component-models (MODELOS_3D.md)
 └── functions/
     ├── .env              # secretos locales (Gemini y Wompi); ignorado por git
     ├── .env.example      # plantilla de .env, sin valores
-    ├── _shared/          # Wompi (firmas, consultas) y utilidades HTTP de los pagos
+    ├── _shared/          # Wompi (firmas, consultas) y utilidades HTTP
+    ├── admin-providers/  # alta de cuentas de tienda por un administrador (roles)
     ├── assistant/        # asistente de recomendación con Gemini (fase 7)
     ├── checkout/         # checkout con Wompi (fase 8)
     └── payment-webhook/  # eventos de Wompi (fase 8)

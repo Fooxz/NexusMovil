@@ -34,11 +34,11 @@ void main() {
     );
     expect(harness.state.loadMoreError, contains('page failure'));
     await harness.controller.loadMore();
-    expect(harness.state.items, [
-      catalogGpu,
-      catalogCpu,
-      catalogRam,
-      catalogStorage,
+    expect(harness.state.productIds, [
+      catalogGpu.id,
+      catalogCpu.id,
+      catalogRam.id,
+      catalogStorage.id,
     ]);
     expect(harness.state.loadMoreError, isNull);
   });

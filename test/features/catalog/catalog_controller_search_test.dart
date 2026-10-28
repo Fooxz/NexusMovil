@@ -16,7 +16,7 @@ void main() {
     await Future<void>.delayed(const Duration(milliseconds: 350));
 
     expect(harness.state.query, 'AMD');
-    expect(harness.state.items, [catalogCpu]);
+    expect(harness.state.productIds, [catalogCpu.id]);
     expect(harness.repository.requests.last.search, 'AMD');
   });
 
@@ -50,6 +50,6 @@ void main() {
 
     expect(harness.state.query, 'AMD');
     expect(harness.state.category, ProductCategory.cpu);
-    expect(harness.state.items, [catalogCpu]);
+    expect(harness.state.productIds, [catalogCpu.id]);
   });
 }

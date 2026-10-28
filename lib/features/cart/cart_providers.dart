@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/errors/app_failure.dart';
 import '../../core/network/supabase_providers.dart';
+import '../account/account_providers.dart';
 import '../auth/auth_providers.dart';
 import '../auth/data/mock_auth_repository.dart';
 import '../catalog/catalog_providers.dart';
@@ -67,6 +68,11 @@ class CartController extends AsyncNotifier<CartState> {
       return CartState(await repository.preview(ref.watch(guestCartProvider)));
     }
 
+    // Roles exclusivos: las cuentas de tienda y de administración no compran.
+    // No se pide su carrito guardado (el backend respondería CUSTOMER_ONLY) ni
+    // se les suma el de invitado, que sigue en memoria al cerrar sesión.
+    if (!await _accountCanBuy()) return CartState(const []);
+
     final guest = ref.read(guestCartProvider);
     if (guest.isEmpty) return CartState(await repository.load());
 
@@ -74,6 +80,15 @@ class CartController extends AsyncNotifier<CartState> {
     final merged = await repository.merge(guest);
     ref.read(guestCartProvider.notifier).clear();
     return CartState(merged);
+  }
+
+  /// Si no se puede leer la cuenta, como cliente: el backend decide.
+  Future<bool> _accountCanBuy() async {
+    try {
+      return (await ref.watch(accountProvider.future))?.canBuy ?? true;
+    } on Object {
+      return true;
+    }
   }
 
   /// Suma [quantity] unidades de la oferta. Lanza `OutOfStockFailure` o

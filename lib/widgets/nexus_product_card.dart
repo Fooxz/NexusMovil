@@ -25,7 +25,16 @@ class NexusProductCard extends StatelessWidget {
     this.onTap,
     this.priceFontSize = 12,
     this.imageUrl,
+    this.seller,
+    this.sellerNote,
   });
+
+  /// Tienda que vende esta oferta. En el catálogo cada tienda tiene su propia
+  /// tarjeta, aunque el producto sea el mismo.
+  final String? seller;
+
+  /// Nota corta junto a la tienda, por ejemplo "Comparar 3".
+  final String? sellerNote;
 
   /// Miniatura del producto; sin ella se muestra [icon] sobre [gradientColors].
   final String? imageUrl;
@@ -135,6 +144,39 @@ class NexusProductCard extends StatelessWidget {
                         fontSize: 8,
                         color: NexusColors.textDim,
                       ),
+                    ),
+                  ],
+                  if (seller != null) ...[
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.storefront_outlined,
+                          size: 11,
+                          color: NexusColors.textDim,
+                        ),
+                        const SizedBox(width: 3),
+                        Expanded(
+                          child: Text(
+                            seller!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w600,
+                              color: NexusColors.text,
+                            ),
+                          ),
+                        ),
+                        if (sellerNote != null)
+                          Text(
+                            sellerNote!,
+                            style: const TextStyle(
+                              fontSize: 8,
+                              color: NexusColors.cyan,
+                            ),
+                          ),
+                      ],
                     ),
                   ],
                   if (oldPriceCents != null) ...[

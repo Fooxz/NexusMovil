@@ -1,6 +1,6 @@
-# Contrato de API: NEXUS Movil (v0.12, borrador)
+# Contrato de API: NEXUS Movil (v0.13, borrador)
 
-**Estado:** borrador. Parte 1: catalogo (secciones 1 a 5). Parte 2: carrito (seccion 10). Parte 3: PC Builder y vista 3D (seccion 11). Parte 4: asistente (seccion 12). Parte 5: checkout y pagos (seccion 13). Implementado en el backend (`backend/`) y consumido por el front desde las fases 3, 5, 6, 6.1, 7 y 8 de `docs/PLAN_IMPLEMENTACION.md`.
+**Estado:** borrador. Parte 1: catalogo (secciones 1 a 5). Parte 2: carrito (seccion 10). Parte 3: PC Builder y vista 3D (seccion 11). Parte 4: asistente (seccion 12). Parte 5: checkout y pagos (seccion 13). Parte 6: catalogo por oferta (seccion 14). Parte 7: roles y administracion de tiendas (seccion 15). Parte 8: publicaciones de tiendas (seccion 16). Implementado en el backend (`backend/`) y consumido por el front desde las fases 3, 5, 6, 6.1, 7 y 8 de `docs/PLAN_IMPLEMENTACION.md`.
 **Quien lo escribe:** el front, a partir de sus modelos reales (`lib/features/catalog/domain`).
 **Quien lo implementa:** el backend Supabase de `backend/`.
 **Regla de oro:** ninguno de los dos lados cambia el comportamiento sin editar este archivo primero. Si el codigo y este documento no coinciden, el documento gana hasta que se actualice.
@@ -327,6 +327,7 @@ Cambios compatibles (agregar un campo opcional, un endpoint nuevo): no rompen a 
 | 0.10 | Parte 5: checkout y pagos con Wompi (seccion 13): la Edge Function `checkout` y el webhook `payment-webhook`. Nuevos codigos `CART_EMPTY`, `CART_CHANGED`, `PRICE_CHANGED`, `ADDRESS_NOT_FOUND`, `PAYMENT_NOT_FOUND` y `PAYMENTS_UNAVAILABLE`. Endpoints nuevos; sin cambios en los existentes. |
 | 0.11 | **Solo piezas** (cierra D8): se eliminan la categoria `prebuiltPc` y la seccion 11.5 (`get_prebuilt_scene`). `family` queda siempre en `part` y el parametro `family` solo admite `part`. El asistente recomienda piezas sueltas o una configuracion completa. Cambio que rompe para un front que dependa de los armados; el front actual ya no los usa. |
 | 0.12 | Seccion 11.3: `get_builder_candidates` acepta `search`, `max_price_cents`, `sort` y `page`, para elegir entre cientos de piezas por tipo. Parametros opcionales: compatible. |
+| 0.13 | Tres roles (cliente, tienda y administrador). Parte 6: catalogo por oferta, una tarjeta por tienda (`get_offers`, `get_catalog_providers`). Parte 7: cuenta propia, administracion de tiendas y la Edge Function `admin-providers`. Parte 8: publicaciones de tiendas sin aprobacion, con validaciones automaticas. Nuevos codigos de error de las partes 7 y 8; `VALIDATION_ERROR` puede traer `details.field`. El carrito y el checkout responden `CUSTOMER_ONLY` a las cuentas que no son de cliente. Endpoints nuevos; los existentes no cambian. |
 
 ---
 
@@ -696,3 +697,175 @@ Respuesta `200`:
 | 409 | `PRICE_CHANGED` | El total cambio. `details` trae `{"totalCents": n}` en texto. La app recarga el carrito. |
 | 429 | `RATE_LIMITED` | Mas de 10 intentos de pago en 10 minutos. |
 | 503 | `PAYMENTS_UNAVAILABLE` | Faltan las llaves de Wompi en el servidor. El carrito no se pierde. |
+
+---
+
+## 14. Parte 6: catalogo por oferta (v0.13)
+
+Regla del negocio: **si varias tiendas venden el mismo producto, el catalogo muestra una tarjeta por tienda**, cada una con su precio, su descuento y su stock, aunque el nombre, la marca y el modelo sean iguales. La ficha tecnica sigue siendo una sola (`Product`) y cada tienda es duena de su oferta (`Offer`). La comparacion entre tiendas esta en el detalle (`get_product`, seccion 3.2: `offers[]`).
+
+`get_products`, `get_product` y `get_related` no cambian: los siguen usando el detalle, el PC Builder y el asistente.
+
+### 14.1 Modelo `CatalogOffer`
+
+```json
+{
+  "offerId": "off-b-5070",
+  "productId": "rtx-5070",
+  "name": "NVIDIA GeForce RTX 5070",
+  "brand": "NVIDIA",
+  "category": "gpu",
+  "providerId": "prov-b",
+  "providerName": "Tienda B",
+  "priceCents": 265000000,
+  "oldPriceCents": 280000000,
+  "stockLevel": "critical",
+  "imageUrl": null,
+  "summary": "12 GB GDDR7",
+  "quickSpecs": ["12GB"],
+  "offerCount": 3
+}
+```
+
+- `priceCents`, `oldPriceCents` y `stockLevel` son **de esta oferta**, no la mejor del producto.
+- `providerName` es el nombre visible de la tienda (lo cambia solo un administrador).
+- `offerCount`: cuantas tiendas venden el producto (ofertas visibles), para "Comparar N".
+
+### 14.2 Listar ofertas: `get_offers`
+
+`rpc/get_offers(page, page_size, search, category, brand, provider, min_price_cents, max_price_cents, sort)` responde `{items: [CatalogOffer], total, page, pageSize}`.
+
+- Mismas reglas de visibilidad que el resto del catalogo: ofertas publicadas de tiendas activas en categorias activas. Las agotadas se listan.
+- `provider`: id de la tienda (filtro por tienda). Se filtra por id porque dos tiendas pueden tener el mismo nombre visible.
+- `search` busca tambien por el nombre de la tienda.
+- `min_price_cents` y `max_price_cents` usan el precio de cada oferta.
+- `sort`: `relevance` ordena por nombre y deja juntas las ofertas del mismo producto (primero con stock, despues por precio); `priceAsc` y `priceDesc`, por el precio de cada oferta. El id de la oferta desempata (paginas estables).
+- `page_size` tiene tope de 50.
+
+### 14.3 Tiendas para el filtro: `get_catalog_providers`
+
+`rpc/get_catalog_providers(category)` responde `[{id, displayName, offerCount}]`: las tiendas con ofertas visibles, de una categoria o de todas.
+
+### 14.4 Errores
+
+`VALIDATION_ERROR` (400) por `page`, `sort`, `category` o precios invalidos, y por un `provider` desconocido.
+
+---
+
+## 15. Parte 7: roles y administracion de tiendas (v0.13)
+
+Tres roles exclusivos: **cliente** (compra), **tienda** (publica) y **administrador** (crea y habilita tiendas). El backend valida el rol en cada funcion; la app solo lo usa para elegir la navegacion.
+
+- Toda cuenta del registro publico es cliente. El rol no sale de los metadatos del registro y el usuario no lo puede cambiar.
+- Solo los clientes usan el carrito y el checkout: las demas cuentas reciben `403 CUSTOMER_ONLY`.
+- El primer administrador se habilita por SQL (`private.grant_admin`), fuera de la API (`backend/README.md`).
+
+### 15.1 Cuenta propia
+
+| RPC | Respuesta |
+|---|---|
+| `get_my_account()` | `{userId, role, fullName, mustChangePassword, pendingDocuments: [{code, version, title}], provider: {id, displayName, status} o null}` |
+| `accept_current_documents(documents)` | La cuenta actualizada. `documents` = `[{code, version}]` con **todas** las versiones vigentes; si falta alguna, `400 CONSENT_REQUIRED`. |
+
+`role`: `customer`, `provider` o `admin`. `provider.status`: `pending`, `active`, `suspended` o `rejected`.
+
+Una cuenta de tienda creada por un administrador tiene `mustChangePassword = true` (contrasena temporal) y los documentos pendientes. El cambio de contrasena se hace con Supabase Auth (`updateUser`); el backend quita la marca solo.
+
+### 15.2 Administracion (solo administradores)
+
+| RPC | Que hace |
+|---|---|
+| `admin_get_providers(search)` | Lista de tiendas (`AdminStore`). |
+| `admin_get_provider(id)` | Una tienda. |
+| `admin_set_provider_status(id, status)` | `status`: `active` o `suspended`. Suspendida, sus ofertas salen del catalogo y no puede operar. |
+| `admin_update_provider(id, store, confirm_similar_name)` | Edita los datos (incluido el nombre visible). |
+| `admin_validate_store(store, confirm_similar_name)` | Valida los datos antes del alta (la usa la Edge Function). |
+
+`AdminStore`: `{id, legalName, displayName, taxId, contactEmail, status, verificationNote, accountEmail, publishedOffers, createdAt}`. `store` en las entradas: `{legalName, displayName, taxId, contactEmail, verificationNote?}`.
+
+### 15.3 Alta de cuentas de tienda: Edge Function `admin-providers`
+
+`POST /functions/v1/admin-providers` con la sesion del administrador. La clave de servicio solo existe en el servidor.
+
+| `action` | Cuerpo | Que hace |
+|---|---|---|
+| `create_provider` | `{store, account: {email, fullName}, confirmSimilarName?}` | Crea la tienda (activa) y su cuenta. |
+| `create_account` | `{providerId, account}` | Crea la cuenta de una tienda que ya existia sin cuenta. Conserva su estado y sus ofertas. |
+| `reset_password` | `{providerId}` | Regenera la contrasena temporal. La anterior deja de servir. |
+
+Responde `{provider: AdminStore, temporaryPassword}` (201 al crear, 200 al regenerar) con `cache-control: no-store`. La contrasena es aleatoria (20 caracteres), se entrega una sola vez y NEXUS no la guarda ni la registra en logs.
+
+### 15.4 Errores
+
+| HTTP | `code` | Cuando |
+|---|---|---|
+| 401 | `AUTH_REQUIRED` | Sin sesion. |
+| 403 | `FORBIDDEN` | La cuenta no es administradora. |
+| 403 | `CUSTOMER_ONLY` | Una tienda o un administrador usan el carrito o el checkout. |
+| 400 | `VALIDATION_ERROR` | Datos invalidos. |
+| 400 | `CONSENT_REQUIRED` | Faltan versiones vigentes al aceptar documentos. |
+| 404 | `PROVIDER_NOT_FOUND` | La tienda no existe (o no tiene cuenta, al regenerar). |
+| 409 | `TAX_ID_TAKEN` | Otra tienda tiene ese NIT. |
+| 409 | `SIMILAR_STORE_NAME` | Otra tienda tiene un nombre visible equivalente. `details`: `{providerId, displayName}`. Se acepta con `confirmSimilarName` (dos negocios distintos pueden llamarse igual). |
+| 409 | `EMAIL_EXISTS` | Ya hay una cuenta con ese correo. |
+| 409 | `PROVIDER_HAS_ACCOUNT` | La tienda ya tiene cuenta. |
+| 502 | `AUTH_UNAVAILABLE` | Supabase Auth no respondio. |
+
+---
+
+## 16. Parte 8: publicaciones de tiendas (v0.13)
+
+Una tienda publica **sin aprobacion del administrador**: el producto queda en el catalogo en cuanto pasa las validaciones automaticas. Todas las RPC exigen una tienda que pueda operar (rol tienda, tienda activa, contrasena definitiva y documentos aceptados) y filtran por la tienda de la cuenta; ninguna recibe el id de la tienda.
+
+- La ficha (`Product`) es compartida. Si el producto ya existe, la tienda solo crea su oferta y queda en la comparacion de precios.
+- Quien registro la ficha la puede editar mientras sea la unica tienda con una oferta sobre ella (en cualquier estado). Despues queda fija; las correcciones las hace un administrador.
+- Cada tienda administra solo su oferta: precio, precio anterior (descuento), stock y estado (`draft`, `published`, `paused`). Retirar es logico (`retired`) y se vuelve a publicar con `create_my_offer`.
+
+### 16.1 RPC
+
+| RPC | Que hace |
+|---|---|
+| `search_catalog_sheets(search, category, page, page_size)` | Fichas del catalogo, tengan o no ofertas visibles: `{items: [{productId, name, brand, model, category, imageUrl, sellers, myOffer: {offerId, status} o null}], total, page, pageSize}`. |
+| `get_my_offers(status, search, page, page_size)` | "Mis publicaciones" (`MyOffer`). Sin `status`, todas menos las retiradas. |
+| `get_my_offer(product_id)` | La publicacion con la ficha completa. |
+| `create_my_product(product, offer, confirm_distinct)` | Registra un producto nuevo con la oferta de la tienda. |
+| `update_my_product(product_id, product)` | Edita la ficha (reglas arriba). La categoria no cambia. |
+| `create_my_offer(product_id, offer)` | Publica la oferta sobre un producto existente o reactiva la retirada. |
+| `update_my_offer(product_id, offer)` | Precio, descuento, stock y estado. |
+| `retire_my_offer(product_id)` | Retiro logico. |
+
+`MyOffer`: `{offerId, productId, name, brand, model, category, imageUrl, priceCents, oldPriceCents, stockUnits, stockLevel, status, externalSku, visible, canEditSheet, updatedAt}`. A la tienda si se le muestran sus unidades (`stockUnits`). El detalle agrega `{summary, quickSpecs, specs, attributes: {clave: valor}, images: [{url, path}], sellers}`.
+
+`product`: `{category, name, brand, model, summary?, quickSpecs?, specs?, attributes: {clave: valor}, images: [ruta]}`. `offer`: `{priceCents, oldPriceCents?, stockUnits, status?, externalSku?}`.
+
+### 16.2 Validaciones automaticas
+
+- Categoria activa; nombre, marca y **modelo** obligatorios.
+- Atributos contra la plantilla de la categoria (`attribute_definitions`): obligatorios, tipo y valores permitidos.
+- Precio mayor que 0 en pesos enteros (multiplo de 100); precio anterior mayor que el precio; stock entero de 0 a 100000.
+- Entre 1 y 8 imagenes: rutas del bucket `product-images` en la carpeta de la tienda (`<tienda>/<archivo>`), subidas por la misma cuenta. La URL publica la arma el backend.
+- **Duplicados:** (categoria, marca, modelo) normalizados son unicos (`PRODUCT_EXISTS`). Modelos parecidos de la misma marca responden `POSSIBLE_DUPLICATE` salvo `confirm_distinct`.
+- Limite diario de productos nuevos por tienda (`app_settings.provider_daily_product_limit`, 50).
+
+### 16.3 Imagenes
+
+Bucket publico `product-images` (JPG, PNG o WEBP de hasta 5 MB). La tienda sube solo a su carpeta y no puede reemplazar ni borrar lo subido: una ficha compartida no cambia de imagen. La app sube el archivo y envia la ruta en `product.images`.
+
+### 16.4 Errores
+
+| HTTP | `code` | Cuando |
+|---|---|---|
+| 401 | `AUTH_REQUIRED` | Sin sesion. |
+| 403 | `PROVIDER_REQUIRED` | La cuenta no es de una tienda. |
+| 403 | `PROVIDER_NOT_ACTIVE` | La tienda no esta habilitada. |
+| 403 | `PASSWORD_CHANGE_REQUIRED` | Falta cambiar la contrasena temporal. |
+| 403 | `CONSENT_REQUIRED` | Faltan los documentos vigentes. |
+| 403 | `PRODUCT_LOCKED` | La ficha es del catalogo compartido (no la registro esta tienda). |
+| 400 | `VALIDATION_ERROR` | Un dato no paso una validacion. `details`: `{"field": "..."}` y `message` es el texto para el usuario. |
+| 404 | `OFFER_NOT_FOUND` / `PRODUCT_NOT_FOUND` | La tienda no tiene oferta de ese producto, o el producto no existe. |
+| 409 | `PRODUCT_EXISTS` | El modelo ya esta en el catalogo. `details`: `{productId, name}`. |
+| 409 | `POSSIBLE_DUPLICATE` | Hay modelos parecidos. `details`: `{candidates: [{productId, name, model}]}`. |
+| 409 | `PRODUCT_SHARED` | Otra tienda vende el producto: la ficha ya no se edita. |
+| 409 | `OFFER_EXISTS` | La tienda ya tiene una oferta de ese producto. |
+| 409 | `OFFER_RETIRED` | La oferta esta retirada: se vuelve a publicar con `create_my_offer`. |
+| 429 | `RATE_LIMITED` | Limite diario de productos nuevos. |

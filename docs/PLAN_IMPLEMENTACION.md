@@ -14,7 +14,7 @@ Estado actual del repo:
 - `docs/ARQUITECTURA.md`, `docs/API_CONTRATO.md` y `REGLAS_RENDIMIENTO.md` describen decisiones y requisitos técnicos; cada documento debe mantenerse alineado con el estado del código.
 
 Decisiones tomadas con el usuario:
-- La app Flutter cubre **solo al cliente** (HU-001 a HU-014).
+- La app Flutter cubre **tres roles** (cambio del 2026-10-27): el cliente (HU-001 a HU-014), la tienda (publica sus productos sin aprobación) y el administrador (crea y habilita tiendas). Antes cubría solo al cliente; ver "Roles y marketplace por tienda".
 - Construimos también el backend, con **Supabase**, en `backend/` dentro de este repo.
 - El **PC Builder se mantiene** en la v1.
 
@@ -33,7 +33,7 @@ Elijo Supabase en lugar de Firebase porque el dominio es relacional (órdenes, s
 | Integración de proveedores | API keys, upsert idempotente por SKU externo, validación contra plantilla y categoría, rechazos detallados, logs, inventario desactualizado, webhooks de órdenes (RF-018 a 031, RF-062, 063) | Must | Solo backend |
 | Administración y auditoría | Aprobación de proveedores, comisiones, reglas, monitoreo, bitácora (HU-022 a 033) | Must/Should | Backend + Supabase Studio (sin UI propia en v1) |
 
-Fuera del alcance: promociones, celulares y comparador, compras autónomas del asistente (RF-086 a 088), y las apps de proveedor y de administrador.
+Fuera del alcance: promociones, celulares y comparador, y compras autónomas del asistente (RF-086 a 088). Las tiendas y los administradores usan la misma app (no hay apps aparte).
 
 ## Estructura de carpetas objetivo
 
@@ -252,12 +252,38 @@ Objetivo: ver cómo se vería el computador con las piezas elegidas, ya sea a ma
 - **Asistente:** `list_compatible_parts` pasa a la base el presupuesto de cada tipo (`budgets`) y el orden, y las instrucciones dan una guía para repartir el presupuesto. Los ids de oferta generados son legibles (`off-tp-<producto>`), porque con ids opacos el modelo inventaba alguno.
 - **Pendiente:** cargar el catálogo en la nube (con confirmación) y, si se quiere, imágenes reales por producto.
 
+### Roles y marketplace por tienda (2026-10-27) — hecho en local, pendiente en la nube
+- **Decisiones del equipo:**
+  - tres roles exclusivos: cliente, tienda y administrador. Solo los clientes compran;
+  - las cuentas de tienda las crea un administrador después de verificar que la tienda existe, con una **contraseña temporal aleatoria** que se cambia en el primer ingreso, junto con la aceptación de los documentos vigentes;
+  - las tiendas publican **sin aprobación**: validaciones automáticas, control de duplicados y un límite diario;
+  - **una tarjeta por tienda** en el catálogo, aunque el producto sea el mismo; la ficha técnica es compartida y cada tienda es dueña de su oferta;
+  - descuento = precio anterior, sin fechas de vigencia;
+  - el nombre visible de la tienda no es único (dos negocios pueden llamarse igual): el administrador confirma si se parece a otro;
+  - el PC Builder y el asistente siguen con la mejor oferta por producto;
+  - el historial de pedidos del cliente sigue en la fase 9.
+- **Backend:** migraciones `20261027030000` a `20261027050000` (ver `docs/MODELO_DATOS.md`) y la Edge Function `admin-providers` (API_CONTRATO, partes 6 a 8).
+- **Flutter:** `features/account` (rol, primer ingreso, pestaña CUENTA), `RoleHome` y los shells por rol, catálogo por oferta con filtro por tienda, `features/provider_portal` (con `image_picker`) y `features/admin`.
+- **Pruebas** (todas en local):
+  - pgTAP: 369 (las 194 existentes sin cambios y 175 nuevas);
+  - `node --test`: 21 de `admin-providers` y las 41 existentes;
+  - prueba de migración sobre datos existentes (`backend/supabase/upgrade_check/`): OK en 51 comprobaciones;
+  - `flutter test`: 313 (las existentes, con ajustes donde la interfaz cambió, y las nuevas de las cuatro etapas);
+  - integración contra Supabase local: 22, incluido el flujo completo administrador → tienda → catálogo;
+  - verificaciones de punta a punta con Auth, Storage y la Edge Function reales.
+- **Pendiente:**
+  - aplicar las migraciones en la nube (`db push --dry-run` y después `db push`) y desplegar `admin-providers`, **con autorización**;
+  - antes, confirmar en la nube con una consulta de solo lectura que la clave contra duplicados no choca con los datos;
+  - habilitar el primer administrador por SQL (`backend/README.md`);
+  - el texto legal sigue siendo el borrador 1.0, el mismo para clientes y tiendas.
+
 ### Fase 9: órdenes y seguimiento
 - `order_status_history` con transiciones válidas forzadas por trigger (RN-029).
 - Flutter: `features/orders` con historial, detalle por sub-orden, transportadora y guía (RF-069), y estado en vivo con Supabase Realtime.
 - Notificaciones push con FCM, nivel Should (RF-065), al final de la fase si alcanza el tiempo.
 
 ### Fase 10: API de proveedores e integración
+- Las validaciones de las publicaciones ya existen (`private.validate_product_input`, `validate_offer_input`, `check_duplicates`, migración `20261027050000`): la API las reutiliza para que la app y la API apliquen las mismas reglas.
 - `provider-api` (versionada, `/v1`):
   - autenticación con API key hasheada en `provider_api_keys`, con rotación y revocación (RF-018, RNF-005);
   - rate limit por proveedor (RNF-006);
@@ -269,9 +295,10 @@ Objetivo: ver cómo se vería el computador con las piezas elegidas, ya sea a ma
 - Job `pg_cron` que marca como desactualizado el inventario sin sincronizar en más de 15 min y lo oculta de la compra (RF-027, RNF-015).
 - Sandbox: un proyecto Supabase aparte. Documentación en `docs/API_PROVEEDORES.md` (OpenAPI).
 
-### Fase 11: operación administrativa (sin UI propia)
+### Fase 11: operación administrativa
+- **Ya hecho con los roles (2026-10-27):** el rol administrador, crear tiendas con su cuenta, habilitar y suspender (que oculta las ofertas) y editar sus datos, desde la app.
 - RPCs `security definer` restringidas al rol admin:
-  - aprobar, rechazar o suspender proveedores (RF-009 a 011), donde suspender oculta las ofertas;
+  - rechazar solicitudes de proveedores (RF-009), si se vuelve a abrir el registro de tiendas;
   - configurar comisiones con validación de rango (RN-024);
   - generar liquidaciones por periodo (RF-076; el momento de liberar el dinero está **pendiente**);
   - consultar la bitácora.

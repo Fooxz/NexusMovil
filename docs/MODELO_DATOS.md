@@ -222,6 +222,47 @@ Si algún armado ya estuviera en una orden, la migración se detiene: las órden
 habría que retirarlo a mano. El valor `prebuiltPc` sigue en el tipo `product_family`, porque PostgreSQL no permite quitar
 valores de un enum, pero ninguna categoría puede usarlo.
 
+## Roles, tiendas y publicaciones (2026-10-27)
+
+Tres roles exclusivos: **cliente** (compra), **tienda** (publica sus ofertas) y **administrador** (crea y habilita
+tiendas). Migraciones `20261027030000_roles_accounts.sql`, `20261027040000_offer_catalog.sql` y
+`20261027050000_provider_catalog.sql` (API_CONTRATO, partes 6 a 8). No borran ni reescriben datos.
+
+| Tabla o columna | Qué guarda | Quién la cambia |
+|---|---|---|
+| `profiles.role` (`app_role`: `customer`, `provider`, `admin`) | El rol de la cuenta. Por defecto `customer`. | Solo el backend: el usuario solo puede editar `full_name` y `phone` (permiso por columna) y un trigger rechaza cualquier cambio de rol que venga de la app. Los cambios quedan en `audit_log` (solo el rol, sin datos personales). |
+| `profiles.must_change_password` | La contraseña es temporal (la generó un administrador). | La pone el alta de la tienda; la quita un trigger de `auth.users` cuando cambia el hash de la contraseña. |
+| `providers.user_id` | Cuenta que opera la tienda (una por tienda). Las tiendas cargadas antes de los roles no tienen. | El alta de la cuenta (`admin_provision_provider`). |
+| `providers.created_by`, `verification_note` | Administrador que creó la tienda y cómo verificó que existe. | El administrador. |
+| `products.created_by_provider_id` | Tienda que registró la ficha; vacío en el catálogo base. Da derecho a editarla mientras ninguna otra tienda tenga una oferta sobre ella. | `create_my_product`. |
+| `products_catalog_key_idx` | Índice único de (categoría, marca, modelo) normalizados con `private.name_key` (sin mayúsculas, acentos ni signos). | — |
+| `private.account_provisioning` | Tickets de alta de cuentas de tienda (vencen en 10 minutos, se consumen al crear la cuenta). | Solo el rol de servicio (`admin_prepare_provider_account`). |
+| Bucket `product-images` | Imágenes de las fichas, públicas para leer. JPG, PNG o WEBP de hasta 5 MB. | Cada tienda sube solo a su carpeta (`<tienda>/<archivo>`); nadie las reemplaza ni las borra desde la app. |
+
+**Alta de usuarios.** El registro público sigue exigiendo los documentos vigentes y crea un cliente; el rol nunca sale
+de los metadatos que envía la app. La excepción son las cuentas de tienda: la API de administración de Auth inserta el
+usuario y escribe `app_metadata` después, en la misma transacción, así que el trigger de alta no puede ver esa marca. Por
+eso la Edge Function deja antes un ticket en `private.account_provisioning`; con un ticket vigente, el alta no exige los
+documentos y la tienda los acepta en su primer ingreso. El alta de la tienda (`admin_provision_provider`) exige además
+la marca `nexus_provisioned` en `raw_app_meta_data`, que solo escribe el rol de servicio.
+
+**Controles de acceso** (funciones `private.*`):
+- `require_admin()`: rol administrador, leído del perfil en cada llamada.
+- `require_active_provider()`: rol tienda, tienda `active`, contraseña definitiva y documentos vigentes aceptados.
+  Devuelve el id de la tienda; las RPC de publicaciones filtran por él.
+- `require_user()` (carrito y checkout): además de la sesión, exige el rol cliente (`CUSTOMER_ONLY`).
+- `grant_admin(email)` / `revoke_admin(email)`: solo por SQL, como propietario de la base.
+
+**Catálogo por oferta.** La vista `private.catalog_offers` tiene una fila por oferta visible (publicada, de tienda
+activa, en categoría activa) con los datos del producto y `offer_count` (tiendas que venden el producto). `get_offers`
+la pagina con los mismos filtros que el catálogo más el filtro por tienda. Las vistas y RPC existentes no cambian.
+
+**Publicaciones.** Una tienda publica sin aprobación: `create_my_product` valida la plantilla de atributos, el precio, el
+stock, las imágenes, los duplicados y un límite diario (`provider_daily_product_limit`, 50) y crea la ficha y la oferta.
+La ficha queda fija en cuanto otra tienda oferta sobre ella (las ofertas nunca se borran: retirar es lógico).
+`create_my_offer` y `update_my_product` bloquean la fila del producto para que una edición y una oferta nueva no se
+crucen.
+
 ## Datos de desarrollo
 
 `backend/supabase/seed.sql` (lo carga `npx supabase db reset`) contiene:

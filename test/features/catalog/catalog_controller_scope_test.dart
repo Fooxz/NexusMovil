@@ -26,7 +26,7 @@ void main() {
 
     expect(lastFilters().category, ProductCategory.gpu);
     expect(lastFilters().brand, isNull);
-    expect(harness.state.items, [catalogGpu]);
+    expect(harness.state.productIds, [catalogGpu.id]);
   });
 
   test('choosing "Todo" drops the category', () async {

@@ -11,7 +11,7 @@ void main() {
     await harness.load();
 
     await harness.controller.setCategory(ProductCategory.gpu);
-    expect(harness.state.items, [catalogGpu]);
+    expect(harness.state.productIds, [catalogGpu.id]);
     expect(harness.state.category, ProductCategory.gpu);
   });
 
@@ -24,7 +24,7 @@ void main() {
     await harness.controller.setCategory(ProductCategory.gpu);
 
     await harness.controller.clearFilters();
-    expect(harness.state.items, [catalogGpu, catalogCpu]);
+    expect(harness.state.productIds, [catalogGpu.id, catalogCpu.id]);
     expect(harness.state.query, isEmpty);
     expect(harness.state.category, isNull);
   });

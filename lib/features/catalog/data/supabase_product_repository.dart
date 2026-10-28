@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/errors/app_failure.dart';
+import '../domain/catalog_offer.dart';
 import '../domain/product.dart';
 import '../domain/product_filters.dart';
 import '../domain/product_page.dart';
@@ -25,6 +26,36 @@ class SupabaseProductRepository implements ProductRepository {
       );
 
   final RpcCall _rpc;
+
+  @override
+  Future<OfferPage> getOffers({
+    int page = 0,
+    int pageSize = 20,
+    ProductFilters filters = const ProductFilters(),
+  }) async {
+    final json = await _call('get_offers', {
+      'page': page,
+      'page_size': pageSize,
+      if (filters.search.trim().isNotEmpty) 'search': filters.search.trim(),
+      if (filters.category != null) 'category': filters.category!.name,
+      if (filters.brand != null) 'brand': filters.brand,
+      if (filters.providerId != null) 'provider': filters.providerId,
+      if (filters.minPriceCents != null)
+        'min_price_cents': filters.minPriceCents,
+      if (filters.maxPriceCents != null)
+        'max_price_cents': filters.maxPriceCents,
+      'sort': filters.sort.name,
+    });
+    return _parse(() => offerPageFromJson(json));
+  }
+
+  @override
+  Future<List<CatalogStore>> getStores({ProductCategory? category}) async {
+    final json = await _call('get_catalog_providers', {
+      if (category != null) 'category': category.name,
+    });
+    return _parse(() => catalogStoresFromJson(json));
+  }
 
   @override
   Future<ProductPage> getProducts({

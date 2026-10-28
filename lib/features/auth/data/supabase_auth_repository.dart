@@ -76,6 +76,10 @@ class SupabaseAuthRepository implements AuthRepository {
   }
 
   @override
+  Future<void> changePassword(String newPassword) =>
+      _guard(() => _auth.updateUser(UserAttributes(password: newPassword)));
+
+  @override
   Future<List<LegalDocument>> getCurrentLegalDocuments() async {
     final rows = await _guard(
       () => _client

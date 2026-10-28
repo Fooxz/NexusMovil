@@ -19,12 +19,47 @@ sealed class AppFailure implements Exception {
   /// [details] es el texto `details` del cuerpo: para `QUANTITY_UNAVAILABLE`
   /// trae el JSON `{"maxQuantity": n}` (API_CONTRATO, parte 2) y para
   /// `PRICE_CHANGED`, `{"totalCents": n}` (parte 5).
+  ///
+  /// [message] solo se muestra en los `VALIDATION_ERROR` que traen el campo
+  /// en `details` (`{"field": ...}`, partes 7 y 8): son textos del backend
+  /// escritos para el usuario.
   factory AppFailure.fromApiError({
     int? statusCode,
     String? code,
     Object? details,
+    String? message,
   }) {
     return switch ((statusCode, code)) {
+      // --- Roles y tiendas (partes 7 y 8) ---
+      (_, 'FORBIDDEN') || (_, 'PROVIDER_REQUIRED') => const ForbiddenFailure(),
+      (_, 'PROVIDER_NOT_ACTIVE') => const StoreNotActiveFailure(),
+      (_, 'PASSWORD_CHANGE_REQUIRED') => const PasswordChangeRequiredFailure(),
+      (_, 'CONSENT_REQUIRED') => const DocumentsPendingFailure(),
+      (_, 'CUSTOMER_ONLY') => const CustomerOnlyFailure(),
+      (_, 'PRODUCT_EXISTS') => ProductExistsFailure(
+        productId: _stringFrom(details, 'productId'),
+        productName: _stringFrom(details, 'name'),
+      ),
+      (_, 'POSSIBLE_DUPLICATE') => PossibleDuplicateFailure(
+        _candidatesFrom(details),
+      ),
+      (_, 'PRODUCT_SHARED') => const ProductSharedFailure(),
+      (_, 'PRODUCT_LOCKED') => const ProductLockedFailure(),
+      (_, 'OFFER_EXISTS') => const OfferExistsFailure(),
+      (_, 'OFFER_RETIRED') => const OfferRetiredFailure(),
+      (_, 'SIMILAR_STORE_NAME') => SimilarStoreNameFailure(
+        _stringFrom(details, 'displayName'),
+      ),
+      (_, 'TAX_ID_TAKEN') => const TaxIdTakenFailure(),
+      (_, 'EMAIL_EXISTS') => const StoreEmailTakenFailure(),
+      (_, 'PROVIDER_HAS_ACCOUNT') => const StoreHasAccountFailure(),
+      (_, 'AUTH_UNAVAILABLE') => const AccountServiceFailure(),
+      (_, 'VALIDATION_ERROR')
+          when message != null && _stringFrom(details, 'field') != null =>
+        FieldValidationFailure(
+          field: _stringFrom(details, 'field')!,
+          message: message,
+        ),
       (_, 'OUT_OF_STOCK') => const OutOfStockFailure(),
       (_, 'QUANTITY_UNAVAILABLE') => QuantityUnavailableFailure(
         _intFrom(details, 'maxQuantity'),
@@ -38,6 +73,7 @@ sealed class AppFailure implements Exception {
       (_, 'RATE_LIMITED') || (429, _) => const RateLimitedFailure(),
       (_, 'PRODUCT_NOT_FOUND') ||
       (_, 'OFFER_NOT_FOUND') ||
+      (_, 'PROVIDER_NOT_FOUND') ||
       (404, _) => const NotFoundFailure(),
       (_, 'VALIDATION_ERROR') || (400, _) => const ValidationFailure(),
       (401, _) || (403, _) => const UnauthorizedFailure(),
@@ -45,8 +81,8 @@ sealed class AppFailure implements Exception {
     };
   }
 
-  /// Un entero de `details`, que llega como objeto o como JSON en texto.
-  static int? _intFrom(Object? details, String key) {
+  /// `details` como mapa: llega como objeto o como JSON en texto.
+  static Map<Object?, Object?>? _detailsMap(Object? details) {
     Object? value = details;
     if (value is String) {
       try {
@@ -55,7 +91,39 @@ sealed class AppFailure implements Exception {
         return null;
       }
     }
-    return value is Map && value[key] is int ? value[key] as int : null;
+    return value is Map ? value : null;
+  }
+
+  /// Un entero de `details`.
+  static int? _intFrom(Object? details, String key) {
+    final value = _detailsMap(details)?[key];
+    return value is int ? value : null;
+  }
+
+  /// Un texto de `details`.
+  static String? _stringFrom(Object? details, String key) {
+    final value = _detailsMap(details)?[key];
+    return value is String ? value : null;
+  }
+
+  /// Productos parecidos de `POSSIBLE_DUPLICATE`.
+  static List<DuplicateCandidate> _candidatesFrom(Object? details) {
+    final candidates = _detailsMap(details)?['candidates'];
+    return [
+      if (candidates is List)
+        for (final candidate in candidates)
+          if (candidate case {
+            'productId': String productId,
+            'name': String name,
+          })
+            DuplicateCandidate(
+              productId: productId,
+              name: name,
+              model: candidate['model'] is String
+                  ? candidate['model'] as String
+                  : null,
+            ),
+    ];
   }
 
   @override
@@ -181,4 +249,119 @@ class PriceChangedFailure extends AppFailure {
 class PaymentsUnavailableFailure extends AppFailure {
   const PaymentsUnavailableFailure()
     : super('Los pagos no están disponibles en este momento. Tu carrito sigue guardado.');
+}
+
+// --- Roles y tiendas (API_CONTRATO, partes 7 y 8) ---
+
+/// La cuenta no tiene el rol que pide la función (administrador o tienda).
+class ForbiddenFailure extends AppFailure {
+  const ForbiddenFailure() : super('Tu cuenta no tiene permiso para esta acción.');
+}
+
+class StoreNotActiveFailure extends AppFailure {
+  const StoreNotActiveFailure()
+    : super('Tu tienda no está habilitada. Comunícate con NEXUS.');
+}
+
+class PasswordChangeRequiredFailure extends AppFailure {
+  const PasswordChangeRequiredFailure()
+    : super('Cambia tu contraseña temporal para continuar.');
+}
+
+/// Hay versiones vigentes de los documentos legales sin aceptar.
+class DocumentsPendingFailure extends AppFailure {
+  const DocumentsPendingFailure()
+    : super('Acepta los términos y la política de datos vigentes para continuar.');
+}
+
+/// Roles exclusivos: solo los clientes compran.
+class CustomerOnlyFailure extends AppFailure {
+  const CustomerOnlyFailure()
+    : super('Las cuentas de tienda y de administración no compran en NEXUS.');
+}
+
+/// El producto ya está en el catálogo: la tienda publica su oferta sobre él.
+class ProductExistsFailure extends AppFailure {
+  const ProductExistsFailure({this.productId, this.productName})
+    : super('Este producto ya está en el catálogo. Publica tu oferta sobre él.');
+
+  final String? productId;
+  final String? productName;
+}
+
+class DuplicateCandidate {
+  const DuplicateCandidate({required this.productId, required this.name, this.model});
+
+  final String productId;
+  final String name;
+  final String? model;
+}
+
+/// Hay productos parecidos de la misma marca: la tienda revisa o confirma
+/// que es otro.
+class PossibleDuplicateFailure extends AppFailure {
+  const PossibleDuplicateFailure(this.candidates)
+    : super('Puede que este producto ya esté en el catálogo. Revisa los parecidos o confirma que es otro.');
+
+  final List<DuplicateCandidate> candidates;
+}
+
+class ProductSharedFailure extends AppFailure {
+  const ProductSharedFailure()
+    : super('Otras tiendas venden este producto: la ficha ya no se puede editar, solo tu oferta.');
+}
+
+class ProductLockedFailure extends AppFailure {
+  const ProductLockedFailure()
+    : super('Esta ficha es del catálogo compartido: solo puedes cambiar tu oferta.');
+}
+
+class OfferExistsFailure extends AppFailure {
+  const OfferExistsFailure() : super('Ya tienes una oferta de este producto.');
+}
+
+class OfferRetiredFailure extends AppFailure {
+  const OfferRetiredFailure()
+    : super('La oferta está retirada. Vuelve a publicarla para editarla.');
+}
+
+/// Otra tienda tiene un nombre visible equivalente. Dos negocios distintos
+/// pueden llamarse igual, así que el administrador puede confirmar.
+class SimilarStoreNameFailure extends AppFailure {
+  SimilarStoreNameFailure(this.existingName)
+    : super(
+        existingName == null
+            ? 'Ya hay una tienda con un nombre parecido. Confirma si es otro negocio.'
+            : 'Ya hay una tienda llamada $existingName. Confirma si es otro negocio.',
+      );
+
+  final String? existingName;
+}
+
+class TaxIdTakenFailure extends AppFailure {
+  const TaxIdTakenFailure() : super('Ya hay una tienda con ese NIT.');
+}
+
+class StoreEmailTakenFailure extends AppFailure {
+  const StoreEmailTakenFailure()
+    : super('Ya existe una cuenta con ese correo. Usa otro para la tienda.');
+}
+
+class StoreHasAccountFailure extends AppFailure {
+  const StoreHasAccountFailure() : super('Esa tienda ya tiene una cuenta.');
+}
+
+class AccountServiceFailure extends AppFailure {
+  const AccountServiceFailure()
+    : super('No se pudo completar la operación con la cuenta. Inténtalo de nuevo.');
+}
+
+/// Un dato no pasó una validación del backend. [message] es el texto del
+/// backend para el usuario y [field], el campo (`priceCents`,
+/// `attributes.socket`...).
+class FieldValidationFailure extends AppFailure {
+  const FieldValidationFailure({required this.field, required String message})
+    : super(message);
+
+  final String field;
 }

@@ -18,6 +18,17 @@ Versión 2 · 17 de octubre de 2026 · Incorpora el cambio de enfoque del negoci
 
 Decisión del equipo posterior a la versión 2: **NEXUS vende solo piezas de computador; no vende computadores armados.** Con equipos cerrados, el asistente solo podía elegir entre unos pocos productos; con piezas ayuda al cliente a escoger cada componente según su uso, su presupuesto y la compatibilidad, y le arma el equipo completo en el PC Builder. Los requisitos y reglas que cambian llevan la marca **[Alcance 2026-10]**. Donde el resto del documento habla de computadores armados (por ejemplo, en preguntas abiertas, riesgos o la descripción del enfoque anterior), prevalece esta decisión.
 
+### **Cambio de reglas: roles y marketplace por tienda (2026-10-27)**
+
+Decisiones del equipo que prevalecen sobre lo que el resto del documento diga al respecto:
+- **Tres roles en la misma app:** cliente (compra), tienda (publica) y administrador. Son exclusivos: solo los clientes compran (RF-005, RNF-002).
+- **Alta de tiendas:** no hay solicitud de registro (HU-015). Un administrador crea la tienda y su cuenta después de verificar que existe; la cuenta recibe una contraseña temporal que se cambia en el primer ingreso, junto con la aceptación de los documentos vigentes. El administrador puede habilitar y suspender tiendas (RF-011).
+- **Publicación sin aprobación:** una tienda publica desde la app sin aprobación individual del administrador, con validaciones automáticas (plantilla de atributos, precio, stock, imágenes, duplicados y un límite diario). La API de proveedores (HU-016) sigue en la hoja de ruta y reutiliza esas validaciones.
+- **Una tarjeta por tienda:** si varias tiendas venden el mismo producto, el catálogo muestra una tarjeta por cada una, con su precio, su descuento y su stock. La ficha técnica es compartida y cada tienda es dueña de su oferta; la comparación entre tiendas está en el detalle (RF-014).
+- **Descuento:** el precio anterior de la oferta, sin fechas de vigencia.
+
+Detalle técnico en `docs/API_CONTRATO.md` (partes 6 a 8) y `docs/MODELO_DATOS.md`.
+
 ### **Cambios de enfoque** 
 
 Resumen de lo que cambió respecto al análisis anterior. Todo lo demás del negocio (comisión descontada al proveedor, pagos, órdenes, trazabilidad) se mantiene. 

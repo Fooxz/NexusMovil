@@ -23,7 +23,7 @@ void main() {
     await stale;
 
     expect(harness.state.category, ProductCategory.cpu);
-    expect(harness.state.items, [catalogCpu]);
+    expect(harness.state.productIds, [catalogCpu.id]);
   });
 
   test('retry reloads catalog after initial repository failure', () async {
@@ -35,7 +35,7 @@ void main() {
 
     await expectLater(harness.load(), throwsA(isA<StateError>()));
     await harness.controller.retry();
-    expect(harness.state.items, [catalogGpu]);
+    expect(harness.state.productIds, [catalogGpu.id]);
     expect(repository.requests, hasLength(2));
   });
 }

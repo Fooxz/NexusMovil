@@ -86,8 +86,14 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Filtros'));
     await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(ChoiceChip, 'NVIDIA'));
-    await tester.tap(find.widgetWithText(ChoiceChip, 'Más de \$6.000.000'));
+    // La hoja empieza con las tiendas: en 740 px hay que desplazarse.
+    for (final label in ['NVIDIA', 'Más de \$6.000.000']) {
+      await tester.ensureVisible(find.widgetWithText(ChoiceChip, label));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(ChoiceChip, label));
+      await tester.pumpAndSettle();
+    }
+    await tester.ensureVisible(find.text('VER RESULTADOS'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('VER RESULTADOS'));
     await tester.pumpAndSettle();
@@ -105,7 +111,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('ELIGE EL PROVEEDOR'), findsOneWidget);
+    expect(find.text('COMPARAR TIENDAS'), findsOneWidget);
     expect(find.text('Proveedor A'), findsOneWidget);
     expect(find.text('Proveedor B'), findsOneWidget);
     expect(find.text('\$1.500'), findsOneWidget);
@@ -119,7 +125,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('ELIGE EL PROVEEDOR'), findsNothing);
+    expect(find.text('COMPARAR TIENDAS'), findsNothing);
     expect(find.text('VENDIDO POR'), findsNothing);
   });
 }

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/errors/app_failure.dart';
 import '../../../routes.dart';
 import '../../../widgets/nexus_cart_badge.dart';
+import '../../account/account_providers.dart';
 import '../cart_providers.dart';
 
 /// Provee el número de unidades del carrito a los íconos de [NexusTopBar].
@@ -15,7 +16,11 @@ class CartBadgeHost extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return NexusCartBadge(count: ref.watch(cartItemCountProvider), child: child);
+    return NexusCartBadge(
+      count: ref.watch(cartItemCountProvider),
+      enabled: ref.watch(canBuyProvider),
+      child: child,
+    );
   }
 }
 

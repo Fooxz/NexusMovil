@@ -31,5 +31,9 @@ abstract class AuthRepository {
     required String newPassword,
   });
 
+  /// Cambia la contraseña del usuario con sesión. En las cuentas de tienda,
+  /// cambiar la contraseña temporal es el primer paso del primer ingreso.
+  Future<void> changePassword(String newPassword);
+
   Future<List<LegalDocument>> getCurrentLegalDocuments();
 }

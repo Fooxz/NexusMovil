@@ -28,7 +28,7 @@ void main() {
       bed.app(home: const ProductDetailScreen(productId: 'rtx-5090')),
     );
     await tester.pumpAndSettle();
-    expect(find.text('ELIGE EL PROVEEDOR'), findsOneWidget);
+    expect(find.text('COMPARAR TIENDAS'), findsOneWidget);
 
     await tapAndSettle(tester, find.text('Mundo PC'));
     await tapAndSettle(tester, find.byTooltip('Agregar una unidad'));
