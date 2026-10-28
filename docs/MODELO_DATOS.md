@@ -263,6 +263,23 @@ La ficha queda fija en cuanto otra tienda oferta sobre ella (las ofertas nunca s
 `create_my_offer` y `update_my_product` bloquean la fila del producto para que una edición y una oferta nueva no se
 crucen.
 
+## Panel de la tienda (2026-10-29)
+
+Migración `20261029010000_vendor_dashboard.sql` (API_CONTRATO, parte 9).
+
+| Tabla o columna | Para qué | Acceso de clientes |
+|---|---|---|
+| `offers.min_stock` | Stock mínimo de la oferta (por defecto 5): con esa cantidad o menos hay alerta de stock bajo. | Por `set_my_min_stock`. |
+| `inventory_movements` | Cada cambio de stock: oferta, tienda, tipo (`entry`, `exit`, `adjustment`, `sale`, `cancellation`), cantidad, stock antes y después, motivo, sub-orden y usuario. | Ninguno. La tienda lee los suyos por `get_my_stock_movements`. |
+| `sub_orders` (columnas nuevas) | Nueve estados en lugar de uno, transportadora y guía, motivo del último cambio y fechas de envío y entrega. | Ninguno. La tienda opera los suyos por RPC. |
+| `sub_order_status_history` | Cada cambio de estado de una sub-orden: de qué estado a cuál, motivo, quién y cuándo (RN-029). | Ninguno. |
+
+- **Ningún cambio de stock se salta el historial.** El trigger `offers_stock_movement` registra cada cambio de `stock_units`. El motivo lo deja quien hace el cambio con `private.set_stock_movement` en la misma transacción: el checkout (venta), las RPC de la tienda (entrada, salida, ajuste, edición de la publicación) y el rechazo o la cancelación de un pedido (devolución al stock). Sin motivo, queda como ajuste. Al aplicar la migración, cada oferta con stock arrancó con una entrada "Inventario inicial".
+- **Reservado** son las unidades vendidas y todavía no enviadas: el checkout ya las descontó de `stock_units`, así que el disponible es `stock_units`.
+- **Transiciones** en `private.sub_order_next_statuses`. Rechazar o cancelar devuelve las unidades al stock; devolver no, porque un producto devuelto puede venir dañado (la tienda registra la entrada si lo vuelve a vender).
+- **Inmutables:** los dos historiales no se modifican ni se borran. Lo único permitido es lo que hace la base al borrar una cuenta: `actor_id` queda nulo y el resto del registro no cambia.
+- **Pendiente para la fase 2 del panel:** reembolsos al cliente, liquidaciones a la tienda y notificaciones.
+
 ## Datos de desarrollo
 
 `backend/supabase/seed.sql` (lo carga `npx supabase db reset`) contiene:

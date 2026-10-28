@@ -1,4 +1,4 @@
-# Contrato de API: NEXUS Movil (v0.13, borrador)
+# Contrato de API: NEXUS Movil (v0.14, borrador)
 
 **Estado:** borrador. Parte 1: catalogo (secciones 1 a 5). Parte 2: carrito (seccion 10). Parte 3: PC Builder y vista 3D (seccion 11). Parte 4: asistente (seccion 12). Parte 5: checkout y pagos (seccion 13). Parte 6: catalogo por oferta (seccion 14). Parte 7: roles y administracion de tiendas (seccion 15). Parte 8: publicaciones de tiendas (seccion 16). Implementado en el backend (`backend/`) y consumido por el front desde las fases 3, 5, 6, 6.1, 7 y 8 de `docs/PLAN_IMPLEMENTACION.md`.
 **Quien lo escribe:** el front, a partir de sus modelos reales (`lib/features/catalog/domain`).
@@ -328,6 +328,7 @@ Cambios compatibles (agregar un campo opcional, un endpoint nuevo): no rompen a 
 | 0.11 | **Solo piezas** (cierra D8): se eliminan la categoria `prebuiltPc` y la seccion 11.5 (`get_prebuilt_scene`). `family` queda siempre en `part` y el parametro `family` solo admite `part`. El asistente recomienda piezas sueltas o una configuracion completa. Cambio que rompe para un front que dependa de los armados; el front actual ya no los usa. |
 | 0.12 | Seccion 11.3: `get_builder_candidates` acepta `search`, `max_price_cents`, `sort` y `page`, para elegir entre cientos de piezas por tipo. Parametros opcionales: compatible. |
 | 0.13 | Tres roles (cliente, tienda y administrador). Parte 6: catalogo por oferta, una tarjeta por tienda (`get_offers`, `get_catalog_providers`). Parte 7: cuenta propia, administracion de tiendas y la Edge Function `admin-providers`. Parte 8: publicaciones de tiendas sin aprobacion, con validaciones automaticas. Nuevos codigos de error de las partes 7 y 8; `VALIDATION_ERROR` puede traer `details.field`. El carrito y el checkout responden `CUSTOMER_ONLY` a las cuentas que no son de cliente. Endpoints nuevos; los existentes no cambian. |
+| 0.14 | Parte 9: panel de la tienda (seccion 17): resumen (`get_my_dashboard`), pedidos con su flujo de estados (`get_my_orders`, `get_my_order`, `update_my_order_status`) e inventario con movimientos y stock minimo (`get_my_inventory`, `adjust_my_stock`, `set_my_min_stock`, `get_my_stock_movements`). La sub-orden pasa de un solo estado (`pending`) a nueve. Nuevo codigo `INVALID_TRANSITION`. Endpoints nuevos; los existentes no cambian. |
 
 ---
 
@@ -869,3 +870,77 @@ Bucket publico `product-images` (JPG, PNG o WEBP de hasta 5 MB). La tienda sube 
 | 409 | `OFFER_EXISTS` | La tienda ya tiene una oferta de ese producto. |
 | 409 | `OFFER_RETIRED` | La oferta esta retirada: se vuelve a publicar con `create_my_offer`. |
 | 429 | `RATE_LIMITED` | Limite diario de productos nuevos. |
+
+---
+
+## 17. Parte 9: panel de la tienda (v0.14)
+
+Resumen del negocio, pedidos e inventario de la tienda con sesion (fase 1 del panel; HU-018, HU-020, HU-021, RF-063, RF-066, RF-069). Todas son RPC para `authenticated` y exigen una tienda que pueda operar, como la parte 8: rol tienda, tienda activa, contrasena definitiva y documentos aceptados (`PROVIDER_REQUIRED`, `PROVIDER_NOT_ACTIVE`, `PASSWORD_CHANGE_REQUIRED`, `CONSENT_REQUIRED`). **Ninguna recibe el id de la tienda**: el backend la toma de la sesion, asi que una tienda nunca ve pedidos, stock ni dinero de otra.
+
+### 17.1 Resumen: `get_my_dashboard()`
+
+```json
+{
+  "sales": { "todayCents": 230000000, "yesterdayCents": 0, "weekCents": 230000000, "previousWeekCents": 0,
+             "monthCents": 230000000, "previousMonthCents": 0 },
+  "orders": { "pending": 1, "confirmed": 0, "preparing": 0, "shipped": 0, "delivered": 1,
+              "cancelled": 1, "returned": 0, "incident": 0 },
+  "inventory": { "active": 12, "outOfStock": 1, "lowStock": 2 },
+  "lowStockItems": [ "InventoryItem (17.3), hasta 5" ],
+  "finance": { "grossCents": 230000000, "commissionCents": 18500000, "netCents": 211500000,
+               "pendingPayoutCents": 211500000 },
+  "recentOrders": [ "VendorOrder (17.2), hasta 5" ]
+}
+```
+
+- **Periodos** de Colombia (America/Bogota). El periodo anterior se mide hasta el mismo momento: hoy contra ayer a esta hora, la semana en curso contra la anterior al mismo dia y hora, y el mes contra el anterior.
+- **Ventas:** subtotal (IVA incluido) de los pedidos no rechazados ni cancelados.
+- **`orders.cancelled`** suma rechazados y cancelados.
+- **`finance`:** los montos son del mes. `pendingPayoutCents` es el neto de todos los pedidos no rechazados, cancelados ni devueltos: sin liquidaciones todavia (fase 2), nada se marca como pagado.
+
+### 17.2 Pedidos
+
+- `get_my_orders(status?, search?, page = 0, page_size = 20)`: `{items: [VendorOrder], total, page, pageSize}`, del mas reciente al mas antiguo. `search` busca por numero de pedido o nombre del cliente.
+- `get_my_order(id)`: el detalle. `404 ORDER_NOT_FOUND` si no es de la tienda.
+- `update_my_order_status(id, status, note?, carrier?, tracking_number?)`: cambia el estado y devuelve el detalle.
+
+`VendorOrder`:
+
+| Campo | Notas |
+|---|---|
+| `id` | Id de la sub-orden de la tienda. |
+| `orderNumber`, `createdAt`, `status`, `statusChangedAt` | `status`: ver la tabla de estados. |
+| `units`, `subtotalCents`, `commissionCents`, `netCents` | `netCents = subtotalCents - commissionCents`: lo que recibe la tienda. |
+| `customerName`, `city`, `department` | Para la lista. |
+| `carrier`, `trackingNumber` | Al enviarlo. |
+| `hasBackorders` | Alguna unidad ya no estaba en stock al aprobarse el pago. |
+
+El detalle suma `statusNote` (motivo del ultimo cambio), `shippingAddress`, `contact` (nombre, correo, telefono, tipo y numero de documento: la tienda vende y factura), `items` (con la comision y el neto por item), `history` (`fromStatus`, `toStatus`, `note`, `actorName`, `createdAt`) y `nextStatuses`, los estados a los que puede pasar.
+
+| `status` | Etiqueta | Puede pasar a |
+|---|---|---|
+| `pending` | Nuevo | `confirmed`, `rejected` |
+| `confirmed` | Confirmado | `preparing`, `cancelled`, `incident` |
+| `preparing` | Preparando | `shipped`, `cancelled`, `incident` |
+| `shipped` | Enviado | `delivered`, `incident` |
+| `delivered` | Entregado | `returned`, `incident` |
+| `incident` | Con incidencia | `confirmed`, `preparing`, `shipped`, `delivered`, `cancelled` |
+| `rejected`, `cancelled`, `returned` | Rechazado, Cancelado, Devuelto | (finales) |
+
+- `rejected`, `cancelled`, `returned` e `incident` exigen `note` (3 a 300 caracteres); `shipped` exige `carrier` y `tracking_number`. Si falta, `400 VALIDATION_ERROR` con `details.field`.
+- Un estado que no esta en `nextStatuses`: `409 INVALID_TRANSITION`, con `details` `{from, to, allowed}`.
+- **Rechazar o cancelar devuelve al stock** las unidades que se habian descontado (menos las que ya faltaban). El reembolso al cliente queda pendiente (fase 2).
+- La guia se registra a mano: todavia no hay integracion con transportadoras (RF-070).
+
+### 17.3 Inventario
+
+- `get_my_inventory(alert?, search?, page = 0, page_size = 20)`: `{items: [InventoryItem], total, counts: {all, low, out}, page, pageSize}`. Sin las ofertas retiradas; primero las que estan mas cerca del minimo. `alert`: `low` (1 unidad hasta `minStock`) u `out` (0 unidades). `search` busca por nombre o codigo interno.
+- `adjust_my_stock(product_id, kind, quantity, reason)`: `kind` es `entry` (suma `quantity`), `exit` (resta `quantity`) o `adjustment` (deja el stock en `quantity`, el conteo real). `reason` es obligatorio (3 a 200 caracteres). No deja el stock negativo ni igual al actual. Devuelve el `InventoryItem`.
+- `set_my_min_stock(product_id, min_stock)`: stock minimo de 0 a 100000 (por defecto 5).
+- `get_my_stock_movements(product_id?, page = 0, page_size = 30)`: historial de un producto o de toda la tienda, del mas reciente al mas antiguo.
+
+`InventoryItem`: `offerId`, `productId`, `name`, `brand`, `category`, `imageUrl`, `status`, `externalSku`, `stockUnits` (disponible), `minStock`, `reservedUnits` (vendidas y sin enviar: ya descontadas de `stockUnits`), `soldUnits` (en pedidos no rechazados ni cancelados) y `alert` (`low`, `out` o `null`).
+
+Movimiento: `id`, `productId`, `productName`, `kind` (`entry`, `exit`, `adjustment`, `sale`, `cancellation`), `quantityDelta`, `stockBefore`, `stockAfter`, `reason`, `orderNumber` (ventas y devoluciones al stock), `actorName` (null si fue el sistema) y `createdAt`.
+
+**Todo cambio de stock queda en el historial**, venga de donde venga: la venta del checkout, un movimiento manual, la edicion de la publicacion (`update_my_offer`, como ajuste con el motivo "Edicion de la publicacion") o un pedido rechazado.

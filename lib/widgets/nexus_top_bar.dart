@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import '../routes.dart';
 import '../theme/nexus_theme.dart';
 import 'nexus_cart_badge.dart';
+import 'nexus_menu_scope.dart';
 
 class NexusTopBar extends StatelessWidget {
   const NexusTopBar({
@@ -26,10 +27,24 @@ class NexusTopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Dentro del panel de la tienda: botón del menú lateral.
+    final menu = showBack ? null : NexusMenuScope.maybeOf(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
       child: Row(
         children: [
+          if (menu != null)
+            Padding(
+              padding: const EdgeInsets.only(right: 10),
+              child: IconButton(
+                tooltip: 'Abrir menú',
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                onPressed: menu.openMenu,
+                icon: const Icon(Icons.menu, color: NexusColors.text, size: 22),
+              ),
+            ),
           if (showBack)
             Padding(
               padding: const EdgeInsets.only(right: 10),

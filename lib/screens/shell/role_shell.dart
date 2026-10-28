@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../../features/account/presentation/staff_account_screen.dart';
 import '../../features/admin/presentation/admin_stores_screen.dart';
 import '../../features/catalog/presentation/catalog_screen.dart';
-import '../../features/provider_portal/presentation/my_offers_screen.dart';
 import '../../theme/nexus_theme.dart';
 import '../../widgets/lazy_indexed_stack.dart';
 
@@ -13,21 +12,6 @@ class RoleTab {
   final String label;
   final IconData icon;
   final Widget screen;
-}
-
-/// Navegación de las cuentas de tienda: sus publicaciones, el catálogo (para
-/// ver la competencia; sin carrito) y la cuenta.
-class ProviderShell extends StatelessWidget {
-  const ProviderShell({super.key});
-
-  @override
-  Widget build(BuildContext context) => const RoleShell(
-    tabs: [
-      RoleTab(label: 'PUBLICACIONES', icon: Icons.inventory_2_outlined, screen: MyOffersScreen()),
-      RoleTab(label: 'CATÁLOGO', icon: Icons.grid_view_outlined, screen: CatalogScreen()),
-      RoleTab(label: 'CUENTA', icon: Icons.person_outline, screen: StaffAccountScreen()),
-    ],
-  );
 }
 
 /// Navegación de los administradores: tiendas, catálogo y cuenta.

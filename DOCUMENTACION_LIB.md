@@ -53,6 +53,17 @@ lib/
 |   |       |-- pc_builder_screen.dart # Ranuras, estado, avisos por pieza, resumen y "Agregar todo"
 |   |       |-- part_picker_screen.dart # Piezas de una ranura: búsqueda, orden por precio y "Ver más"; compatibles primero
 |   |       `-- viewer/               # Vista 3D: posición de cada pieza (scene_layout), widget y host por plataforma
+|   |-- vendor/
+|   |   |-- vendor_providers.dart     # Resumen, pedidos e inventario (filtros, páginas y acciones)
+|   |   |-- domain/                   # VendorOrder y su detalle, VendorOrderStatus, InventoryItem, StockMovement, VendorDashboard
+|   |   |-- data/                     # RPC de la parte 9, lectura del JSON y tienda de ejemplo sin backend
+|   |   `-- presentation/
+|   |       |-- vendor_shell.dart     # Panel con menú lateral y cambio de sección
+|   |       |-- vendor_dashboard_screen.dart # Alertas, ventas, pedidos, inventario, dinero del mes y últimos pedidos
+|   |       |-- orders_screen.dart    # Pedidos por estado y búsqueda
+|   |       |-- order_detail_screen.dart # Acciones según el estado, entrega, facturación e historial
+|   |       |-- inventory_screen.dart # Stock con alertas, movimientos con motivo, stock mínimo e historial
+|   |       `-- vendor_widgets.dart   # Indicadores, etiqueta de estado y fila de pedido
 |   |-- checkout/
 |   |   |-- checkout_providers.dart   # Repositorio, pasarela, CheckoutController (form → pago → resultado)
 |   |   |-- domain/                   # CheckoutContact, CheckoutSession, CheckoutStatus, PlacedOrder

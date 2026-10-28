@@ -277,6 +277,19 @@ Objetivo: ver cómo se vería el computador con las piezas elegidas, ya sea a ma
   - habilitar el primer administrador por SQL (`backend/README.md`);
   - el texto legal sigue siendo el borrador 1.0, el mismo para clientes y tiendas.
 
+### Panel de la tienda, fase 1 (2026-10-29) — hecho en local, pendiente en la nube
+- **Decisiones del equipo:** el panel se construye por fases (1: resumen, productos, inventario y pedidos; 2: ventas y liquidaciones, notificaciones y perfil comercial; 3: atención al cliente, analíticas e importación masiva). Las publicaciones siguen **sin aprobación**. En el móvil, **menú lateral**.
+- **Backend** (migración `20261029010000_vendor_dashboard.sql`, API_CONTRATO parte 9):
+  - pedidos: nueve estados con transiciones forzadas (RN-029), historial con autor, transportadora y guía, y devolución al stock al rechazar o cancelar;
+  - inventario: stock mínimo, alertas, reservado y vendido, y movimientos de entrada, salida y ajuste con motivo. Un trigger registra todo cambio de stock, incluida la venta del checkout;
+  - resumen: ventas de hoy, la semana y el mes con su crecimiento, pedidos por estado, inventario y dinero del mes (bruto, comisión y neto).
+- **Flutter** (`features/vendor`): `VendorShell` con menú lateral (Resumen, Productos, Inventario, Pedidos, Catálogo general y Mi cuenta). Productos es "Mis publicaciones" de antes.
+- **Pruebas:** pgTAP (46 nuevas), datos y pantallas en Flutter, y un recorrido por HTTP con una cuenta de tienda real en local.
+- **Pendiente:**
+  - aplicar la migración en la nube (con confirmación);
+  - fase 2: reembolsos de pedidos rechazados o cancelados, liquidaciones y notificaciones;
+  - la fase 9 del plan se reduce a lo del cliente: su historial de pedidos y el seguimiento.
+
 ### Fase 9: órdenes y seguimiento
 - `order_status_history` con transiciones válidas forzadas por trigger (RN-029).
 - Flutter: `features/orders` con historial, detalle por sub-orden, transportadora y guía (RF-069), y estado en vivo con Supabase Realtime.

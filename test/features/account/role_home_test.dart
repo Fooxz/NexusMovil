@@ -31,6 +31,14 @@ class _NoSavedCartRepository implements CartRepository {
 Finder navLabel(String text) =>
     find.descendant(of: find.byType(BottomNavigationBar), matching: find.text(text));
 
+/// Panel de la tienda: el menú lateral (☰) y el resumen como inicio.
+Finder get storeMenu => find.byTooltip('Abrir menú');
+
+Future<void> openStoreSection(WidgetTester tester, String label) async {
+  await tapAndSettle(tester, storeMenu);
+  await tapAndSettle(tester, find.descendant(of: find.byType(Drawer), matching: find.text(label)));
+}
+
 void main() {
   group('pantalla inicial según el rol', () {
     testWidgets('sin sesión abre el shell del cliente', (tester) async {
@@ -59,11 +67,12 @@ void main() {
       await tester.pumpWidget(bed.app());
       await tester.pumpAndSettle();
 
-      expect(navLabel('PUBLICACIONES'), findsOneWidget);
+      expect(find.text('RESUMEN'), findsOneWidget, reason: 'abre en el resumen del panel');
+      expect(storeMenu, findsOneWidget);
       expect(navLabel('ASISTENTE'), findsNothing);
       expect(navLabel('PC BUILDER'), findsNothing);
 
-      await tapAndSettle(tester, find.text('CATÁLOGO'));
+      await openStoreSection(tester, 'Catálogo general');
       expect(find.text('CATÁLOGO COMPLETO'), findsOneWidget);
       expect(find.byIcon(Icons.shopping_cart_outlined), findsNothing);
     });
@@ -89,7 +98,7 @@ void main() {
 
       expect(find.text('ACTIVA TU TIENDA'), findsOneWidget);
       expect(find.textContaining('Paso 1 de 2'), findsOneWidget);
-      expect(navLabel('PUBLICACIONES'), findsNothing);
+      expect(storeMenu, findsNothing);
 
       await enterField(tester, 'Mínimo 8 caracteres, con letras y números', 'Definitiva2026');
       await enterField(tester, 'Repite la contraseña', 'Definitiva2026');
@@ -101,7 +110,7 @@ void main() {
 
       await tapAndSettle(tester, find.byType(Checkbox));
       await tapAndSettle(tester, find.text('ACEPTAR Y CONTINUAR'));
-      expect(navLabel('PUBLICACIONES'), findsOneWidget);
+      expect(find.text('RESUMEN'), findsOneWidget);
     });
 
     testWidgets('un cliente que inicia sesión conserva la pestaña en la que estaba', (tester) async {
@@ -124,11 +133,11 @@ void main() {
       await bed.store();
       await tester.pumpWidget(bed.app());
       await tester.pumpAndSettle();
-      await tapAndSettle(tester, find.text('CUENTA'));
+      await openStoreSection(tester, 'Mi cuenta');
       await tapAndSettle(tester, find.text('CERRAR SESIÓN'));
 
       expect(navLabel('INICIO'), findsOneWidget);
-      expect(navLabel('PUBLICACIONES'), findsNothing);
+      expect(storeMenu, findsNothing);
     });
   });
 

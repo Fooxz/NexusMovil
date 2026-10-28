@@ -163,6 +163,14 @@ sin acoplar el dominio del catálogo al PC Builder.
   `VALIDATION_ERROR` con `details.field` llegan como `FieldValidationFailure` con el mensaje del
   backend, que está escrito para el usuario.
 
+### Panel de la tienda (2026-10-29)
+
+- **`VendorShell`** (`features/vendor/presentation/vendor_shell.dart`) reemplaza a las pestañas de la tienda: un `Scaffold` con menú lateral y un `LazyIndexedStack` con las secciones, que conservan su estado.
+  - **`NexusMenuScope`** (`widgets/`) abre el menú: `NexusTopBar` muestra el botón ☰ cuando lo encuentra, así "Mis publicaciones", el catálogo y la cuenta lo tienen sin saber en qué shell están. Las pantallas que se abren encima (detalles) no lo encuentran y muestran "volver".
+  - **`VendorShellScope`** cambia de sección: el resumen abre los pedidos nuevos o los productos con stock bajo después de fijar el filtro (`vendorOrdersQueryProvider`, `inventoryQueryProvider`).
+- **Providers** (`vendor_providers.dart`): resumen, pedidos e inventario paginados con su filtro, detalle por familia y dos controladores de acciones (`OrderActionController`, `StockActionController`) que dejan el error en su estado e invalidan lo que depende del cambio. Por ejemplo, rechazar un pedido refresca el inventario y "Mis publicaciones", porque las unidades vuelven al stock.
+- **Sin backend,** `MockVendorRepository` es una tienda de ejemplo con las mismas reglas: transiciones, motivos, guía y devolución al stock.
+
 ### Carrito (fase 5)
 
 - **`CartController`** (`features/cart/cart_providers.dart`) es el carrito visible:

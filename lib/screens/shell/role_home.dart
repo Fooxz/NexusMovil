@@ -6,6 +6,7 @@ import '../../features/account/domain/account_models.dart';
 import '../../features/account/presentation/store_setup_screen.dart';
 import '../../features/auth/auth_providers.dart';
 import '../../features/auth/presentation/auth_widgets.dart';
+import '../../features/vendor/presentation/vendor_shell.dart';
 import '../../theme/nexus_theme.dart';
 import '../../widgets/nexus_error_state.dart';
 import '../../widgets/nexus_loading.dart';
@@ -18,7 +19,7 @@ enum _Home { customer, storeSetup, store, admin }
 ///
 /// - Sin sesión o cliente: el shell de siempre (`MainShell`).
 /// - Tienda: su primer ingreso (contraseña y documentos) y después
-///   `ProviderShell`.
+///   el panel de la tienda (`VendorShell`, con menú lateral).
 /// - Administrador: `AdminShell`.
 ///
 /// Es solo navegación: el backend valida el rol en cada función. Mientras la
@@ -63,7 +64,7 @@ class _RoleHomeState extends ConsumerState<RoleHome> {
     _last = home;
     return switch (home) {
       _Home.customer => const MainShell(),
-      _Home.store => const ProviderShell(),
+      _Home.store => const VendorShell(),
       _Home.admin => const AdminShell(),
       _Home.storeSetup => _lastAccount == null
           ? const _Loading()

@@ -112,6 +112,9 @@ prueba. Con `env.cloud.json` se saltan, salvo que se agregue `--dart-define=ALLO
 carga del inventario (arriba) y despliegue de `assistant`, `checkout` y `payment-webhook`. Sin llaves de Wompi,
 `checkout` responde `PAYMENTS_UNAVAILABLE`. El esquema `public` y `private` volvió a quedar idéntico al local.
 
+**Actualización del 2026-10-29:** `db push` del panel de la tienda (`20261029010000_vendor_dashboard.sql`). El historial
+de inventario arrancó con una entrada "Inventario inicial" por oferta con stock. Esquema idéntico al local.
+
 **Al agregar una migración:** `npx supabase db push --dry-run` y después `npx supabase db push`. Si cambia la
 función: `npx supabase functions deploy assistant --no-verify-jwt --use-api`.
 

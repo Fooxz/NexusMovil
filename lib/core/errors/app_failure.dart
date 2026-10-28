@@ -47,6 +47,7 @@ sealed class AppFailure implements Exception {
       (_, 'PRODUCT_LOCKED') => const ProductLockedFailure(),
       (_, 'OFFER_EXISTS') => const OfferExistsFailure(),
       (_, 'OFFER_RETIRED') => const OfferRetiredFailure(),
+      (_, 'INVALID_TRANSITION') => const InvalidOrderTransitionFailure(),
       (_, 'SIMILAR_STORE_NAME') => SimilarStoreNameFailure(
         _stringFrom(details, 'displayName'),
       ),
@@ -364,4 +365,13 @@ class FieldValidationFailure extends AppFailure {
     : super(message);
 
   final String field;
+}
+
+// --- Panel de la tienda ---
+
+/// El pedido ya no admite ese estado: otra persona lo cambió o la pantalla
+/// quedó desactualizada.
+class InvalidOrderTransitionFailure extends AppFailure {
+  const InvalidOrderTransitionFailure()
+    : super('El pedido cambió de estado. Actualízalo y vuelve a intentarlo.');
 }
