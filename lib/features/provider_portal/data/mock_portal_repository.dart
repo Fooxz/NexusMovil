@@ -41,6 +41,8 @@ class _Offer {
   final String id;
   OfferInput input;
   var retired = false;
+  var moderation = OfferModeration.approved;
+  String? moderationReason;
 
   OfferStatus get status => retired ? OfferStatus.retired : input.status;
 }
@@ -140,8 +142,12 @@ class MockPortalRepository implements ProviderPortalRepository {
     stockLevel: _stockLevel(offer.input.stockUnits),
     status: offer.status,
     externalSku: offer.input.externalSku ?? sheet.id,
-    visible: offer.status == OfferStatus.published && store.status == StoreStatus.active,
+    visible: offer.status == OfferStatus.published &&
+        offer.moderation == OfferModeration.approved &&
+        store.status == StoreStatus.active,
     canEditSheet: _editable(sheet, store.id),
+    moderation: offer.moderation,
+    moderationReason: offer.moderationReason,
   );
 
   MyOfferDetail _detail(MockStore store, String productId) {
@@ -313,6 +319,26 @@ class MockPortalRepository implements ProviderPortalRepository {
     if (existing == null) throw const NotFoundFailure();
     existing.retired = true;
     return _detail(store, productId);
+  }
+
+  @override
+  Future<MyOfferDetail> requestReview(String productId) async {
+    await _simulateLatency();
+    final store = _readyStore();
+    final existing = _offers[store.id]?[productId];
+    if (existing == null) throw const NotFoundFailure();
+    if (existing.moderation != OfferModeration.hidden) throw const NotHiddenFailure();
+    existing.moderation = OfferModeration.review;
+    return _detail(store, productId);
+  }
+
+  /// Lo que hace el administrador en Supabase (`admin_moderate_offer`); sirve
+  /// para probar la pantalla de la tienda sin backend.
+  void moderate(String storeId, String productId, OfferModeration moderation, {String? reason}) {
+    final offer = _offers[storeId]?[productId] ?? (throw const NotFoundFailure());
+    offer
+      ..moderation = moderation
+      ..moderationReason = moderation == OfferModeration.approved ? null : reason;
   }
 
   @override

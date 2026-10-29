@@ -280,6 +280,23 @@ Migración `20261029010000_vendor_dashboard.sql` (API_CONTRATO, parte 9).
 - **Inmutables:** los dos historiales no se modifican ni se borran. Lo único permitido es lo que hace la base al borrar una cuenta: `actor_id` queda nulo y el resto del registro no cambia.
 - **Pendiente para la fase 2 del panel:** reembolsos al cliente, liquidaciones a la tienda y notificaciones.
 
+## Consola del administrador (2026-10-29)
+
+Migración `20261029020000_admin_console.sql` (API_CONTRATO, parte 10).
+
+| Tabla o columna | Para qué | Acceso de clientes |
+|---|---|---|
+| `provider_status` (valores nuevos) | `blocked` (incumplió las políticas) y `deactivated` (dejó de operar), además de `suspended` (temporal). | Por `admin_set_provider_status`. |
+| `provider_admin_notes` | Historial administrativo de cada tienda: observaciones, advertencias, incidencias recurrentes, incumplimientos y cambios de estado con su motivo, quién y cuándo. | Ninguno. El administrador lo lee en la ficha de la tienda. |
+| `offers.moderation_status`, `moderation_reason`, `moderated_at`, `moderated_by` | Moderación posterior: `approved` (por defecto), `hidden`, `review` o `rejected`, con el motivo que ve la tienda. | La tienda lee los suyos en sus publicaciones. |
+| `order_admin_notes` | Observaciones del administrador sobre un pedido o una de sus sub-órdenes. | Ninguno. |
+| `private.admin_offers` (vista) | Cada oferta con sus alertas de calidad: ficha incompleta, precio anómalo frente a la mediana del producto y posible duplicado por nombre. | Ninguno. |
+
+- **Solo `approved` se ve:** `private.visible_offers` exige la moderación aprobada, así el catálogo, el carrito, el checkout, el asistente y el PC Builder dejan de ofrecer lo oculto sin cambiar sus consultas.
+- **El administrador interviene pedidos** con transiciones propias (`private.admin_next_statuses`) y siempre con una observación, que queda en `sub_order_status_history` como "NEXUS: ...". Cancelar o rechazar devuelve las unidades al stock (`private.restock_sub_order`).
+- **Inmutables:** los dos historiales nuevos, con la misma excepción al borrar una cuenta.
+- **Pendiente para la entrega 2:** liquidaciones a las tiendas, reembolsos con Wompi y la sección de clientes.
+
 ## Datos de desarrollo
 
 `backend/supabase/seed.sql` (lo carga `npx supabase db reset`) contiene:

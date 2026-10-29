@@ -4,7 +4,9 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:prueba01/features/provider_portal/data/mock_portal_repository.dart';
 import 'package:prueba01/features/provider_portal/data/product_image_picker.dart';
+import 'package:prueba01/features/provider_portal/domain/portal_models.dart';
 import 'package:prueba01/features/provider_portal/presentation/my_offers_screen.dart';
 import 'package:prueba01/features/provider_portal/provider_portal_providers.dart';
 
@@ -139,6 +141,35 @@ void main() {
     expect(find.text('Publicación retirada.'), findsOneWidget);
     expect(find.text('VOLVER A PUBLICAR'), findsOneWidget);
     expect(find.text('Retirada'), findsOneWidget);
+  });
+
+  testWidgets('la tienda ve por qué NEXUS ocultó su publicación y pide la revisión', (tester) async {
+    final bed = await _pumpPortal(tester, _FakePicker());
+    await tapAndSettle(tester, find.text('PUBLICAR UN PRODUCTO'));
+    await tester.enterText(find.widgetWithText(TextFormField, 'Nombre, marca o modelo'), 'kraken');
+    await tester.pump(const Duration(milliseconds: 301));
+    await tester.pumpAndSettle();
+    await tapAndSettle(tester, find.text('Vender'));
+    await _fillOffer(tester);
+    await tapAndSettle(tester, find.text('PUBLICAR'));
+
+    // El administrador la oculta (en Supabase, admin_moderate_offer).
+    final container = ProviderScope.containerOf(tester.element(find.byType(MyOffersScreen, skipOffstage: false)));
+    final repository = container.read(providerPortalRepositoryProvider) as MockPortalRepository;
+    final productId = (await repository.getMyOffers()).items.single.productId;
+    final storeId = bed.directory.storeOf(bed.auth.currentUser!.id)!.id;
+    repository.moderate(storeId, productId, OfferModeration.hidden, reason: 'Agrega fotos reales del producto');
+    container.invalidate(myOfferDetailProvider(productId));
+    await tester.pumpAndSettle();
+
+    expect(find.text('OCULTA POR NEXUS'), findsOneWidget);
+    expect(find.text('Motivo: Agrega fotos reales del producto'), findsOneWidget);
+    expect(find.text('No visible'), findsOneWidget);
+
+    await tapAndSettle(tester, find.text('YA LA CORREGÍ: SOLICITAR REVISIÓN'));
+    expect(find.text('Listo: NEXUS revisará la publicación.'), findsOneWidget);
+    expect(find.text('EN REVISIÓN'), findsOneWidget);
+    expect(find.text('YA LA CORREGÍ: SOLICITAR REVISIÓN'), findsNothing, reason: 'se pide una sola vez');
   });
 
   testWidgets('el formulario de la oferta valida el descuento', (tester) async {

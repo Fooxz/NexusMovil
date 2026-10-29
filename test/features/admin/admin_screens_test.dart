@@ -4,12 +4,20 @@ import 'package:flutter_test/flutter_test.dart';
 import '../../support/account_test_support.dart';
 import '../../support/auth_test_support.dart' show enterField, tapAndSettle, usePhoneViewport;
 
+/// Abre una sección de la consola desde el menú lateral.
+Future<void> _openSection(WidgetTester tester, String label) async {
+  await tapAndSettle(tester, find.byTooltip('Abrir menú'));
+  await tapAndSettle(tester, find.descendant(of: find.byType(Drawer), matching: find.text(label)));
+}
+
+/// La consola abre en el resumen; estas pruebas empiezan en Tiendas.
 Future<RoleTestBed> _pumpAdmin(WidgetTester tester) async {
   usePhoneViewport(tester);
   final bed = RoleTestBed();
   await bed.admin();
   await tester.pumpWidget(bed.app());
   await tester.pumpAndSettle();
+  await _openSection(tester, 'Tiendas');
   return bed;
 }
 
@@ -61,15 +69,25 @@ void main() {
     expect(find.text('Contraseña temporal'), findsOneWidget);
   });
 
-  testWidgets('suspende y habilita una tienda', (tester) async {
+  testWidgets('suspende con motivo y vuelve a habilitar una tienda', (tester) async {
     await _pumpAdmin(tester);
     await tapAndSettle(tester, find.text('TecnoPartes'));
-    await tapAndSettle(tester, find.text('SUSPENDER TIENDA'));
+    await tapAndSettle(tester, find.text('CAMBIAR ESTADO'));
     await tapAndSettle(tester, find.text('Suspender'));
+    // Sin motivo no se suspende.
+    await tapAndSettle(tester, find.widgetWithText(TextButton, 'Suspender'));
+    expect(find.text('Escribe al menos 3 caracteres.'), findsOneWidget);
+    await tester.enterText(find.byType(TextFormField), 'Documentos vencidos');
+    await tapAndSettle(tester, find.widgetWithText(TextButton, 'Suspender'));
 
     expect(find.text('Suspendida'), findsOneWidget);
-    await tapAndSettle(tester, find.text('HABILITAR TIENDA'));
+    await tester.scrollUntilVisible(find.text('Documentos vencidos'), 300);
+    expect(find.text('Habilitada → Suspendida'), findsOneWidget, reason: 'queda en el historial');
+
+    await tester.scrollUntilVisible(find.text('CAMBIAR ESTADO'), -300);
+    await tapAndSettle(tester, find.text('CAMBIAR ESTADO'));
     await tapAndSettle(tester, find.text('Habilitar'));
+    await tapAndSettle(tester, find.widgetWithText(TextButton, 'Habilitar'));
     expect(find.text('Habilitada'), findsOneWidget);
   });
 
@@ -96,7 +114,7 @@ void main() {
     final password = _shownPassword(tester);
     await tapAndSettle(tester, find.text('Listo'));
 
-    await tapAndSettle(tester, find.text('CUENTA'));
+    await _openSection(tester, 'Mi cuenta');
     await tapAndSettle(tester, find.text('CERRAR SESIÓN'));
     await bed.auth.signIn(email: 'dueno@nueva.co', password: password);
     await tester.pumpAndSettle();

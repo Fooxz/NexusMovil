@@ -185,8 +185,11 @@ select is(
    join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'public' and p.proname like 'admin\_%'
      and has_function_privilege('authenticated', p.oid, 'execute')),
-  array['admin_get_provider', 'admin_get_providers', 'admin_set_provider_status', 'admin_update_provider',
-        'admin_validate_store'],
+  array['admin_add_order_note', 'admin_add_provider_note', 'admin_get_dashboard', 'admin_get_offer',
+        'admin_get_order', 'admin_get_provider', 'admin_get_provider_overview', 'admin_get_providers',
+        'admin_list_offers', 'admin_list_orders', 'admin_list_providers', 'admin_moderate_offer',
+        'admin_set_provider_status', 'admin_update_product', 'admin_update_provider',
+        'admin_update_sub_order_status', 'admin_validate_store'],
   'con sesión solo se ejecutan las que exigen el rol administrador');
 select is(
   (select array_agg(p.proname::text order by p.proname) from pg_proc p
@@ -389,7 +392,7 @@ select is(
   'tienda.nueva@zz.test', 'lista las tiendas con su cuenta, buscando por razón social');
 select is(public.admin_get_provider('zz-r1') ->> 'publishedOffers', '1',
   'el detalle muestra las ofertas publicadas');
-select is(public.admin_set_provider_status('zz-r1', 'suspended') ->> 'status', 'suspended',
+select is(public.admin_set_provider_status('zz-r1', 'suspended', 'Documentos vencidos') ->> 'status', 'suspended',
   'suspende una tienda');
 reset role;
 
@@ -402,7 +405,7 @@ reset role;
 
 select pg_temp.login_as(pg_temp.id('admin'));
 select throws_like($$ select public.admin_set_provider_status('zz-r1', 'pending') $$, '%VALIDATION_ERROR%',
-  'solo se habilita o se suspende');
+  'no se vuelve a pendiente');
 select throws_like($$ select public.admin_set_provider_status('no-existe', 'active') $$, '%PROVIDER_NOT_FOUND%',
   'responde 404 si la tienda no existe');
 select is(public.admin_set_provider_status('zz-r1', 'active') ->> 'status', 'active',

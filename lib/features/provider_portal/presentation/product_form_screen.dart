@@ -17,6 +17,7 @@ import '../../catalog/domain/product.dart';
 import '../../catalog/presentation/product_visuals.dart';
 import '../domain/portal_models.dart';
 import '../provider_portal_providers.dart';
+import 'attribute_fields.dart';
 import 'my_offer_screen.dart';
 import 'offer_form_screen.dart';
 import 'portal_widgets.dart';
@@ -53,8 +54,7 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
   late final _model = TextEditingController(text: widget.current?.offer.model ?? '');
   late final _summary = TextEditingController(text: widget.current?.summary ?? '');
   late ProductCategory? _category = widget.current?.offer.category;
-  late final Map<String, Object?> _attributes = {...?widget.current?.attributes};
-  final _attributeText = <String, TextEditingController>{};
+  late final _attributes = AttributeValues(widget.current?.attributes);
   late final List<_ImageItem> _images = [
     for (final image in widget.current?.images ?? const <ProductImageRef>[])
       if (image.path != null) _ImageItem(path: image.path!, url: image.url),
@@ -67,21 +67,13 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
 
   @override
   void dispose() {
-    for (final controller in [_name, _brand, _model, _summary, ..._attributeText.values]) {
+    for (final controller in [_name, _brand, _model, _summary]) {
       controller.dispose();
     }
+    _attributes.dispose();
     _offer?.dispose();
     super.dispose();
   }
-
-  TextEditingController _textFor(AttributeDefinition definition) =>
-      _attributeText.putIfAbsent(definition.key, () {
-        final value = _attributes[definition.key];
-        return TextEditingController(text: value == null ? '' : _formatNumber(value));
-      });
-
-  static String _formatNumber(Object value) =>
-      value is num && value == value.roundToDouble() ? '${value.toInt()}' : '$value';
 
   Future<void> _addImage() async {
     final messenger = ScaffoldMessenger.of(context);
@@ -115,44 +107,9 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
     }
   }
 
-  /// Atributos de la plantilla con valor. Los que quedan vacíos no se envían.
-  Map<String, Object?> _collectAttributes(List<AttributeDefinition> template) {
-    final values = <String, Object?>{};
-    for (final definition in template) {
-      switch (definition.type) {
-        case AttributeType.number:
-          final text = _textFor(definition).text.trim().replaceAll(',', '.');
-          final number = num.tryParse(text);
-          if (number != null) values[definition.key] = number == number.roundToDouble() ? number.toInt() : number;
-        case AttributeType.text:
-          final text = _textFor(definition).text.trim();
-          if (text.isNotEmpty) values[definition.key] = text;
-        case AttributeType.boolean || AttributeType.choice:
-          if (_attributes[definition.key] != null) values[definition.key] = _attributes[definition.key];
-        case AttributeType.choices:
-          final list = _attributes[definition.key];
-          if (list is List && list.isNotEmpty) values[definition.key] = list;
-      }
-    }
-    return values;
-  }
-
-  static String _display(AttributeDefinition definition, Object value) {
-    final text = switch (value) {
-      bool flag => flag ? 'Sí' : 'No',
-      List<Object?> list => list.join(', '),
-      num number => _formatNumber(number),
-      _ => '$value',
-    };
-    return definition.unit == null ? text : '$text ${definition.unit}';
-  }
-
   ProductInput _product(List<AttributeDefinition> template) {
-    final attributes = _collectAttributes(template);
-    final shown = [
-      for (final definition in template)
-        if (attributes[definition.key] case final value?) (definition, _display(definition, value)),
-    ];
+    final attributes = _attributes.collect(template);
+    final sheet = sheetFromAttributes(template, attributes);
     return ProductInput(
       category: _category!,
       name: _name.text,
@@ -160,14 +117,8 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
       model: _model.text,
       summary: _summary.text,
       // La ficha para mostrar sale de los atributos.
-      specs: [
-        for (final (definition, text) in shown)
-          if (text.length <= 120) ProductSpec(label: definition.label.toUpperCase(), value: text),
-      ],
-      quickSpecs: [
-        for (final (_, text) in shown.take(4))
-          if (text.length <= 30) text.toUpperCase(),
-      ],
+      specs: sheet.specs,
+      quickSpecs: sheet.quickSpecs,
       attributes: attributes,
       images: [for (final image in _images) image.path],
     );
@@ -279,9 +230,6 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                           // Los atributos son de cada categoría.
                           _category = option;
                           _attributes.clear();
-                          for (final controller in _attributeText.values) {
-                            controller.clear();
-                          }
                         }),
                       ),
                   ],
@@ -332,7 +280,14 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                   ),
                   data: (definitions) => Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [for (final definition in definitions) _attributeField(definition)],
+                    children: [
+                      for (final definition in definitions)
+                        AttributeField(
+                          definition: definition,
+                          values: _attributes,
+                          onChanged: () => setState(() {}),
+                        ),
+                    ],
                   ),
                 ),
               ],
@@ -369,94 +324,6 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
         const SizedBox(height: 20),
       ],
     );
-  }
-
-  Widget _attributeField(AttributeDefinition definition) {
-    final label = [
-      definition.label.toUpperCase(),
-      if (definition.unit != null) '(${definition.unit})',
-      if (!definition.isRequired) '· OPCIONAL',
-    ].join(' ');
-
-    return switch (definition.type) {
-      AttributeType.number || AttributeType.text => AuthField(
-        label: label,
-        field: NexusTextField(
-          hint: definition.type == AttributeType.number ? 'Número' : 'Texto',
-          controller: _textFor(definition),
-          keyboardType: definition.type == AttributeType.number
-              ? const TextInputType.numberWithOptions(decimal: true)
-              : null,
-          validator: (value) {
-            final text = value?.trim() ?? '';
-            if (text.isEmpty) return definition.isRequired ? 'Completa «${definition.label}».' : null;
-            if (definition.type == AttributeType.number &&
-                (num.tryParse(text.replaceAll(',', '.')) ?? -1) < 0) {
-              return 'Escribe un número.';
-            }
-            return text.length > 120 ? 'Admite hasta 120 caracteres.' : null;
-          },
-        ),
-      ),
-      AttributeType.boolean => SwitchListTile(
-        contentPadding: EdgeInsets.zero,
-        title: Text(definition.label, style: const TextStyle(fontSize: 12.5, color: NexusColors.text)),
-        value: _attributes[definition.key] == true,
-        onChanged: (value) => setState(() => _attributes[definition.key] = value),
-      ),
-      AttributeType.choice => AuthField(
-        label: label,
-        field: DropdownButtonFormField<String>(
-          initialValue: definition.allowedValues.contains(_attributes[definition.key])
-              ? _attributes[definition.key] as String
-              : null,
-          dropdownColor: NexusColors.bgAlt,
-          items: [
-            for (final value in definition.allowedValues) DropdownMenuItem(value: value, child: Text(value)),
-          ],
-          onChanged: (value) => setState(() => _attributes[definition.key] = value),
-          validator: (value) =>
-              definition.isRequired && value == null ? 'Elige «${definition.label}».' : null,
-        ),
-      ),
-      AttributeType.choices => FormField<List<String>>(
-        initialValue: [
-          for (final value in (_attributes[definition.key] as List<Object?>? ?? const []))
-            if (value is String) value,
-        ],
-        validator: (values) =>
-            definition.isRequired && (values == null || values.isEmpty) ? 'Elige al menos una opción.' : null,
-        builder: (field) => Padding(
-          padding: const EdgeInsets.only(bottom: 14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              NexusFieldLabel(label),
-              const SizedBox(height: 6),
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: [
-                  for (final value in definition.allowedValues)
-                    FilterChip(
-                      label: Text(value),
-                      selected: field.value?.contains(value) ?? false,
-                      onSelected: (selected) {
-                        final next = [...?field.value];
-                        selected ? next.add(value) : next.remove(value);
-                        field.didChange(next);
-                        setState(() => _attributes[definition.key] = next);
-                      },
-                    ),
-                ],
-              ),
-              if (field.errorText case final error?)
-                Text(error, style: const TextStyle(fontSize: 10, color: NexusColors.pink)),
-            ],
-          ),
-        ),
-      ),
-    };
   }
 }
 

@@ -177,7 +177,9 @@ class _MyOfferTile extends StatelessWidget {
                             offer.stockUnits == 1 ? '1 unidad' : '${offer.stockUnits} unidades',
                             color: ProductVisuals.stockColor(offer.stockLevel),
                           ),
-                          if (offer.status == OfferStatus.published && !offer.visible)
+                          if (offer.moderation != OfferModeration.approved)
+                            NexusTag(offer.moderation.label.toUpperCase(), color: NexusColors.pink)
+                          else if (offer.status == OfferStatus.published && !offer.visible)
                             const NexusTag('NO VISIBLE', color: NexusColors.pink),
                         ],
                       ),

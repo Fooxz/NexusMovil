@@ -31,7 +31,8 @@ class _NoSavedCartRepository implements CartRepository {
 Finder navLabel(String text) =>
     find.descendant(of: find.byType(BottomNavigationBar), matching: find.text(text));
 
-/// Panel de la tienda: el menú lateral (☰) y el resumen como inicio.
+/// Panel de la tienda y consola del administrador: el menú lateral (☰) y el
+/// resumen como inicio.
 Finder get storeMenu => find.byTooltip('Abrir menú');
 
 Future<void> openStoreSection(WidgetTester tester, String label) async {
@@ -83,9 +84,9 @@ void main() {
       await tester.pumpWidget(bed.app());
       await tester.pumpAndSettle();
 
-      expect(navLabel('TIENDAS'), findsOneWidget);
+      expect(find.text('RESUMEN'), findsOneWidget, reason: 'abre en el resumen de la consola');
       expect(navLabel('PC BUILDER'), findsNothing);
-      await tapAndSettle(tester, find.text('CUENTA'));
+      await openStoreSection(tester, 'Mi cuenta');
       expect(find.text('Administrador de NEXUS'), findsOneWidget);
     });
 

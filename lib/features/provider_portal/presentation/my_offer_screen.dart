@@ -52,6 +52,23 @@ class MyOfferScreen extends ConsumerWidget {
       );
   }
 
+  Future<void> _requestReview(BuildContext context, WidgetRef ref) async {
+    final result = await ref
+        .read(portalActionControllerProvider.notifier)
+        .run((repository) => repository.requestReview(productId));
+    if (!context.mounted) return;
+    final error = ref.read(portalActionControllerProvider).error;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(
+            result != null ? 'Listo: NEXUS revisará la publicación.' : AuthErrorBanner.messageFor(error ?? Object()),
+          ),
+        ),
+      );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final detail = ref.watch(myOfferDetailProvider(productId));
@@ -85,6 +102,14 @@ class MyOfferScreen extends ConsumerWidget {
                   [offer.brand, offer.model, visuals.categoryLabel].whereType<String>().join(' · '),
                   style: const TextStyle(fontSize: 12, color: NexusColors.textDim),
                 ),
+                if (offer.moderation != OfferModeration.approved) ...[
+                  const SizedBox(height: 14),
+                  _ModerationNotice(
+                    offer: offer,
+                    loading: action.isLoading,
+                    onRequestReview: () => _requestReview(context, ref),
+                  ),
+                ],
                 const SizedBox(height: 14),
                 const NexusUnderlineTitle('TU OFERTA'),
                 const SizedBox(height: 4),
@@ -167,6 +192,56 @@ class MyOfferScreen extends ConsumerWidget {
           },
         ),
       ],
+    );
+  }
+}
+
+/// NEXUS ocultó o rechazó la publicación: el motivo y, si está oculta, el
+/// botón para pedir la revisión después de corregirla.
+class _ModerationNotice extends StatelessWidget {
+  const _ModerationNotice({required this.offer, required this.loading, required this.onRequestReview});
+
+  final MyOffer offer;
+  final bool loading;
+  final VoidCallback onRequestReview;
+
+  @override
+  Widget build(BuildContext context) {
+    final explanation = switch (offer.moderation) {
+      OfferModeration.hidden => 'No se ve en el catálogo. Corrige lo que indica NEXUS y pide la revisión.',
+      OfferModeration.review => 'Pediste la revisión: NEXUS la volverá a mostrar cuando la apruebe.',
+      OfferModeration.rejected => 'No se puede volver a publicar. Si crees que es un error, escribe a NEXUS.',
+      OfferModeration.approved => '',
+    };
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: NexusColors.pink.withValues(alpha: 0.1),
+        border: Border.all(color: NexusColors.pink),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            offer.moderation.label.toUpperCase(),
+            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: NexusColors.pink),
+          ),
+          if (offer.moderationReason case final reason?) ...[
+            const SizedBox(height: 6),
+            Text('Motivo: $reason', style: const TextStyle(fontSize: 12.5, color: NexusColors.text)),
+          ],
+          const SizedBox(height: 6),
+          Text(explanation, style: const TextStyle(fontSize: 11.5, color: NexusColors.textDim)),
+          if (offer.moderation == OfferModeration.hidden) ...[
+            const SizedBox(height: 10),
+            NexusOutlineButton(
+              label: loading ? 'ENVIANDO...' : 'YA LA CORREGÍ: SOLICITAR REVISIÓN',
+              onPressed: loading ? null : onRequestReview,
+            ),
+          ],
+        ],
+      ),
     );
   }
 }

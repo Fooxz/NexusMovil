@@ -249,12 +249,16 @@ class NexusSpecRow extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 12),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.bold,
-              color: valueColor,
+          // Un valor largo (una dirección) también baja de línea.
+          Flexible(
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                color: valueColor,
+              ),
             ),
           ),
         ],

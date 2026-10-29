@@ -115,6 +115,10 @@ carga del inventario (arriba) y despliegue de `assistant`, `checkout` y `payment
 **Actualización del 2026-10-29:** `db push` del panel de la tienda (`20261029010000_vendor_dashboard.sql`). El historial
 de inventario arrancó con una entrada "Inventario inicial" por oferta con stock. Esquema idéntico al local.
 
+**Actualización del 2026-10-29 (2):** `db push` de la consola del administrador (`20261029020000_admin_console.sql`).
+Las 993 ofertas quedaron aprobadas y sin alertas de calidad. `db diff` lista funciones anteriores solo porque la copia
+local de las migraciones tiene fin de línea CRLF (en git están con LF): sin el ``, las 145 funciones son idénticas.
+
 **Al agregar una migración:** `npx supabase db push --dry-run` y después `npx supabase db push`. Si cambia la
 función: `npx supabase functions deploy assistant --no-verify-jwt --use-api`.
 

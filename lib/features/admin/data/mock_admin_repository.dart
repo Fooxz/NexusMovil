@@ -119,11 +119,23 @@ class MockAdminRepository implements AdminRepository {
   }
 
   @override
-  Future<AdminStore> setStoreStatus(String id, StoreStatus status) async {
+  Future<AdminStore> setStoreStatus(String id, StoreStatus status, {String? reason}) async {
     await _simulateLatency();
     _requireAdmin();
-    if (status != StoreStatus.active && status != StoreStatus.suspended) throw const ValidationFailure();
-    return _toAdmin(_find(id)..status = status);
+    if (!adminStoreStatuses.contains(status)) throw const ValidationFailure();
+    if (status != StoreStatus.active && (reason?.trim().length ?? 0) < 3) {
+      throw const FieldValidationFailure(field: 'reason', message: 'Escribe el motivo (al menos 3 caracteres)');
+    }
+    final store = _find(id);
+    if (store.status == status) throw const SameStatusFailure();
+    _directory.statusChanges.add((
+      storeId: id,
+      from: store.status,
+      to: status,
+      reason: reason?.trim() ?? 'Tienda habilitada',
+      at: DateTime.now(),
+    ));
+    return _toAdmin(store..status = status);
   }
 
   @override

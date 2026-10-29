@@ -48,6 +48,8 @@ MyOffer myOfferFromJson(Object? json) {
       externalSku: externalSku,
       visible: visible,
       canEditSheet: canEditSheet,
+      moderation: OfferModeration.fromName(_string(json, 'moderationStatus')),
+      moderationReason: _string(json, 'moderationReason'),
     );
   }
   throw FormatException('Publicación inválida', json);

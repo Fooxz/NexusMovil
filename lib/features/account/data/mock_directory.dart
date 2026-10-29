@@ -60,6 +60,10 @@ class MockDirectory {
   /// Cuentas creadas por un administrador que ya aceptaron los documentos.
   final acceptedDocuments = <String>{};
 
+  /// Cambios de estado de las tiendas con su motivo, como los `status_change`
+  /// de `provider_admin_notes`.
+  final statusChanges = <({String storeId, StoreStatus from, StoreStatus to, String reason, DateTime at})>[];
+
   MockStore? storeOf(String userId) {
     for (final store in stores.values) {
       if (store.userId == userId) return store;

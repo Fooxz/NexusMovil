@@ -277,7 +277,7 @@ Objetivo: ver cómo se vería el computador con las piezas elegidas, ya sea a ma
   - habilitar el primer administrador por SQL (`backend/README.md`);
   - el texto legal sigue siendo el borrador 1.0, el mismo para clientes y tiendas.
 
-### Panel de la tienda, fase 1 (2026-10-29) — hecho en local, pendiente en la nube
+### Panel de la tienda, fase 1 (2026-10-29) — hecho, también en la nube
 - **Decisiones del equipo:** el panel se construye por fases (1: resumen, productos, inventario y pedidos; 2: ventas y liquidaciones, notificaciones y perfil comercial; 3: atención al cliente, analíticas e importación masiva). Las publicaciones siguen **sin aprobación**. En el móvil, **menú lateral**.
 - **Backend** (migración `20261029010000_vendor_dashboard.sql`, API_CONTRATO parte 9):
   - pedidos: nueve estados con transiciones forzadas (RN-029), historial con autor, transportadora y guía, y devolución al stock al rechazar o cancelar;
@@ -286,9 +286,20 @@ Objetivo: ver cómo se vería el computador con las piezas elegidas, ya sea a ma
 - **Flutter** (`features/vendor`): `VendorShell` con menú lateral (Resumen, Productos, Inventario, Pedidos, Catálogo general y Mi cuenta). Productos es "Mis publicaciones" de antes.
 - **Pruebas:** pgTAP (46 nuevas), datos y pantallas en Flutter, y un recorrido por HTTP con una cuenta de tienda real en local.
 - **Pendiente:**
-  - aplicar la migración en la nube (con confirmación);
   - fase 2: reembolsos de pedidos rechazados o cancelados, liquidaciones y notificaciones;
   - la fase 9 del plan se reduce a lo del cliente: su historial de pedidos y el seguimiento.
+
+### Consola del administrador, entrega 1 (2026-10-29) — hecho, también en la nube
+- **Decisiones del equipo:** la consola llega en dos entregas (1: resumen, tiendas, catálogo y pedidos; 2: finanzas con liquidaciones y reembolsos integrados con Wompi, y clientes). Solo los clientes compran. La moderación es **posterior**: las tiendas siguen publicando sin aprobación.
+- **Backend** (migración `20261029020000_admin_console.sql`, API_CONTRATO parte 10):
+  - resumen global: ventas e ingresos por comisión, pedidos, usuarios, catálogo, alertas, serie de 30 días y categorías más vendidas;
+  - tiendas: métricas de desempeño, estados nuevos (bloqueada y desactivada) con motivo obligatorio e historial administrativo;
+  - catálogo: moderación (aprobar, ocultar pidiendo ajustes, rechazar), alertas de calidad, corrección de la ficha y "solicitar revisión" para la tienda;
+  - pedidos: lista y detalle de todas las tiendas, intervención con observación obligatoria y notas.
+- **Flutter** (`features/admin`): `AdminShell` con menú lateral (Resumen, Tiendas, Moderación del catálogo, Pedidos, Catálogo general y Mi cuenta). El resumen tiene gráficos propios (ventas diarias y categorías) con vista de tabla. La tienda ve el motivo de la moderación en "Mis publicaciones".
+- **Pruebas:** pgTAP (53 nuevas), datos y pantallas en Flutter, y las respuestas reales de la base local leídas por la app.
+- **Pendiente:**
+  - entrega 2: finanzas y clientes.
 
 ### Fase 9: órdenes y seguimiento
 - `order_status_history` con transiciones válidas forzadas por trigger (RN-029).

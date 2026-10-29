@@ -67,8 +67,12 @@ class SupabaseAdminRepository implements AdminRepository {
   Future<AdminStore> getStore(String id) => _store('admin_get_provider', {'id': id});
 
   @override
-  Future<AdminStore> setStoreStatus(String id, StoreStatus status) =>
-      _store('admin_set_provider_status', {'id': id, 'status': status.name});
+  Future<AdminStore> setStoreStatus(String id, StoreStatus status, {String? reason}) =>
+      _store('admin_set_provider_status', {
+        'id': id,
+        'status': status.name,
+        if (reason != null && reason.trim().isNotEmpty) 'reason': reason.trim(),
+      });
 
   @override
   Future<AdminStore> updateStore(String id, StoreInput store, {bool confirmSimilarName = false}) =>

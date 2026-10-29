@@ -42,6 +42,10 @@ abstract class ProviderPortalRepository {
 
   Future<MyOfferDetail> retireOffer(String productId);
 
+  /// La tienda corrigió una publicación oculta por NEXUS y pide que la
+  /// revisen. `NotHiddenFailure` si no está oculta.
+  Future<MyOfferDetail> requestReview(String productId);
+
   /// Plantilla de atributos técnicos de la categoría.
   Future<List<AttributeDefinition>> getAttributeTemplate(ProductCategory category);
 

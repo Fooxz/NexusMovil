@@ -64,6 +64,19 @@ lib/
 |   |       |-- order_detail_screen.dart # Acciones según el estado, entrega, facturación e historial
 |   |       |-- inventory_screen.dart # Stock con alertas, movimientos con motivo, stock mínimo e historial
 |   |       `-- vendor_widgets.dart   # Indicadores, etiqueta de estado y fila de pedido
+|   |-- admin/
+|   |   |-- admin_providers.dart      # Tiendas de la parte 7 (alta, datos y estado)
+|   |   |-- admin_console_providers.dart # Resumen, tiendas, moderación y pedidos con sus filtros y acciones
+|   |   |-- domain/                   # AdminStore, AdminDashboard, AdminOffer, ProviderOverview, AdminOrderDetail
+|   |   |-- data/                     # RPC de las partes 7 y 10, lectura del JSON y consola de ejemplo sin backend
+|   |   `-- presentation/
+|   |       |-- admin_shell.dart      # Consola con menú lateral y cambio de sección
+|   |       |-- admin_dashboard_screen.dart # Alertas, ventas, pedidos, usuarios, catálogo y gráficos
+|   |       |-- admin_charts.dart     # Ventas diarias (columnas) y categorías (barras), con vista de tabla
+|   |       |-- admin_stores_screen.dart / admin_store_screen.dart # Tiendas con métricas; ficha con estado, desempeño e historial
+|   |       |-- admin_moderation_screen.dart / admin_offer_screen.dart # Moderación con alertas; aprobar, ocultar o rechazar
+|   |       |-- admin_product_form_screen.dart # Corrección de la ficha con la plantilla de atributos
+|   |       `-- admin_orders_screen.dart / admin_order_screen.dart # Pedidos de todas las tiendas e intervención
 |   |-- checkout/
 |   |   |-- checkout_providers.dart   # Repositorio, pasarela, CheckoutController (form → pago → resultado)
 |   |   |-- domain/                   # CheckoutContact, CheckoutSession, CheckoutStatus, PlacedOrder

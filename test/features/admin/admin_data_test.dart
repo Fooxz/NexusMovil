@@ -59,7 +59,7 @@ void main() {
       );
 
       await repository.getStores(search: 'uno');
-      await repository.setStoreStatus('prov-1', StoreStatus.suspended);
+      await repository.setStoreStatus('prov-1', StoreStatus.suspended, reason: 'Prueba');
       await repository.updateStore('prov-1', _store, confirmSimilarName: true);
       await repository.createStore(_store, _account);
       await repository.createAccount('prov-1', _account);
@@ -67,7 +67,7 @@ void main() {
 
       expect(rpcCalls[0].$1, 'admin_get_providers');
       expect(rpcCalls[0].$2, {'search': 'uno'});
-      expect(rpcCalls[1].$2, {'id': 'prov-1', 'status': 'suspended'});
+      expect(rpcCalls[1].$2, {'id': 'prov-1', 'status': 'suspended', 'reason': 'Prueba'});
       expect(rpcCalls[2].$2['confirm_similar_name'], isTrue);
       expect(bodies.map((body) => body['action']), ['create_provider', 'create_account', 'reset_password']);
       expect(bodies[0]['account'], {'email': 'dueno@nueva.co', 'fullName': 'Laura Gómez'});
@@ -166,7 +166,7 @@ void main() {
     test('suspende y regenera la contraseña', () async {
       makeAdmin();
       final created = await repository.createStore(_store, _account);
-      final suspended = await repository.setStoreStatus(created.store.id, StoreStatus.suspended);
+      final suspended = await repository.setStoreStatus(created.store.id, StoreStatus.suspended, reason: 'Documentos vencidos');
       expect(suspended.status, StoreStatus.suspended);
 
       final reset = await repository.resetPassword(created.store.id);

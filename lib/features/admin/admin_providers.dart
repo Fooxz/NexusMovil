@@ -6,6 +6,7 @@ import '../../core/network/supabase_providers.dart';
 import '../account/account_providers.dart';
 import '../auth/auth_providers.dart';
 import '../auth/data/mock_auth_repository.dart';
+import 'admin_console_providers.dart';
 import 'data/mock_admin_repository.dart';
 import 'data/supabase_admin_repository.dart';
 import 'domain/admin_models.dart';
@@ -29,7 +30,7 @@ final adminStoreProvider = FutureProvider.autoDispose.family<AdminStore, String>
   (ref, id) => ref.watch(adminRepositoryProvider).getStore(id),
 );
 
-/// Acciones del administrador. Al terminar refresca la lista y el detalle.
+/// Acciones del administrador. Al terminar refresca las listas y la ficha.
 /// Las pantallas leen el error del estado (por ejemplo,
 /// `SimilarStoreNameFailure`).
 final adminActionControllerProvider = AsyncNotifierProvider.autoDispose<AdminActionController, void>(
@@ -46,9 +47,12 @@ class AdminActionController extends AsyncNotifier<void> {
     T? result;
     state = await AsyncValue.guard(() async {
       result = await action(ref.read(adminRepositoryProvider));
+      final id = storeId(result as T);
       ref
         ..invalidate(adminStoresProvider)
-        ..invalidate(adminStoreProvider(storeId(result as T)));
+        ..invalidate(adminStoreProvider(id))
+        ..invalidate(adminProvidersProvider)
+        ..invalidate(providerOverviewProvider(id));
     });
     return state.hasError ? null : result;
   }

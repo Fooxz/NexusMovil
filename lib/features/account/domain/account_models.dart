@@ -5,7 +5,9 @@
 enum AccountRole { customer, provider, admin }
 
 /// Estado de una tienda. Solo las activas publican y venden (RN-022).
-enum StoreStatus { pending, active, suspended, rejected }
+/// Suspendida es temporal; bloqueada, por incumplir las políticas;
+/// desactivada, dejó de operar.
+enum StoreStatus { pending, active, suspended, blocked, deactivated, rejected }
 
 /// La tienda que opera una cuenta de proveedor.
 class StoreSummary {

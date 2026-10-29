@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../features/account/account_providers.dart';
 import '../../features/account/domain/account_models.dart';
 import '../../features/account/presentation/store_setup_screen.dart';
+import '../../features/admin/presentation/admin_shell.dart';
 import '../../features/auth/auth_providers.dart';
 import '../../features/auth/presentation/auth_widgets.dart';
 import '../../features/vendor/presentation/vendor_shell.dart';
@@ -11,7 +12,6 @@ import '../../theme/nexus_theme.dart';
 import '../../widgets/nexus_error_state.dart';
 import '../../widgets/nexus_loading.dart';
 import 'main_shell.dart';
-import 'role_shell.dart';
 
 enum _Home { customer, storeSetup, store, admin }
 
@@ -20,7 +20,7 @@ enum _Home { customer, storeSetup, store, admin }
 /// - Sin sesión o cliente: el shell de siempre (`MainShell`).
 /// - Tienda: su primer ingreso (contraseña y documentos) y después
 ///   el panel de la tienda (`VendorShell`, con menú lateral).
-/// - Administrador: `AdminShell`.
+/// - Administrador: la consola de NEXUS (`AdminShell`, con menú lateral).
 ///
 /// Es solo navegación: el backend valida el rol en cada función. Mientras la
 /// cuenta carga se conserva la pantalla anterior (así un cliente que inicia

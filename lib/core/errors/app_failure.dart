@@ -48,6 +48,8 @@ sealed class AppFailure implements Exception {
       (_, 'OFFER_EXISTS') => const OfferExistsFailure(),
       (_, 'OFFER_RETIRED') => const OfferRetiredFailure(),
       (_, 'INVALID_TRANSITION') => const InvalidOrderTransitionFailure(),
+      (_, 'SAME_STATUS') => const SameStatusFailure(),
+      (_, 'NOT_HIDDEN') => const NotHiddenFailure(),
       (_, 'SIMILAR_STORE_NAME') => SimilarStoreNameFailure(
         _stringFrom(details, 'displayName'),
       ),
@@ -374,4 +376,14 @@ class FieldValidationFailure extends AppFailure {
 class InvalidOrderTransitionFailure extends AppFailure {
   const InvalidOrderTransitionFailure()
     : super('El pedido cambió de estado. Actualízalo y vuelve a intentarlo.');
+}
+
+class SameStatusFailure extends AppFailure {
+  const SameStatusFailure() : super('La tienda ya está en ese estado.');
+}
+
+/// Solo se pide revisión de una publicación que NEXUS ocultó.
+class NotHiddenFailure extends AppFailure {
+  const NotHiddenFailure()
+    : super('Esta publicación no está oculta por NEXUS: no hace falta pedir revisión.');
 }

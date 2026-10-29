@@ -21,6 +21,8 @@ String roleLabel(AccountRole role) => switch (role) {
 String storeStatusLabel(StoreStatus status) => switch (status) {
   StoreStatus.active => 'Habilitada',
   StoreStatus.suspended => 'Suspendida',
+  StoreStatus.blocked => 'Bloqueada',
+  StoreStatus.deactivated => 'Desactivada',
   StoreStatus.pending => 'Pendiente',
   StoreStatus.rejected => 'Rechazada',
 };

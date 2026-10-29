@@ -152,7 +152,7 @@ void main() {
     await expectLater(SupabaseAdminRepository.fromClient(storeClient).getStores(), throwsA(isA<ForbiddenFailure>()));
 
     // Suspendida, su tarjeta sale del catálogo
-    await admin.setStoreStatus(storeId, StoreStatus.suspended);
+    await admin.setStoreStatus(storeId, StoreStatus.suspended, reason: 'Prueba de integración');
     expect((await products.getOffers(filters: ProductFilters(search: 'zzint grafica $runId'))).total, 0);
     await expectLater(portal.getMyOffers(), throwsA(isA<StoreNotActiveFailure>()));
   }, skip: storeSkip);

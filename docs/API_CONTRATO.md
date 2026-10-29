@@ -1,6 +1,6 @@
-# Contrato de API: NEXUS Movil (v0.14, borrador)
+# Contrato de API: NEXUS Movil (v0.15, borrador)
 
-**Estado:** borrador. Parte 1: catalogo (secciones 1 a 5). Parte 2: carrito (seccion 10). Parte 3: PC Builder y vista 3D (seccion 11). Parte 4: asistente (seccion 12). Parte 5: checkout y pagos (seccion 13). Parte 6: catalogo por oferta (seccion 14). Parte 7: roles y administracion de tiendas (seccion 15). Parte 8: publicaciones de tiendas (seccion 16). Implementado en el backend (`backend/`) y consumido por el front desde las fases 3, 5, 6, 6.1, 7 y 8 de `docs/PLAN_IMPLEMENTACION.md`.
+**Estado:** borrador. Parte 1: catalogo (secciones 1 a 5). Parte 2: carrito (seccion 10). Parte 3: PC Builder y vista 3D (seccion 11). Parte 4: asistente (seccion 12). Parte 5: checkout y pagos (seccion 13). Parte 6: catalogo por oferta (seccion 14). Parte 7: roles y administracion de tiendas (seccion 15). Parte 8: publicaciones de tiendas (seccion 16). Parte 9: panel de la tienda (seccion 17). Parte 10: consola del administrador (seccion 18). Implementado en el backend (`backend/`) y consumido por el front desde las fases 3, 5, 6, 6.1, 7 y 8 de `docs/PLAN_IMPLEMENTACION.md`.
 **Quien lo escribe:** el front, a partir de sus modelos reales (`lib/features/catalog/domain`).
 **Quien lo implementa:** el backend Supabase de `backend/`.
 **Regla de oro:** ninguno de los dos lados cambia el comportamiento sin editar este archivo primero. Si el codigo y este documento no coinciden, el documento gana hasta que se actualice.
@@ -329,6 +329,7 @@ Cambios compatibles (agregar un campo opcional, un endpoint nuevo): no rompen a 
 | 0.12 | Seccion 11.3: `get_builder_candidates` acepta `search`, `max_price_cents`, `sort` y `page`, para elegir entre cientos de piezas por tipo. Parametros opcionales: compatible. |
 | 0.13 | Tres roles (cliente, tienda y administrador). Parte 6: catalogo por oferta, una tarjeta por tienda (`get_offers`, `get_catalog_providers`). Parte 7: cuenta propia, administracion de tiendas y la Edge Function `admin-providers`. Parte 8: publicaciones de tiendas sin aprobacion, con validaciones automaticas. Nuevos codigos de error de las partes 7 y 8; `VALIDATION_ERROR` puede traer `details.field`. El carrito y el checkout responden `CUSTOMER_ONLY` a las cuentas que no son de cliente. Endpoints nuevos; los existentes no cambian. |
 | 0.14 | Parte 9: panel de la tienda (seccion 17): resumen (`get_my_dashboard`), pedidos con su flujo de estados (`get_my_orders`, `get_my_order`, `update_my_order_status`) e inventario con movimientos y stock minimo (`get_my_inventory`, `adjust_my_stock`, `set_my_min_stock`, `get_my_stock_movements`). La sub-orden pasa de un solo estado (`pending`) a nueve. Nuevo codigo `INVALID_TRANSITION`. Endpoints nuevos; los existentes no cambian. |
+| 0.15 | Parte 10: consola del administrador (seccion 18): resumen global (`admin_get_dashboard`), tiendas con metricas e historial (`admin_list_providers`, `admin_get_provider_overview`, `admin_add_provider_note`), moderacion posterior con alertas de calidad (`admin_list_offers`, `admin_get_offer`, `admin_moderate_offer`, `admin_update_product`, `request_my_offer_review`) y pedidos de todas las tiendas (`admin_list_orders`, `admin_get_order`, `admin_update_sub_order_status`, `admin_add_order_note`). **Cambia** `admin_set_provider_status`: suma `blocked` y `deactivated` y exige el motivo. Las publicaciones de la tienda suman `moderationStatus` y `moderationReason`. Codigos nuevos: `SAME_STATUS`, `NOT_HIDDEN`. |
 
 ---
 
@@ -768,7 +769,7 @@ Tres roles exclusivos: **cliente** (compra), **tienda** (publica) y **administra
 | `get_my_account()` | `{userId, role, fullName, mustChangePassword, pendingDocuments: [{code, version, title}], provider: {id, displayName, status} o null}` |
 | `accept_current_documents(documents)` | La cuenta actualizada. `documents` = `[{code, version}]` con **todas** las versiones vigentes; si falta alguna, `400 CONSENT_REQUIRED`. |
 
-`role`: `customer`, `provider` o `admin`. `provider.status`: `pending`, `active`, `suspended` o `rejected`.
+`role`: `customer`, `provider` o `admin`. `provider.status`: `pending`, `active`, `suspended`, `blocked`, `deactivated` o `rejected` (18.2).
 
 Una cuenta de tienda creada por un administrador tiene `mustChangePassword = true` (contrasena temporal) y los documentos pendientes. El cambio de contrasena se hace con Supabase Auth (`updateUser`); el backend quita la marca solo.
 
@@ -778,7 +779,7 @@ Una cuenta de tienda creada por un administrador tiene `mustChangePassword = tru
 |---|---|
 | `admin_get_providers(search)` | Lista de tiendas (`AdminStore`). |
 | `admin_get_provider(id)` | Una tienda. |
-| `admin_set_provider_status(id, status)` | `status`: `active` o `suspended`. Suspendida, sus ofertas salen del catalogo y no puede operar. |
+| `admin_set_provider_status(id, status, reason?)` | `status`: `active`, `suspended`, `blocked` o `deactivated`, con motivo salvo para habilitar (18.2). Sin habilitar, sus ofertas salen del catalogo y no puede operar. |
 | `admin_update_provider(id, store, confirm_similar_name)` | Edita los datos (incluido el nombre visible). |
 | `admin_validate_store(store, confirm_similar_name)` | Valida los datos antes del alta (la usa la Edge Function). |
 
@@ -944,3 +945,81 @@ El detalle suma `statusNote` (motivo del ultimo cambio), `shippingAddress`, `con
 Movimiento: `id`, `productId`, `productName`, `kind` (`entry`, `exit`, `adjustment`, `sale`, `cancellation`), `quantityDelta`, `stockBefore`, `stockAfter`, `reason`, `orderNumber` (ventas y devoluciones al stock), `actorName` (null si fue el sistema) y `createdAt`.
 
 **Todo cambio de stock queda en el historial**, venga de donde venga: la venta del checkout, un movimiento manual, la edicion de la publicacion (`update_my_offer`, como ajuste con el motivo "Edicion de la publicacion") o un pedido rechazado.
+
+---
+
+## 18. Parte 10: consola del administrador (v0.15)
+
+Entrega 1 de la consola de NEXUS: resumen global, supervision de tiendas, moderacion del catalogo y pedidos de todas las tiendas (HU-022, HU-024, HU-025, RF-011, RF-080). Todas son RPC para `authenticated` y exigen el rol administrador (`403 FORBIDDEN` si no). La entrega 2 agrega finanzas (liquidaciones y reembolsos con Wompi) y clientes.
+
+**Decisiones del equipo:** solo los clientes compran (las tiendas y los administradores siguen con `CUSTOMER_ONLY`). La moderacion es **posterior**: las tiendas publican sin aprobacion y el administrador revisa lo publicado.
+
+### 18.1 Resumen: `admin_get_dashboard()`
+
+```json
+{
+  "sales": { "totalCents": 0, "totalCommissionCents": 0, "todayCents": 0, "yesterdayCents": 0,
+             "weekCents": 0, "previousWeekCents": 0, "monthCents": 0, "previousMonthCents": 0,
+             "monthCommissionCents": 0, "monthProviderNetCents": 0 },
+  "orders": { "total": 0, "inProgress": 0, "pending": 0, "delivered": 0, "cancelled": 0,
+              "returned": 0, "incident": 0, "stale": 0 },
+  "users": { "customers": 0, "activeCustomers": 0, "newCustomers": 0, "providers": { "active": 7 } },
+  "catalog": { "products": 760, "visibleProducts": 760, "outOfStockProducts": 0, "offers": 993,
+               "hidden": 0, "review": 0, "rejected": 0, "flagged": 0 },
+  "alerts": [ { "kind": "offers_review", "count": 1 } ],
+  "series": [ { "date": "2026-10-28", "salesCents": 0, "commissionCents": 0, "orders": 0,
+                "newCustomers": 0, "newProviders": 0 } ],
+  "topCategories": [ { "category": "storage", "name": "Almacenamiento", "salesCents": 0, "units": 0 } ]
+}
+```
+
+- **Ventas:** subtotal (IVA incluido) de las sub-ordenes no rechazadas ni canceladas; la comision es el ingreso de NEXUS. Periodos de Colombia, comparados hasta el mismo momento, como en 17.1.
+- **`orders`** cuenta sub-ordenes (el pedido de cada tienda), salvo `total`, que cuenta pedidos. `cancelled` suma rechazados y cancelados. `stale`: nuevos sin respuesta de la tienda en 48 horas.
+- **`users`:** `activeCustomers` iniciaron sesion en 30 dias y `newCustomers` se registraron en 30 dias. `providers`: tiendas por estado.
+- **`catalog.flagged`:** ofertas publicadas y aprobadas con alguna alerta de calidad (18.3).
+- **`alerts`:** solo las que tienen casos. `offers_review`, `orders_incident`, `orders_stale`, `providers_pending`, `new_providers` (7 dias), `payments_error` (30 dias), `payment_events_unknown` (avisos de Wompi con referencia desconocida en 7 dias) y `assistant_unavailable` (24 horas).
+- **`series`:** los ultimos 30 dias, uno por dia, incluidos los dias sin ventas. **`topCategories`:** hasta 6 categorias por ventas de 30 dias.
+
+### 18.2 Tiendas
+
+| RPC | Que hace |
+|---|---|
+| `admin_list_providers(search?, status?, sort = 'name')` | Tiendas (`AdminStore`, 15.2) con `metrics`. `sort`: `name`, `sales` (ventas de 30 dias), `performance` (entregas cumplidas) o `recent`. |
+| `admin_get_provider_overview(id)` | La tienda con `metrics`, `inventory`, `ordersByStatus`, `recentOrders` (5, como 18.4) y `notes`. |
+| `admin_set_provider_status(id, status, reason?)` | **Cambia** respecto de 15.2: `status` es `active`, `suspended`, `blocked` o `deactivated`, y `reason` (3 a 500) es obligatorio salvo para `active`. El cambio queda en `notes`. `409 SAME_STATUS` si ya esta en ese estado. |
+| `admin_add_provider_note(id, kind, message)` | `kind`: `note`, `warning`, `incident` o `policy_violation`. `message` de 3 a 500. Devuelve la ficha. |
+
+- **Estados:** suspendida es temporal; bloqueada, por incumplir las politicas; desactivada, dejo de operar. En los tres casos sus ofertas salen del catalogo y la cuenta responde `PROVIDER_NOT_ACTIVE`.
+- **`metrics`:** `sales30dCents`, `commission30dCents`, `orders`, `openOrders`, `incidents`, `deliveredRate` y `cancelRate` (de 0 a 1 sobre los pedidos cerrados; `null` sin pedidos cerrados) y `warnings` (advertencias, incidencias e incumplimientos).
+- **`inventory`:** `published`, `lowStock`, `outOfStock`, `hidden` (ocultas o en revision) y `rejected`.
+- **`notes`:** `{id, kind, message, fromStatus, toStatus, actorName, createdAt}`, del mas reciente al mas antiguo. `kind` `status_change` lleva los estados. El historial no se modifica ni se borra.
+
+### 18.3 Catalogo y moderacion
+
+| RPC | Que hace |
+|---|---|
+| `admin_list_offers(search?, provider?, category?, brand?, moderation?, flag?, page = 0, page_size = 20)` | `{items: [AdminOffer], total, counts, page, pageSize}`. Primero las que piden revision y las que tienen mas alertas. |
+| `admin_get_offer(offer_id)` | La oferta con `summary`, `createdByProviderId`, `attributes`, `images` (URL) y `otherOffers`. |
+| `admin_moderate_offer(offer_id, action, reason?)` | `action`: `approve`, `hide` o `reject`. Ocultar y rechazar exigen `reason` (3 a 300), que ve la tienda. Devuelve el detalle. |
+| `admin_update_product(product_id, product)` | Corrige la ficha compartida: `{category, name, brand, model, summary?, attributes, specs?, quickSpecs?}`. Valida la plantilla como 16.2 y los duplicados por marca y modelo. Las imagenes no cambian. Devuelve `{productId, offers: [AdminOffer]}`. |
+| `request_my_offer_review(product_id)` | **De la tienda:** pide la revision de una oferta oculta (`409 NOT_HIDDEN` si no lo esta). Devuelve su publicacion (16.1). |
+
+- **Moderacion** (`moderationStatus`): `approved` (por defecto), `hidden` (oculta hasta que la tienda corrija), `review` (la tienda corrigio y pide revision; sigue oculta) y `rejected` (no vuelve). Solo `approved` se ve en el catalogo.
+- **La tienda lo ve:** las publicaciones de 16.1 suman `moderationStatus` y `moderationReason`, y `visible` exige `approved`.
+- **Alertas** (`flags`): `incomplete` (falta un atributo obligatorio de la plantilla), `price_anomaly` (menos de la mitad o mas del doble de la mediana de las ofertas publicadas del producto, con al menos 2) y `duplicate` (otro producto de la misma categoria con el mismo nombre normalizado). `flag = 'any'` filtra las que tienen alguna. Las fotos no son alerta: el catalogo muestra el icono de la categoria.
+- **`counts`:** con la busqueda y los filtros de tienda, categoria y marca: `all`, `approved`, `hidden`, `review`, `rejected` y `flagged`.
+
+`AdminOffer`: `offerId`, `productId`, `productName`, `brand`, `model`, `category`, `providerId`, `providerName`, `providerStatus`, `priceCents`, `oldPriceCents`, `stockUnits`, `status`, `moderationStatus`, `moderationReason`, `moderatedAt`, `imageUrl`, `flags`, `visible` y `updatedAt`.
+
+### 18.4 Pedidos
+
+| RPC | Que hace |
+|---|---|
+| `admin_list_orders(search?, provider?, status?, from_date?, to_date?, page = 0, page_size = 20)` | Una fila por sub-orden: `VendorOrder` (17.2) con `orderId`, `providerId`, `providerName`, `customerEmail` y `paymentMethod`. `search`: numero, cliente (nombre o correo) o tienda. Fechas de Colombia, inclusivas. |
+| `admin_get_order(id)` | El pedido: `number`, `createdAt`, `totalCents`, `contact`, `shippingAddress`, `payment` (`reference`, `status`, `amountCents`, `method`, `transactionId`, `approvedAt`), `subOrders` y `notes`. |
+| `admin_update_sub_order_status(id, status, note, carrier?, tracking_number?)` | Interviene una sub-orden. `note` (3 a 300) siempre es obligatoria y queda en el historial como "NEXUS: ...". Devuelve el pedido. |
+| `admin_add_order_note(id, message, sub_order_id?)` | Observacion del administrador (3 a 500). Devuelve el pedido. |
+
+- **`subOrders`:** el detalle de 17.2 de cada tienda con `providerId`, `providerName` y `adminNextStatuses`.
+- **Transiciones del administrador:** las de la tienda, mas cancelar un pedido nuevo o enviado (por ejemplo, perdido), reportar una incidencia desde cualquier estado abierto y cerrar una incidencia como devuelta. Fuera de ellas, `409 INVALID_TRANSITION`.
+- **Cancelar o rechazar devuelve las unidades al stock**, como 17.2. El reembolso llega en la entrega 2.

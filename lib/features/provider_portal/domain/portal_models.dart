@@ -4,6 +4,25 @@ import '../../catalog/domain/product.dart';
 /// el historial de órdenes y se puede volver a publicar.
 enum OfferStatus { draft, published, paused, retired }
 
+/// Revisión de NEXUS sobre una publicación ya publicada (moderación
+/// posterior, API_CONTRATO parte 10): aprobada, oculta hasta que la tienda la
+/// corrija, corregida y esperando revisión, o rechazada.
+enum OfferModeration {
+  approved,
+  hidden,
+  review,
+  rejected;
+
+  String get label => switch (this) {
+    approved => 'Aprobada',
+    hidden => 'Oculta por NEXUS',
+    review => 'En revisión',
+    rejected => 'Rechazada por NEXUS',
+  };
+
+  static OfferModeration fromName(String? name) => values.asNameMap()[name] ?? approved;
+}
+
 /// Una publicación de la tienda en "Mis publicaciones" (API_CONTRATO, parte 8).
 class MyOffer {
   const MyOffer({
@@ -22,6 +41,8 @@ class MyOffer {
     required this.externalSku,
     required this.visible,
     required this.canEditSheet,
+    this.moderation = OfferModeration.approved,
+    this.moderationReason,
   });
 
   final String offerId;
@@ -47,6 +68,10 @@ class MyOffer {
 
   /// La registró esta tienda y ninguna otra la vende: puede editar la ficha.
   final bool canEditSheet;
+  final OfferModeration moderation;
+
+  /// Por qué NEXUS la ocultó o la rechazó.
+  final String? moderationReason;
 }
 
 class ProductImageRef {

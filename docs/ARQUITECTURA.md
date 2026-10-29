@@ -26,13 +26,14 @@ lib/
     |-- checkout/                 # pedido, pago y resultado
     |-- account/                  # rol de la cuenta, primer ingreso de tiendas y pestaña CUENTA
     |-- provider_portal/          # publicaciones de la tienda: ofertas, fichas e imágenes
-    `-- admin/                    # tiendas: alta con cuenta, habilitar y suspender
+    |-- vendor/                   # panel de la tienda: resumen, inventario y pedidos
+    `-- admin/                    # consola de NEXUS: resumen, tiendas, moderación y pedidos
 ```
 
 El catálogo, cuentas y perfil se conectaron primero al backend; el carrito,
 PC Builder, asistente y checkout también cuentan con implementaciones por
-feature. Inicio y los shells de navegación (`MainShell`, `RoleHome` y los de
-tienda y administrador en `role_shell.dart`) permanecen en `lib/screens/`. La
+feature. Inicio y los shells de navegación (`MainShell` y `RoleHome`) permanecen en
+`lib/screens/`; el panel de la tienda y la consola del administrador están en su feature. La
 descripción del estado y las fases futuras está en
 [`docs/PLAN_IMPLEMENTACION.md`](PLAN_IMPLEMENTACION.md). No se crean carpetas
 vacías por adelantado.
@@ -124,8 +125,8 @@ sin acoplar el dominio del catálogo al PC Builder.
 - **`RoleHome`** (`screens/shell/role_home.dart`) es la ruta inicial:
   - sin sesión o cliente: `MainShell`, igual que antes;
   - tienda: su primer ingreso (`StoreSetupScreen`: cambiar la contraseña temporal y aceptar
-    los documentos) y después `ProviderShell` (PUBLICACIONES, CATÁLOGO, CUENTA);
-  - administrador: `AdminShell` (TIENDAS, CATÁLOGO, CUENTA).
+    los documentos) y después `VendorShell` (menú lateral);
+  - administrador: `AdminShell` (menú lateral, ver "Consola del administrador").
   Mientras la cuenta carga conserva la pantalla anterior: un cliente que inicia sesión no
   pierde la pestaña en la que estaba, y nunca se muestra por defecto el shell de otro rol.
 - **Carrito:** `CartController` no consulta el carrito guardado de una cuenta que no compra,
@@ -170,6 +171,14 @@ sin acoplar el dominio del catálogo al PC Builder.
   - **`VendorShellScope`** cambia de sección: el resumen abre los pedidos nuevos o los productos con stock bajo después de fijar el filtro (`vendorOrdersQueryProvider`, `inventoryQueryProvider`).
 - **Providers** (`vendor_providers.dart`): resumen, pedidos e inventario paginados con su filtro, detalle por familia y dos controladores de acciones (`OrderActionController`, `StockActionController`) que dejan el error en su estado e invalidan lo que depende del cambio. Por ejemplo, rechazar un pedido refresca el inventario y "Mis publicaciones", porque las unidades vuelven al stock.
 - **Sin backend,** `MockVendorRepository` es una tienda de ejemplo con las mismas reglas: transiciones, motivos, guía y devolución al stock.
+
+### Consola del administrador (2026-10-29)
+
+- **`AdminShell`** (`features/admin/presentation/admin_shell.dart`) sigue el patrón de `VendorShell`: menú lateral, `LazyIndexedStack` y `AdminShellScope` para que el resumen abra una sección ya filtrada (`adminOffersQueryProvider`, `adminOrdersQueryProvider`, `adminProvidersQueryProvider`). El menú marca lo pendiente: publicaciones en revisión, pedidos con incidencia o sin respuesta y tiendas pendientes.
+- **Dos repositorios:** `AdminRepository` (parte 7: alta, datos y estado de las tiendas) y `AdminConsoleRepository` (parte 10). `AdminConsoleActionController` deja el error en su estado e invalida lo que depende del cambio; por ejemplo, ocultar una oferta refresca la moderación, el resumen, la ficha de la tienda y "Mis publicaciones".
+- **Gráficos** (`admin_charts.dart`): dibujados con `CustomPaint`, sin dependencias. Columnas finas con la punta redondeada y 2 px de aire, cuadrícula tenue, detalle del día al tocar y "Ver tabla". El color de las marcas (`chartColor`) es el cian un paso más oscuro, validado contra la tarjeta oscura; el texto usa los colores de texto.
+- **`AttributeField`** (`provider_portal/presentation/attribute_fields.dart`) lo comparten el formulario de la tienda y la corrección de ficha del administrador.
+- **Sin backend,** `MockAdminConsoleRepository` usa las tiendas del `MockDirectory` con ofertas y pedidos de ejemplo, y las mismas reglas: motivos, transiciones y devolución al stock.
 
 ### Carrito (fase 5)
 

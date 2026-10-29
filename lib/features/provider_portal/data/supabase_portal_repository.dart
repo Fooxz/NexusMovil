@@ -115,6 +115,10 @@ class SupabasePortalRepository implements ProviderPortalRepository {
       _detail('retire_my_offer', {'product_id': productId});
 
   @override
+  Future<MyOfferDetail> requestReview(String productId) =>
+      _detail('request_my_offer_review', {'product_id': productId});
+
+  @override
   Future<List<AttributeDefinition>> getAttributeTemplate(ProductCategory category) async {
     final List<Object?> rows;
     try {
