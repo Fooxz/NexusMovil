@@ -9,7 +9,7 @@ import '../domain/checkout_repository.dart';
 /// orden con una sub-orden por proveedor solo si el pago se aprueba.
 ///
 /// Sin pasarela: `SimulatedPaymentLauncher` devuelve [approvedTransaction] o
-/// [declinedTransaction] como si Wompi respondiera.
+/// [declinedTransaction] como si Mercado Pago respondiera.
 class MockCheckoutRepository implements CheckoutRepository {
   MockCheckoutRepository(this._cart);
 
@@ -40,7 +40,7 @@ class MockCheckoutRepository implements CheckoutRepository {
     return CheckoutSession(
       reference: reference,
       amountCents: cart.subtotalCents,
-      checkoutUrl: Uri.parse('https://checkout.wompi.co/p/?reference=$reference'),
+      checkoutUrl: Uri.parse('https://www.mercadopago.com.co/checkout/v1/redirect?pref_id=$reference'),
       redirectUrl: Uri.parse('https://nexus.invalid/checkout'),
       expiresAt: DateTime.now().add(const Duration(hours: 1)),
     );

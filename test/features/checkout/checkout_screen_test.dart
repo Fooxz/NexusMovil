@@ -16,7 +16,7 @@ import 'package:prueba01/main.dart';
 import '../../support/auth_test_support.dart' show enterField, tapAndSettle, usePhoneViewport;
 import '../../support/cart_test_support.dart';
 
-/// Pasarela falsa: devuelve [transactionId] como si el cliente volviera de Wompi.
+/// Pasarela falsa: devuelve [transactionId] como si el cliente volviera de Mercado Pago.
 class _FakeLauncher implements PaymentLauncher {
   _FakeLauncher(this.transactionId);
 

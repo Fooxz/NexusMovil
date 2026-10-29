@@ -3,6 +3,7 @@ import 'package:prueba01/core/errors/app_failure.dart';
 import 'package:prueba01/features/checkout/data/checkout_json.dart';
 import 'package:prueba01/features/checkout/data/supabase_checkout_repository.dart';
 import 'package:prueba01/features/checkout/domain/checkout_models.dart';
+import 'package:prueba01/features/checkout/presentation/payment_launcher.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Respuesta de `checkout` con la acción `status` y la orden aprobada, como la
@@ -53,6 +54,16 @@ const contact = CheckoutContact(
 );
 
 void main() {
+  group('regreso de Mercado Pago', () {
+    test('lee el id del pago de la página de regreso', () {
+      Uri back(String query) => Uri.parse('https://nexus.test/functions/v1/checkout?$query');
+      expect(paymentIdFrom(back('collection_id=1&payment_id=1234567890&status=approved')), '1234567890');
+      expect(paymentIdFrom(back('collection_id=77&status=approved')), '77', reason: 'cuentas antiguas');
+      expect(paymentIdFrom(back('payment_id=null&status=null')), isNull, reason: 'cerró sin pagar');
+      expect(paymentIdFrom(back('')), isNull);
+    });
+  });
+
   group('checkout_json', () {
     test('reads the approved status with its order', () {
       final status = checkoutStatusFromJson(approvedJson);
@@ -91,7 +102,7 @@ void main() {
       final session = checkoutSessionFromJson({
         'reference': 'NX-1',
         'amountCents': 100,
-        'checkoutUrl': 'https://checkout.wompi.co/p/?reference=NX-1',
+        'checkoutUrl': 'https://www.mercadopago.com.co/checkout/v1/redirect?pref_id=1',
         'redirectUrl': 'http://127.0.0.1:54321/functions/v1/checkout',
         'expiresAt': '2026-10-25T00:41:55+00:00',
       });
@@ -99,7 +110,7 @@ void main() {
         session.isReturnUrl(Uri.parse('http://127.0.0.1:54321/functions/v1/checkout?id=1-2&env=test')),
         isTrue,
       );
-      expect(session.isReturnUrl(Uri.parse('https://checkout.wompi.co/p/')), isFalse);
+      expect(session.isReturnUrl(Uri.parse('https://www.mercadopago.com.co/checkout/v1/redirect')), isFalse);
     });
   });
 
@@ -112,7 +123,7 @@ void main() {
         return {
           'reference': 'NX-1',
           'amountCents': 100,
-          'checkoutUrl': 'https://checkout.wompi.co/p/?a=1',
+          'checkoutUrl': 'https://www.mercadopago.com.co/checkout/v1/redirect?pref_id=1',
           'redirectUrl': 'https://nexus.test/vuelta',
           'expiresAt': '2026-10-25T00:41:55+00:00',
         };

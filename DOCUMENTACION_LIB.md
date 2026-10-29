@@ -11,7 +11,7 @@ NEXUS es una app Flutter de un marketplace de piezas de computador: el cliente a
 - el carrito (fase 5);
 - el PC Builder con el motor de compatibilidad (fase 6) y la vista 3D (fase 6.1);
 - el asistente de recomendación con Gemini, por texto o por voz (fase 7);
-- el checkout con pago en Wompi y la orden por proveedor (fase 8).
+- el checkout con pago en Mercado Pago y la orden por proveedor (fase 8).
 
 Sin configuración, las mismas pantallas usan repositorios mock en memoria (sin backend, el PC Builder avisa que no verifica compatibilidad y el asistente avisa que necesita el servidor). Inicio todavía muestra datos de ejemplo escritos en el código. Sin backend, el pago se simula con un diálogo que lo aprueba o lo rechaza.
 
@@ -83,7 +83,7 @@ lib/
 |   |   |-- data/                     # Edge Function checkout, lectura del JSON y mock sobre el carrito mock
 |   |   `-- presentation/
 |   |       |-- checkout_screen.dart  # Dirección, contacto y facturación, resumen por proveedor y "Pagar"
-|   |       |-- payment_launcher.dart # Wompi en WebView (Android/iOS) o navegador; pasarela simulada sin backend
+|   |       |-- payment_launcher.dart # Mercado Pago en WebView (Android/iOS) o navegador; pasarela simulada sin backend
 |   |       `-- payment_result_view.dart # Orden aprobada, pago pendiente o rechazo con reintento
 |   |-- cart/
 |   |   |-- cart_providers.dart       # Repositorio, carrito de invitado, CartController y contador
@@ -230,7 +230,7 @@ Se agrega desde el ícono de carrito de las tarjetas del catálogo (la mejor ofe
 - **Dirección:** una de las guardadas (la predeterminada, marcada) o "Agregar una dirección".
 - **Contacto y facturación:** nombre, correo y teléfono prellenados con el perfil, tipo y número de documento.
 - **Resumen:** un envío por proveedor, envío sin costo y total con IVA incluido.
-- **"Pagar $X":** el backend revalida el carrito. Si el total o el stock cambiaron, avisa y recarga el carrito. Si no, abre Wompi: en Android e iOS, en un WebView que se cierra solo al volver; en web, en otra pestaña.
+- **"Pagar $X":** el backend revalida el carrito. Si el total o el stock cambiaron, avisa y recarga el carrito. Si no, abre Mercado Pago: en Android e iOS, en un WebView que se cierra solo al volver; en web, en otra pestaña.
 - **Resultado** (`payment_result_view.dart`): orden aprobada con su número y sus sub-órdenes; pago en proceso con "Consultar de nuevo"; rechazado o sin pagar con "Intentar de nuevo", que crea un intento nuevo con los mismos datos.
 - Mientras el pago está en curso no se puede volver atrás.
 
@@ -401,7 +401,7 @@ El árbol anterior refleja los archivos Dart actuales bajo `lib/`. Las pruebas d
 - `flutter test`: 251 pruebas aprobadas y 22 de integración saltadas.
 - pgTAP: 198 pruebas (41 del checkout). Funciones de pago: 20 pruebas con `node --test`.
 - Recorrido local con llaves falsas de Wompi: cuenta, dirección, carrito, `start` (también con un total viejo), webhook con firma falsa (401) y firmado dos veces (una sola orden), `status` con la orden y carrito vacío.
-- Falta probar con llaves reales del sandbox de Wompi.
+- Falta probar con llaves reales del sandbox de Wompi. (El 2026-10-29 la pasarela pasó a Mercado Pago: ver `docs/PLAN_IMPLEMENTACION.md`.)
 
 **Validación de la fase 7:**
 - `dart analyze` sin hallazgos.

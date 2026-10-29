@@ -3,7 +3,7 @@
 -- comisión, stock e inmutabilidad.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(41);
+select plan(42);
 
 create function pg_temp.login_as(user_id uuid) returns void
 language sql as $$
@@ -176,6 +176,8 @@ select is((select array_agg(outcome order by id) from public.payment_events
 select is((select (p).status || '/' || (p).gateway_transaction_id || '/' || (p).payment_method_type
            from (select pg_temp.payment((select value from t where key = 'second')) as p) s),
   'approved/tx-3/NEQUI', 'el pago guarda la transacción y el medio (RF-058)');
+select is((select (p).gateway from (select pg_temp.payment((select value from t where key = 'second')) as p) s),
+  'mercadopago', 'la pasarela es Mercado Pago');
 
 -- Orden: una sub-orden por proveedor, con sus montos (RF-061, RF-074).
 select is(

@@ -17,15 +17,15 @@ final checkoutRepositoryProvider = Provider<CheckoutRepository>((ref) {
   return SupabaseCheckoutRepository.fromClient(ref.watch(supabaseClientProvider));
 });
 
-/// Sin backend no hay Wompi: se simula el resultado.
+/// Sin backend no hay pasarela: se simula el resultado.
 final paymentLauncherProvider = Provider<PaymentLauncher>(
   (ref) => ref.watch(checkoutRepositoryProvider) is MockCheckoutRepository
       ? const SimulatedPaymentLauncher()
-      : const WompiPaymentLauncher(),
+      : const MercadoPagoPaymentLauncher(),
 );
 
 /// Espera entre consultas mientras el pago sigue pendiente justo después de
-/// volver de Wompi (PSE y Nequi tardan unos segundos en confirmar).
+/// volver de Mercado Pago (PSE y otros medios tardan en confirmar).
 final checkoutPollIntervalProvider = Provider<Duration>(
   (ref) => const Duration(seconds: 2),
 );
@@ -111,7 +111,7 @@ class CheckoutController extends Notifier<CheckoutFlow> {
   }
 
   /// Consulta el resultado del intento actual. Con [transactionId] (el que
-  /// Wompi devuelve al volver) y el pago aún pendiente, vuelve a consultar
+  /// Mercado Pago devuelve al volver) y el pago aún pendiente, vuelve a consultar
   /// unas veces antes de dar el resultado.
   Future<void> verify({String? transactionId}) async {
     final session = state.session;

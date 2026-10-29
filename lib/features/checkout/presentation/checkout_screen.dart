@@ -21,7 +21,7 @@ import '../domain/checkout_models.dart';
 import 'payment_result_view.dart';
 
 /// Confirmar la compra (HU-010, RF-056): dirección, contacto y facturación,
-/// resumen por proveedor y pago con Wompi. Se llega con sesión (RN-027).
+/// resumen por proveedor y pago con Mercado Pago. Se llega con sesión (RN-027).
 class CheckoutScreen extends ConsumerStatefulWidget {
   const CheckoutScreen({super.key});
 
@@ -270,7 +270,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           ),
           const SizedBox(height: 8),
           const Text(
-            'Pagas en Wompi con tarjeta, PSE o Nequi. NEXUS no guarda los '
+            'Pagas en Mercado Pago con tarjeta, PSE o Efecty. NEXUS no guarda los '
             'datos de tu medio de pago.',
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 10.5, color: NexusColors.textFaint),

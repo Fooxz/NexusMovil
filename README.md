@@ -2,7 +2,7 @@
 
 Aplicación Flutter para un marketplace de piezas de computador. El alcance actual
 es solo piezas (no se venden computadores armados). La app incluye catálogo,
-cuentas y perfil, carrito, checkout con Wompi, asistente de recomendación y PC
+cuentas y perfil, carrito, checkout con Mercado Pago, asistente de recomendación y PC
 Builder con visor 3D.
 
 La app abre en Inicio y permite recorrer el catálogo sin iniciar sesión. Cuando

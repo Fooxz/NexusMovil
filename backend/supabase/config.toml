@@ -405,12 +405,14 @@ deno_version = 2
 verify_jwt = false
 
 # Checkout (fase 8). La función valida la sesión ella misma contra Auth (la
-# app envía su token) porque también sirve la página de regreso de Wompi, que
-# llega sin token. Las llaves de Wompi van en supabase/functions/.env.
+# app envía su token) porque también sirve la página de regreso de Mercado
+# Pago, que llega sin token. El Access Token va en supabase/functions/.env.
 [functions.checkout]
 verify_jwt = false
 
-# Eventos de Wompi: llegan sin JWT y se validan con la firma (WOMPI_EVENTS_SECRET).
+# Notificaciones de Mercado Pago: llegan sin JWT. El pago se consulta siempre
+# a la API con el Access Token y, si hay MERCADOPAGO_WEBHOOK_SECRET, se
+# verifica la firma.
 [functions.payment-webhook]
 verify_jwt = false
 

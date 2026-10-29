@@ -203,7 +203,7 @@ Objetivo: ver cómo se vería el computador con las piezas elegidas, ya sea a ma
 
 ### Fase 8: checkout, pagos y comisión — hecha
 - **Decisiones del negocio (2026-10-24):**
-  - pasarela **Wompi**, en COP y en modo de pruebas;
+  - pasarela **Wompi**, en COP y en modo de pruebas (reemplazada por Mercado Pago el 2026-10-29, ver abajo);
   - los precios del catálogo ya incluyen el **IVA del 19 %**;
   - la comisión se calcula sobre el valor sin IVA.
 - **Tablas** (migración `20261024010000_checkout.sql`, ver `docs/MODELO_DATOS.md`):
@@ -290,7 +290,7 @@ Objetivo: ver cómo se vería el computador con las piezas elegidas, ya sea a ma
   - la fase 9 del plan se reduce a lo del cliente: su historial de pedidos y el seguimiento.
 
 ### Consola del administrador, entrega 1 (2026-10-29) — hecho, también en la nube
-- **Decisiones del equipo:** la consola llega en dos entregas (1: resumen, tiendas, catálogo y pedidos; 2: finanzas con liquidaciones y reembolsos integrados con Wompi, y clientes). Solo los clientes compran. La moderación es **posterior**: las tiendas siguen publicando sin aprobación.
+- **Decisiones del equipo:** la consola llega en dos entregas (1: resumen, tiendas, catálogo y pedidos; 2: finanzas con liquidaciones y reembolsos integrados con la pasarela, y clientes). Solo los clientes compran. La moderación es **posterior**: las tiendas siguen publicando sin aprobación.
 - **Backend** (migración `20261029020000_admin_console.sql`, API_CONTRATO parte 10):
   - resumen global: ventas e ingresos por comisión, pedidos, usuarios, catálogo, alertas, serie de 30 días y categorías más vendidas;
   - tiendas: métricas de desempeño, estados nuevos (bloqueada y desactivada) con motivo obligatorio e historial administrativo;
@@ -300,6 +300,13 @@ Objetivo: ver cómo se vería el computador con las piezas elegidas, ya sea a ma
 - **Pruebas:** pgTAP (53 nuevas), datos y pantallas en Flutter, y las respuestas reales de la base local leídas por la app.
 - **Pendiente:**
   - entrega 2: finanzas y clientes.
+
+### Cambio de pasarela: Mercado Pago (2026-10-29)
+- **Decisión del equipo:** Mercado Pago (Checkout Pro) reemplaza a Wompi, que nunca llegó a tener llaves (el registro de Wompi daba un bloqueo 403). Se quitó todo lo de Wompi.
+- **Backend:** `_shared/mercadopago.ts` crea la preferencia (un ítem con el total, `external_reference`, regreso y webhook), consulta el pago por id o por referencia y verifica la firma de las notificaciones. `checkout` y `payment-webhook` conservan su contrato con la app; el webhook consulta siempre el pago a la API. Migración `20261029030000_mercado_pago.sql`.
+- **Flutter:** `MercadoPagoPaymentLauncher` abre la preferencia en el WebView y vuelve con `payment_id`.
+- **Pruebas:** `node --test` (24), pgTAP y Flutter.
+- **Pendiente:** el Access Token de la cuenta de prueba vendedora en los secretos de la nube y un pago de prueba de punta a punta.
 
 ### Fase 9: órdenes y seguimiento
 - `order_status_history` con transiciones válidas forzadas por trigger (RN-029).
@@ -337,7 +344,7 @@ Objetivo: ver cómo se vería el computador con las piezas elegidas, ya sea a ma
 ## Pendientes del negocio que bloquean fases
 
 Se avanza con estos supuestos provisionales y se marcan en el código cuando aplique:
-- porcentaje de comisión por defecto (10 %) y máximo (30 %), S-07 y RN-024 (fase 8). Ya decidido: Wompi como pasarela y comisión sobre el valor sin IVA;
+- porcentaje de comisión por defecto (10 %) y máximo (30 %), S-07 y RN-024 (fase 8). Ya decidido: Mercado Pago como pasarela (antes Wompi) y comisión sobre el valor sin IVA;
 - costo de envío: se asume sin costo adicional para el cliente (fase 8);
 - política de fallo de la API y latencia (fase 10);
 - jurisdicción: se asume Colombia, Ley 1581 y Ley 1480 (fases 4 y 8);

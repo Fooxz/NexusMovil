@@ -118,7 +118,7 @@ class AdminOrderScreen extends ConsumerWidget {
                   ('MONTO', formatPrice(order.payment.amountCents)),
                   ('MÉTODO', order.payment.method ?? '—'),
                   ('REFERENCIA', order.payment.reference),
-                  if (order.payment.transactionId case final id?) ('TRANSACCIÓN WOMPI', id),
+                  if (order.payment.transactionId case final id?) ('PAGO EN MERCADO PAGO', id),
                 ],
               ),
               const VendorSectionTitle('CLIENTE Y ENTREGA'),

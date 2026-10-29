@@ -170,14 +170,14 @@ payment_events
 
 | Tabla | Para qué | Acceso de clientes |
 |---|---|---|
-| `payments` | Cada intento de pago (RF-058): referencia `NX-AAAAMMDD-XXXXXXXXXX`, usuario, estado, valor, transacción y medio de Wompi, y la **foto** de lo que se compra: líneas con el precio revalidado, dirección y contacto. Vence a los 60 minutos. | Ninguno. Solo las RPC `start_checkout` y `get_checkout_status`. |
-| `payment_events` | Cada aviso del webhook y cada consulta a Wompi, con lo que se hizo (`order_created`, `status_updated`, `duplicate`, `stale`, `amount_mismatch`, `unknown_reference`). Sirve para conciliar (RF-079). | Ninguno. No se edita ni se borra. |
+| `payments` | Cada intento de pago (RF-058): referencia `NX-AAAAMMDD-XXXXXXXXXX`, usuario, estado, valor, pago y medio de Mercado Pago, y la **foto** de lo que se compra: líneas con el precio revalidado, dirección y contacto. Vence a los 60 minutos. | Ninguno. Solo las RPC `start_checkout` y `get_checkout_status`. |
+| `payment_events` | Cada aviso del webhook y cada consulta a Mercado Pago, con lo que se hizo (`order_created`, `status_updated`, `duplicate`, `stale`, `amount_mismatch`, `unknown_reference`). Sirve para conciliar (RF-079). | Ninguno. No se edita ni se borra. |
 | `orders` | La orden, creada solo con el pago aprobado (RN-025): número `NX-000123`, usuario, pago, total, dirección y contacto. Estado `paid`. | Ninguno (fase 9: historial). |
 | `sub_orders` | Una por proveedor (S-06): subtotal, base sin IVA, comisión y neto del proveedor. Estado `pending`, esperando al proveedor. | Ninguno. |
 | `order_items` | Precio, cantidad, IVA, base, porcentaje y regla de comisión, comisión y neto **del momento de la compra** (RN-026, RF-075). `backordered_units`: unidades que ya no había al aprobarse el pago. | Ninguno. No se edita ni se borra. |
 | `commission_rules` | Comisión de un proveedor (`product_id` nulo) o de un producto suyo, con vigencia (RF-071, RF-072). | Ninguno. El administrador las opera desde Studio o SQL. |
 
-**Estados del pago.** `pending` → `approved` (con orden), `declined`, `voided`, `error` o `abandoned`. Solo `approved` es final: después de un rechazo el cliente puede reintentar en Wompi, y si esa transacción se aprueba, se acepta. Un intento abandonado que igual se paga también crea su orden, porque la pasarela ya cobró.
+**Estados del pago.** `pending` → `approved` (con orden), `declined`, `voided`, `error` o `abandoned`. Solo `approved` es final: después de un rechazo el cliente puede reintentar en Mercado Pago, y si esa transacción se aprueba, se acepta. Un intento abandonado que igual se paga también crea su orden, porque la pasarela ya cobró.
 
 **`apply_payment_event`, idempotente (RNF-020).**
 - La llaman el webhook y la consulta de `checkout`, con el rol de servicio.
@@ -295,7 +295,13 @@ Migración `20261029020000_admin_console.sql` (API_CONTRATO, parte 10).
 - **Solo `approved` se ve:** `private.visible_offers` exige la moderación aprobada, así el catálogo, el carrito, el checkout, el asistente y el PC Builder dejan de ofrecer lo oculto sin cambiar sus consultas.
 - **El administrador interviene pedidos** con transiciones propias (`private.admin_next_statuses`) y siempre con una observación, que queda en `sub_order_status_history` como "NEXUS: ...". Cancelar o rechazar devuelve las unidades al stock (`private.restock_sub_order`).
 - **Inmutables:** los dos historiales nuevos, con la misma excepción al borrar una cuenta.
-- **Pendiente para la entrega 2:** liquidaciones a las tiendas, reembolsos con Wompi y la sección de clientes.
+- **Pendiente para la entrega 2:** liquidaciones a las tiendas, reembolsos con Mercado Pago y la sección de clientes.
+
+## Pasarela: Mercado Pago (2026-10-29)
+
+Migración `20261029030000_mercado_pago.sql`. `payments.gateway` pasa a `mercadopago` (ningún pago se hizo con Wompi).
+`gateway_transaction_id` es el id del pago de Mercado Pago y `payment_method_type`, su `payment_type_id`. Las Edge
+Functions traducen los estados de Mercado Pago a los de `apply_payment_event`, que no cambia.
 
 ## Datos de desarrollo
 

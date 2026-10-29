@@ -9,17 +9,17 @@ import '../data/mock_checkout_repository.dart';
 import '../domain/checkout_models.dart';
 
 /// Abre el pago de un intento y espera a que el cliente termine. Devuelve el
-/// id de la transacción que Wompi informa al volver, o `null` si no lo hay
+/// id del pago que Mercado Pago informa al volver, o `null` si no lo hay
 /// (el cliente cerró, o el pago se hizo fuera de la app).
 abstract class PaymentLauncher {
   Future<String?> open(BuildContext context, CheckoutSession session);
 }
 
-/// Web Checkout de Wompi. En Android e iOS va dentro de la app, en un
+/// Checkout Pro de Mercado Pago. En Android e iOS va dentro de la app, en un
 /// WebView que intercepta la página de regreso; en web y escritorio se abre
 /// en el navegador.
-class WompiPaymentLauncher implements PaymentLauncher {
-  const WompiPaymentLauncher();
+class MercadoPagoPaymentLauncher implements PaymentLauncher {
+  const MercadoPagoPaymentLauncher();
 
   static bool get _inAppWebView =>
       !kIsWeb &&
@@ -42,7 +42,7 @@ class WompiPaymentLauncher implements PaymentLauncher {
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        title: const Text('Completa el pago en Wompi'),
+        title: const Text('Completa el pago en Mercado Pago'),
         content: const Text(
           'Abrimos el pago en otra ventana. Cuando termines, vuelve aquí '
           'para ver el resultado.',
@@ -57,6 +57,17 @@ class WompiPaymentLauncher implements PaymentLauncher {
     );
     return null;
   }
+}
+
+/// Id del pago en la página de regreso de Mercado Pago (`payment_id`, o
+/// `collection_id` en las cuentas antiguas). Si el cliente cerró sin pagar,
+/// llega vacío o como "null".
+String? paymentIdFrom(Uri url) {
+  for (final key in const ['payment_id', 'collection_id']) {
+    final value = url.queryParameters[key];
+    if (value != null && value.isNotEmpty && value != 'null') return value;
+  }
+  return null;
 }
 
 /// Pasarela simulada para la app sin backend (repositorios mock).
@@ -96,8 +107,9 @@ class SimulatedPaymentLauncher implements PaymentLauncher {
   }
 }
 
-/// Wompi dentro de la app. Al llegar a la página de regreso cierra con el id
-/// de la transacción; los enlaces a otras apps (banco, Nequi) se abren fuera.
+/// Mercado Pago dentro de la app. Al llegar a la página de regreso cierra con
+/// el id del pago; los enlaces a otras apps (banco, Mercado Pago) se abren
+/// fuera.
 class PaymentWebViewScreen extends StatefulWidget {
   const PaymentWebViewScreen({super.key, required this.session});
 
@@ -144,7 +156,7 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> {
 
   bool _closeIfReturn(Uri? url) {
     if (url == null || !widget.session.isReturnUrl(url)) return false;
-    _close(url.queryParameters['id']);
+    _close(paymentIdFrom(url));
     return true;
   }
 
@@ -160,7 +172,7 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> {
       backgroundColor: NexusColors.bg,
       appBar: AppBar(
         backgroundColor: NexusColors.bg,
-        title: const Text('Pago seguro con Wompi', style: TextStyle(fontSize: 15)),
+        title: const Text('Pago seguro con Mercado Pago', style: TextStyle(fontSize: 15)),
         leading: IconButton(
           tooltip: 'Cerrar el pago',
           icon: const Icon(Icons.close),

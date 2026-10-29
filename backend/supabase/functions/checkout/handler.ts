@@ -3,29 +3,31 @@
 //
 // POST {action: "start", addressId, contact, expectedTotalCents}
 //   Revalida el carrito y crea el intento de pago (RPC start_checkout, como el
-//   usuario) y devuelve la URL firmada del Web Checkout de Wompi.
+//   usuario), crea la preferencia de Checkout Pro y devuelve su URL.
 // POST {action: "status", reference, transactionId?}
-//   Estado del intento. Si aún no está aprobado, pregunta a Wompi y aplica lo
-//   que responda: así el resultado llega aunque el webhook se demore o no
-//   pueda llegar (Supabase local).
-// GET  Página de regreso del Web Checkout (redirect-url).
+//   Estado del intento. Si aún no está aprobado, pregunta a Mercado Pago y
+//   aplica lo que responda: así el resultado llega aunque el webhook se demore
+//   o no pueda llegar (Supabase local). `transactionId` es el `payment_id` con
+//   el que Mercado Pago vuelve a la app.
+// GET  Página de regreso (back_urls).
 import { apiError, bearer, cors, json, RpcError } from '../_shared/http.ts';
 import {
-  checkoutUrl,
-  fetchTransaction,
-  findTransactionByReference,
+  createPreference,
+  fetchPayment,
+  findPaymentByReference,
   GatewayError,
-  type Customer,
   type FetchFn,
-  type Transaction,
-  type WompiConfig,
-} from '../_shared/wompi.ts';
+  type MercadoPagoConfig,
+  type Payment,
+} from '../_shared/mercadopago.ts';
 
 export type CheckoutDeps = {
-  /** null si faltan las llaves de Wompi: los pagos no están disponibles. */
-  config: WompiConfig | null;
+  /** null si falta el Access Token: los pagos no están disponibles. */
+  config: MercadoPagoConfig | null;
   /** A dónde vuelve el cliente después de pagar. La app la intercepta. */
   redirectUrl: string;
+  /** Webhook de Mercado Pago; null si no es una URL pública (local). */
+  notificationUrl: string | null;
   /** Id del usuario dueño del token, o null si no es una sesión válida. */
   authenticate(token: string): Promise<string | null>;
   /** RPC con el token del usuario: aplica RLS y auth.uid(). */
@@ -42,7 +44,6 @@ type CheckoutStatus = {
   currency: string;
   transactionId: string | null;
   expiresAt: string;
-  contact?: Customer;
   [key: string]: unknown;
 };
 
@@ -55,6 +56,12 @@ const returnPage = () =>
     status: 200,
     headers: { ...cors, 'content-type': 'text/plain; charset=utf-8' },
   });
+
+/** "2026-10-24T13:00:00.000-05:00": la hora de Colombia, como la pide Mercado Pago. */
+export function bogotaTimestamp(value: string): string {
+  const shifted = new Date(new Date(value).getTime() - 5 * 60 * 60 * 1000);
+  return `${shifted.toISOString().slice(0, 23)}-05:00`;
+}
 
 export async function handleCheckout(request: Request, deps: CheckoutDeps): Promise<Response> {
   if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
@@ -94,23 +101,30 @@ async function start(body: Record<string, unknown>, token: string, deps: Checkou
     expected_total_cents: body.expectedTotalCents,
   }) as CheckoutStatus;
 
-  const url = await checkoutUrl({
-    config: deps.config,
-    reference: payment.reference,
-    amountCents: payment.amountCents,
-    currency: payment.currency,
-    // Wompi espera ISO 8601 en UTC; la base lo envía con su zona.
-    expiresAt: new Date(payment.expiresAt).toISOString(),
-    redirectUrl: deps.redirectUrl,
-    customer: payment.contact!,
-  });
+  let preference: { id: string; url: string };
+  try {
+    preference = await createPreference({
+      config: deps.config,
+      reference: payment.reference,
+      amountCents: payment.amountCents,
+      currency: payment.currency,
+      expiresAt: bogotaTimestamp(payment.expiresAt),
+      returnUrl: deps.redirectUrl,
+      notificationUrl: deps.notificationUrl,
+    }, deps.fetchFn);
+  } catch (error) {
+    if (!(error instanceof GatewayError)) throw error;
+    // El intento queda pendiente y vence solo; el carrito sigue guardado.
+    console.error('No se pudo crear la preferencia:', error.message);
+    return unavailable();
+  }
 
   return json(200, {
     reference: payment.reference,
     amountCents: payment.amountCents,
     currency: payment.currency,
     expiresAt: payment.expiresAt,
-    checkoutUrl: url,
+    checkoutUrl: preference.url,
     redirectUrl: deps.redirectUrl,
   });
 }
@@ -124,33 +138,33 @@ async function status(body: Record<string, unknown>, token: string, deps: Checko
   const current = await deps.userRpc(token, 'get_checkout_status', { reference }) as CheckoutStatus;
   if (current.status === 'approved' || !deps.config) return json(200, current);
 
-  let transaction: Transaction | null = null;
+  let payment: Payment | null = null;
   try {
     if (typeof body.transactionId === 'string' && body.transactionId) {
-      transaction = await fetchTransaction(deps.config, body.transactionId, deps.fetchFn);
-      // Un id de otra referencia no sirve para este pago.
-      if (transaction?.reference !== reference) transaction = null;
+      payment = await fetchPayment(deps.config, body.transactionId, deps.fetchFn);
+      // Un pago de otra referencia no sirve para este intento.
+      if (payment?.reference !== reference) payment = null;
     }
-    transaction ??= await findTransactionByReference(deps.config, reference, deps.fetchFn);
+    payment ??= await findPaymentByReference(deps.config, reference, deps.fetchFn);
   } catch (error) {
     if (!(error instanceof GatewayError)) throw error;
-    console.error('No se pudo consultar Wompi:', error.message);
+    console.error('No se pudo consultar Mercado Pago:', error.message);
     return json(200, current);
   }
 
-  const unchanged = !transaction ||
-    (transaction.id === current.transactionId && transaction.status.toLowerCase() === current.status);
+  const unchanged = !payment ||
+    (payment.id === current.transactionId && payment.status.toLowerCase() === current.status);
   if (unchanged) return json(200, current);
 
   const applied = await deps.serviceRpc('apply_payment_event', {
     reference,
-    transaction_id: transaction!.id,
-    status: transaction!.status,
-    amount_cents: transaction!.amountCents,
-    currency: transaction!.currency,
-    payment_method_type: transaction!.paymentMethodType,
+    transaction_id: payment!.id,
+    status: payment!.status,
+    amount_cents: payment!.amountCents,
+    currency: payment!.currency,
+    payment_method_type: payment!.paymentMethodType,
     source: 'status_check',
-    payload: transaction,
+    payload: payment,
   });
   return json(200, applied ?? current);
 }

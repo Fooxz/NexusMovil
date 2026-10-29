@@ -1,4 +1,4 @@
-/// Tipos de documento que acepta Wompi para Colombia (RF-056).
+/// Tipos de documento para la facturación en Colombia (RF-056).
 enum DocumentType {
   cc('CC', 'Cédula de ciudadanía'),
   ce('CE', 'Cédula de extranjería'),
@@ -37,7 +37,7 @@ class CheckoutContact {
   };
 }
 
-/// Intento de pago creado en el backend, listo para abrir en Wompi.
+/// Intento de pago creado en el backend, listo para abrir en Mercado Pago.
 class CheckoutSession {
   const CheckoutSession({
     required this.reference,
@@ -50,11 +50,11 @@ class CheckoutSession {
   final String reference;
   final int amountCents;
 
-  /// Web Checkout de Wompi, firmado por el backend.
+  /// Checkout Pro de Mercado Pago: la preferencia la crea el backend.
   final Uri checkoutUrl;
 
-  /// A dónde vuelve Wompi al terminar, con `?id=<transacción>`. La app la
-  /// intercepta en lugar de abrirla.
+  /// A dónde vuelve Mercado Pago al terminar, con `?payment_id=<pago>`. La
+  /// app la intercepta en lugar de abrirla.
   final Uri redirectUrl;
   final DateTime expiresAt;
 

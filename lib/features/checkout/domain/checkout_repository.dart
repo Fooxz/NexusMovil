@@ -12,7 +12,8 @@ abstract class CheckoutRepository {
     required int expectedTotalCents,
   });
 
-  /// Estado del intento. [transactionId] es el que Wompi devuelve al volver;
+  /// Estado del intento. [transactionId] es el id del pago con el que vuelve
+  /// Mercado Pago;
   /// con él, el backend confirma el resultado sin esperar el webhook.
   Future<CheckoutStatus> status(String reference, {String? transactionId});
 }

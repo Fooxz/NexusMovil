@@ -45,7 +45,7 @@
         <intent>
             <action android:name="android.speech.RecognitionService"/>
         </intent>
-        <!-- Pago con Wompi: abrir el navegador o la app del banco o de Nequi (url_launcher). -->
+        <!-- Pago con Mercado Pago: abrir el navegador o la app del banco o de Mercado Pago (url_launcher). -->
         <intent>
             <action android:name="android.intent.action.VIEW"/>
             <data android:scheme="https"/>

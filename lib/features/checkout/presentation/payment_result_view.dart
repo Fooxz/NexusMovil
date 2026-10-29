@@ -54,7 +54,7 @@ class PaymentResultView extends ConsumerWidget {
       );
     }
 
-    // Pendiente: con transacción, Wompi aún confirma (PSE, Nequi); sin ella,
+    // Pendiente: con pago, Mercado Pago aún confirma (PSE, Efecty); sin él,
     // el cliente cerró el pago o el aviso no ha llegado.
     final inProgress = result.transactionId != null;
     return _Outcome(
@@ -62,7 +62,7 @@ class PaymentResultView extends ConsumerWidget {
       color: NexusColors.cyan,
       title: inProgress ? 'Tu pago está en proceso' : 'Aún no recibimos tu pago',
       message: inProgress
-          ? 'Wompi todavía no confirma el pago. Suele tardar unos minutos; '
+          ? 'Mercado Pago todavía no confirma el pago. Suele tardar unos minutos; '
                 'cuando se apruebe crearemos tu orden.'
           : 'Si cerraste el pago sin terminar, puedes intentarlo de nuevo. Si ya '
                 'pagaste, consulta otra vez en un momento.',

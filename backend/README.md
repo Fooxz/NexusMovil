@@ -109,7 +109,7 @@ prueba. Con `env.cloud.json` se saltan, salvo que se agregue `--dart-define=ALLO
 (`test/support/integration_support.dart`).
 
 **Actualización del 2026-10-27:** `db push` de las migraciones de checkout, solo piezas y candidatos con búsqueda;
-carga del inventario (arriba) y despliegue de `assistant`, `checkout` y `payment-webhook`. Sin llaves de Wompi,
+carga del inventario (arriba) y despliegue de `assistant`, `checkout` y `payment-webhook`. Sin llaves de la pasarela,
 `checkout` responde `PAYMENTS_UNAVAILABLE`. El esquema `public` y `private` volvió a quedar idéntico al local.
 
 **Actualización del 2026-10-29:** `db push` del panel de la tienda (`20261029010000_vendor_dashboard.sql`). El historial
@@ -117,7 +117,8 @@ de inventario arrancó con una entrada "Inventario inicial" por oferta con stock
 
 **Actualización del 2026-10-29 (2):** `db push` de la consola del administrador (`20261029020000_admin_console.sql`).
 Las 993 ofertas quedaron aprobadas y sin alertas de calidad. `db diff` lista funciones anteriores solo porque la copia
-local de las migraciones tiene fin de línea CRLF (en git están con LF): sin el ``, las 145 funciones son idénticas.
+local de las migraciones tiene fin de línea CRLF (en git están con LF): sin el `
+`, las 145 funciones son idénticas.
 
 **Al agregar una migración:** `npx supabase db push --dry-run` y después `npx supabase db push`. Si cambia la
 función: `npx supabase functions deploy assistant --no-verify-jwt --use-api`.
@@ -211,13 +212,13 @@ backend/supabase/
 ├── upgrade_check/   # prueba de migración sobre datos existentes (solo local)
 ├── models/          # modelos 3D que se suben al bucket component-models (MODELOS_3D.md)
 └── functions/
-    ├── .env              # secretos locales (Gemini y Wompi); ignorado por git
+    ├── .env              # secretos locales (Gemini y Mercado Pago); ignorado por git
     ├── .env.example      # plantilla de .env, sin valores
-    ├── _shared/          # Wompi (firmas, consultas) y utilidades HTTP
+    ├── _shared/          # Mercado Pago (preferencias, pagos, firmas) y utilidades HTTP
     ├── admin-providers/  # alta de cuentas de tienda por un administrador (roles)
     ├── assistant/        # asistente de recomendación con Gemini (fase 7)
-    ├── checkout/         # checkout con Wompi (fase 8)
-    └── payment-webhook/  # eventos de Wompi (fase 8)
+    ├── checkout/         # checkout con Mercado Pago (fase 8)
+    └── payment-webhook/  # notificaciones de Mercado Pago (fase 8)
 ```
 
 Las carpetas se crean en la fase que las usa. El modelo de datos está descrito en
@@ -262,21 +263,22 @@ node --test supabase/functions/assistant/core.test.ts
 
 Cada pregunta queda en `assistant_interactions` (ver docs/MODELO_DATOS.md).
 
-## Pagos con Wompi (Edge Functions, fase 8)
+## Pagos con Mercado Pago (Edge Functions, fase 8)
 
-Contrato: [../docs/API_CONTRATO.md](../docs/API_CONTRATO.md), parte 5. Se trabaja en el **modo de pruebas** de Wompi: no
-mueve dinero real.
+Contrato: [../docs/API_CONTRATO.md](../docs/API_CONTRATO.md), parte 5. Checkout Pro en COP. Para **simular pagos** sin mover
+dinero se usan las cuentas de prueba de Mercado Pago.
 
-**1. Llaves.** Crear la cuenta en `comercios.wompi.co` y, en modo de pruebas, copiar desde *Desarrolladores*:
+**1. Cuentas de prueba.** En [Tus integraciones](https://www.mercadopago.com.co/developers/panel/app), crear una aplicación
+(Checkout Pro) y, en *Cuentas de prueba*, crear dos: una **vendedora** y una **compradora**, de Colombia. Entrar con la
+vendedora (en una ventana de incógnito), abrir su aplicación y copiar desde *Credenciales de producción*:
 
 | Variable | Empieza con | Para qué |
 |---|---|---|
-| `WOMPI_PUBLIC_KEY` | `pub_test_` | Identifica el comercio en el Web Checkout. |
-| `WOMPI_INTEGRITY_SECRET` | `test_integrity_` | Firma el valor y la referencia de cada pago. |
-| `WOMPI_EVENTS_SECRET` | `test_events_` | Verifica la firma de los eventos del webhook. |
-| `WOMPI_PRIVATE_KEY` (opcional) | `prv_test_` | Consulta el pago por referencia cuando la app no recibió el id de la transacción. |
+| `MERCADOPAGO_ACCESS_TOKEN` | `APP_USR-` (cuenta de prueba) o `TEST-` | Crea las preferencias y consulta los pagos. **Secreto.** |
+| `MERCADOPAGO_WEBHOOK_SECRET` (opcional) | — | *Webhooks → Configurar notificaciones → Clave secreta*: verifica la firma. |
 
-Van en `supabase/functions/.env` (plantilla: `supabase/functions/.env.example`), **nunca** en la app ni en el repositorio.
+La **Public Key** no se usa: Checkout Pro no la necesita. Van en `supabase/functions/.env` (plantilla:
+`supabase/functions/.env.example`), **nunca** en la app ni en el repositorio.
 
 **2. En local,** desde `backend/`:
 
@@ -284,26 +286,29 @@ Van en `supabase/functions/.env` (plantilla: `supabase/functions/.env.example`),
 npx supabase functions serve --env-file supabase/functions/.env
 ```
 
-Wompi no puede llamar al webhook en `127.0.0.1`. No hace falta: al volver del pago, la app consulta `checkout` con el id
-de la transacción y la función le pregunta el resultado a Wompi.
+Mercado Pago no puede llamar al webhook en `127.0.0.1`: en local la preferencia va sin `notification_url` y sin
+`auto_return`. No hace falta: al volver del pago, la app consulta `checkout` con el `payment_id` y la función le pregunta el
+resultado a Mercado Pago.
 
 **3. En la nube** (cada comando cambia el proyecto: confirmarlo antes):
 
 ```powershell
 npx supabase db push --dry-run; npx supabase db push
-npx supabase secrets set --env-file supabase/functions/.env
+npx supabase secrets set MERCADOPAGO_ACCESS_TOKEN=... [MERCADOPAGO_WEBHOOK_SECRET=...]
 npx supabase functions deploy checkout --no-verify-jwt --use-api
 npx supabase functions deploy payment-webhook --no-verify-jwt --use-api
 ```
 
-En `secrets set`, no incluir `CHECKOUT_RETURN_URL` con la URL local: en la nube vale por defecto
-`https://fzapwqaadxivadtlpthj.supabase.co/functions/v1/checkout`. Después, en el dashboard de Wompi (*Desarrolladores →
-URL de eventos*, modo de pruebas), registrar `https://fzapwqaadxivadtlpthj.supabase.co/functions/v1/payment-webhook`.
+No subir `CHECKOUT_RETURN_URL` con la URL local: en la nube vale por defecto
+`https://fzapwqaadxivadtlpthj.supabase.co/functions/v1/checkout`. El webhook va en cada preferencia
+(`https://fzapwqaadxivadtlpthj.supabase.co/functions/v1/payment-webhook`); registrarlo también en *Webhooks* solo hace
+falta para tener la clave secreta.
 
-**4. Probar el pago** con los datos de prueba de Wompi:
-- **Tarjetas:** `4242 4242 4242 4242` aprobada y `4111 1111 1111 1111` rechazada, con cualquier fecha futura y CVC.
-- **Nequi:** `3991111111` aprobado y `3992222222` rechazado.
-- **PSE:** elegir el banco de prueba que aprueba o el que rechaza.
+**4. Probar el pago:** en la app, pagar e **iniciar sesión en Mercado Pago con la cuenta compradora de prueba** (no con una
+cuenta real: Mercado Pago no deja mezclar cuentas reales y de prueba). Tarjetas de prueba de Colombia (cualquier CVC y
+fecha futura): Mastercard `5254 1336 7440 3564`, Visa `4013 5406 8274 6260`, American Express `3743 781877 55283`. El
+**nombre del titular** decide el resultado: `APRO` aprobado, `OTHE` rechazado, `CONT` pendiente, `FUND` sin fondos y
+`SECU` código de seguridad inválido. Documento: `CC 123456789`.
 
 **Consultas útiles** (Studio o `db query`):
 - `select reference, status, amount_cents, gateway_transaction_id from payments order by created_at desc;`

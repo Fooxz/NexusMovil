@@ -1,4 +1,4 @@
-# Contrato de API: NEXUS Movil (v0.15, borrador)
+# Contrato de API: NEXUS Movil (v0.16, borrador)
 
 **Estado:** borrador. Parte 1: catalogo (secciones 1 a 5). Parte 2: carrito (seccion 10). Parte 3: PC Builder y vista 3D (seccion 11). Parte 4: asistente (seccion 12). Parte 5: checkout y pagos (seccion 13). Parte 6: catalogo por oferta (seccion 14). Parte 7: roles y administracion de tiendas (seccion 15). Parte 8: publicaciones de tiendas (seccion 16). Parte 9: panel de la tienda (seccion 17). Parte 10: consola del administrador (seccion 18). Implementado en el backend (`backend/`) y consumido por el front desde las fases 3, 5, 6, 6.1, 7 y 8 de `docs/PLAN_IMPLEMENTACION.md`.
 **Quien lo escribe:** el front, a partir de sus modelos reales (`lib/features/catalog/domain`).
@@ -330,6 +330,7 @@ Cambios compatibles (agregar un campo opcional, un endpoint nuevo): no rompen a 
 | 0.13 | Tres roles (cliente, tienda y administrador). Parte 6: catalogo por oferta, una tarjeta por tienda (`get_offers`, `get_catalog_providers`). Parte 7: cuenta propia, administracion de tiendas y la Edge Function `admin-providers`. Parte 8: publicaciones de tiendas sin aprobacion, con validaciones automaticas. Nuevos codigos de error de las partes 7 y 8; `VALIDATION_ERROR` puede traer `details.field`. El carrito y el checkout responden `CUSTOMER_ONLY` a las cuentas que no son de cliente. Endpoints nuevos; los existentes no cambian. |
 | 0.14 | Parte 9: panel de la tienda (seccion 17): resumen (`get_my_dashboard`), pedidos con su flujo de estados (`get_my_orders`, `get_my_order`, `update_my_order_status`) e inventario con movimientos y stock minimo (`get_my_inventory`, `adjust_my_stock`, `set_my_min_stock`, `get_my_stock_movements`). La sub-orden pasa de un solo estado (`pending`) a nueve. Nuevo codigo `INVALID_TRANSITION`. Endpoints nuevos; los existentes no cambian. |
 | 0.15 | Parte 10: consola del administrador (seccion 18): resumen global (`admin_get_dashboard`), tiendas con metricas e historial (`admin_list_providers`, `admin_get_provider_overview`, `admin_add_provider_note`), moderacion posterior con alertas de calidad (`admin_list_offers`, `admin_get_offer`, `admin_moderate_offer`, `admin_update_product`, `request_my_offer_review`) y pedidos de todas las tiendas (`admin_list_orders`, `admin_get_order`, `admin_update_sub_order_status`, `admin_add_order_note`). **Cambia** `admin_set_provider_status`: suma `blocked` y `deactivated` y exige el motivo. Las publicaciones de la tienda suman `moderationStatus` y `moderationReason`. Codigos nuevos: `SAME_STATUS`, `NOT_HIDDEN`. |
+| 0.16 | Parte 5: la pasarela pasa de Wompi a **Mercado Pago** (Checkout Pro). `checkoutUrl` es la URL de la preferencia; la app vuelve con `?payment_id=` y lo envia como `transactionId`; el webhook recibe las notificaciones de Mercado Pago y consulta el pago a su API. El contrato con la app no cambia. |
 
 ---
 
@@ -577,13 +578,13 @@ Asistente de recomendacion (HU-006, RF-036 a RF-045, RF-089). Es una Edge Functi
 
 ## 13. Parte 5: checkout y pagos (v0.10)
 
-Compra del carrito guardado con pago en **Wompi** (COP), en modo de pruebas mientras no haya cuenta de produccion (HU-010, HU-011, RF-055 a RF-061). Exige sesion (RN-027). Es una Edge Function: `POST /functions/v1/checkout`, con el token de la sesion en `Authorization`.
+Compra del carrito guardado con pago en **Mercado Pago** (Checkout Pro, COP), con cuentas de prueba mientras no haya cuenta de produccion (HU-010, HU-011, RF-055 a RF-061). Exige sesion (RN-027). Es una Edge Function: `POST /functions/v1/checkout`, con el token de la sesion en `Authorization`.
 
 **Flujo:**
 1. La app envia `start` con la direccion, el contacto y el total que vio el cliente.
-2. El backend revalida el carrito (RF-055), guarda el intento de pago y devuelve la URL firmada del Web Checkout.
-3. El cliente paga en Wompi (tarjeta, PSE o Nequi). Al terminar, Wompi redirige a `redirectUrl?id=<transaccion>`; la app intercepta esa URL y no la abre.
-4. La app envia `status` con la referencia y el id. Wompi tambien avisa al webhook. Los dos caminos aplican el resultado una sola vez (RNF-020).
+2. El backend revalida el carrito (RF-055), guarda el intento de pago, crea la preferencia en Mercado Pago y devuelve su URL.
+3. El cliente paga en Mercado Pago (tarjeta, PSE, Efecty o dinero en cuenta). Al terminar, Mercado Pago redirige a `redirectUrl?payment_id=<pago>&status=...&external_reference=<referencia>`; la app intercepta esa URL y no la abre.
+4. La app envia `status` con la referencia y el id del pago. Mercado Pago tambien avisa al webhook. Los dos caminos aplican el resultado una sola vez (RNF-020).
 5. **La orden se crea solo con el pago aprobado (RN-025)**: una sub-orden por proveedor, el stock descontado y lo comprado fuera del carrito.
 
 **Precios:** el cliente paga el precio publicado, que ya incluye el IVA del 19 % (RN-001). La comision de NEXUS se calcula sobre el valor sin IVA y se descuenta de lo que recibe el proveedor; no viaja a la app (RN-002). **Envio:** sin costo adicional para el cliente (supuesto, pendiente del negocio).
@@ -606,7 +607,7 @@ Compra del carrito guardado con pago en **Wompi** (COP), en modo de pruebas mien
 ```
 
 - `addressId`: una direccion del usuario (cuentas, `docs/MODELO_DATOS.md`). Se guarda una copia: cambiarla despues no altera el pedido.
-- `contact`: nombre (2 a 120 caracteres), correo, telefono (7 a 15 digitos), `documentType` (`CC`, `CE`, `NIT`, `PP` o `TI`) y `documentNumber` (4 a 20 letras o numeros; se ignoran puntos y espacios). Wompi los usa para prellenar el pago.
+- `contact`: nombre (2 a 120 caracteres), correo, telefono (7 a 15 digitos), `documentType` (`CC`, `CE`, `NIT`, `PP` o `TI`) y `documentNumber` (4 a 20 letras o numeros; se ignoran puntos y espacios). Quedan en el pedido para la facturacion; no se envian a Mercado Pago (con cuentas de prueba, un correo real impide pagar).
 - `expectedTotalCents`: el total del carrito que vio el cliente.
 
 Respuesta `200`:
@@ -617,21 +618,21 @@ Respuesta `200`:
   "amountCents": 313990000,
   "currency": "COP",
   "expiresAt": "2026-10-25T00:41:55.756115+00:00",
-  "checkoutUrl": "https://checkout.wompi.co/p/?public-key=pub_test_...&reference=NX-20261024-733D2C28F6&signature:integrity=...",
+  "checkoutUrl": "https://www.mercadopago.com.co/checkout/v1/redirect?pref_id=123456789-abcd...",
   "redirectUrl": "https://<proyecto>.supabase.co/functions/v1/checkout"
 }
 ```
 
-- El intento vence en `expiresAt` (60 minutos). Un intento nuevo abandona el anterior si este no llego a Wompi.
-- `checkoutUrl` lleva la firma de integridad: si se cambia el valor o la referencia en la URL, Wompi la rechaza.
+- El intento vence en `expiresAt` (60 minutos), y la preferencia con el. Un intento nuevo abandona el anterior si este no llego a la pasarela.
+- El valor y la referencia (`external_reference`) quedan en la preferencia, que crea el backend con el Access Token: la app no puede cambiarlos. Al aprobarse, la base compara el monto pagado con el del intento (`amount_mismatch`).
 
 ### 13.2 Consultar el resultado: `status`
 
 ```json
-{ "action": "status", "reference": "NX-20261024-733D2C28F6", "transactionId": "1234-1730000000-00001" }
+{ "action": "status", "reference": "NX-20261024-733D2C28F6", "transactionId": "1324567890" }
 ```
 
-`transactionId` es opcional: es el `id` que Wompi agrega a `redirectUrl`. Si el pago no esta aprobado, el backend consulta la transaccion en Wompi y aplica lo que responda. Sin `transactionId`, solo puede hacerlo si tiene la llave privada.
+`transactionId` es opcional: es el `payment_id` que Mercado Pago agrega a `redirectUrl`. Si el pago no esta aprobado, el backend lo consulta en Mercado Pago y aplica lo que responda; sin `transactionId`, busca el pago por la referencia.
 
 Respuesta `200`:
 
@@ -641,8 +642,8 @@ Respuesta `200`:
   "status": "approved",
   "amountCents": 313990000,
   "currency": "COP",
-  "transactionId": "1234-1730000000-00001",
-  "paymentMethod": "CARD",
+  "transactionId": "1324567890",
+  "paymentMethod": "credit_card",
   "message": null,
   "expiresAt": "2026-10-25T00:41:55.756115+00:00",
   "order": {
@@ -669,21 +670,23 @@ Respuesta `200`:
 
 | `status` | Significado | `order` |
 |---|---|---|
-| `pending` | Esperando a Wompi. Sin `transactionId`, el cliente no termino el pago o el aviso no ha llegado. | `null` |
+| `pending` | Esperando a Mercado Pago (tambien `in_process`). Sin `transactionId`, el cliente no termino el pago o el aviso no ha llegado. | `null` |
 | `approved` | Pagado. No cambia mas. | La orden |
-| `declined`, `voided`, `error` | Wompi no cobro. El cliente puede intentar de nuevo con otro medio; si una transaccion posterior se aprueba, se acepta. | `null` |
+| `declined`, `voided`, `error` | Mercado Pago no cobro (`rejected`, `cancelled`). El cliente puede intentar de nuevo con otro medio; si una transaccion posterior se aprueba, se acepta. | `null` |
 | `abandoned` | El cliente empezo otro intento sin pagar este. Si igual se paga, se acepta. | `null` |
 
 - `backorderedUnits`: unidades que ya no habia en stock cuando se aprobo el pago, porque otra compra se las llevo. El proveedor las resuelve; la fase 9 define el reembolso.
 - `subOrders[].status` es `pending` (esperando al proveedor). La fase 9 agrega los demas estados.
 - `GET /functions/v1/checkout` es la pagina de regreso para quien paga fuera de la app (web): un texto que pide volver a NEXUS.
 
-### 13.3 Webhook de Wompi: `payment-webhook`
+### 13.3 Webhook de Mercado Pago: `payment-webhook`
 
-`POST /functions/v1/payment-webhook` recibe los eventos `transaction.updated` de Wompi. No lo usa la app.
+`POST /functions/v1/payment-webhook?data.id=<pago>&type=payment` recibe las notificaciones de Mercado Pago. La URL viaja en cada preferencia (`notification_url`). No lo usa la app.
 
-- Verifica `signature.checksum` con el secreto de eventos: SHA-256 de los valores de `signature.properties`, el `timestamp` y el secreto. Con firma invalida responde `401` y no aplica nada.
-- Responde `200` cuando aplica el evento, cuando ya lo conocia y cuando la referencia no existe. Responde `500` si falla la base, para que Wompi reintente.
+- **No confia en la notificacion:** solo toma el id del pago y lo consulta a la API de Mercado Pago con el Access Token. El estado, el monto y la referencia salen de esa respuesta.
+- Si hay clave secreta (`MERCADOPAGO_WEBHOOK_SECRET`) y llega `x-signature`, verifica la firma: HMAC-SHA256 de `id:<data.id>;request-id:<x-request-id>;ts:<ts>;`. Con firma invalida responde `401` y no aplica nada.
+- Estados: `approved` aprueba; `pending`, `in_process` y `authorized` quedan pendientes; `rejected` es rechazo; `cancelled`, `refunded` y `charged_back` anulan.
+- Responde `200` cuando aplica el pago, cuando ya lo conocia, cuando la referencia no existe y con otros topicos (`merchant_order`). Responde `500` si falla Mercado Pago o la base, para que reintente.
 - Cada evento queda en `payment_events` (RF-058, RF-079).
 
 ### 13.4 Errores
@@ -698,7 +701,7 @@ Respuesta `200`:
 | 409 | `CART_CHANGED` | Una linea se agoto o tiene mas unidades de las disponibles. La app recarga el carrito. |
 | 409 | `PRICE_CHANGED` | El total cambio. `details` trae `{"totalCents": n}` en texto. La app recarga el carrito. |
 | 429 | `RATE_LIMITED` | Mas de 10 intentos de pago en 10 minutos. |
-| 503 | `PAYMENTS_UNAVAILABLE` | Faltan las llaves de Wompi en el servidor. El carrito no se pierde. |
+| 503 | `PAYMENTS_UNAVAILABLE` | Falta el Access Token de Mercado Pago en el servidor, o Mercado Pago no creo la preferencia. El carrito no se pierde. |
 
 ---
 
@@ -950,7 +953,7 @@ Movimiento: `id`, `productId`, `productName`, `kind` (`entry`, `exit`, `adjustme
 
 ## 18. Parte 10: consola del administrador (v0.15)
 
-Entrega 1 de la consola de NEXUS: resumen global, supervision de tiendas, moderacion del catalogo y pedidos de todas las tiendas (HU-022, HU-024, HU-025, RF-011, RF-080). Todas son RPC para `authenticated` y exigen el rol administrador (`403 FORBIDDEN` si no). La entrega 2 agrega finanzas (liquidaciones y reembolsos con Wompi) y clientes.
+Entrega 1 de la consola de NEXUS: resumen global, supervision de tiendas, moderacion del catalogo y pedidos de todas las tiendas (HU-022, HU-024, HU-025, RF-011, RF-080). Todas son RPC para `authenticated` y exigen el rol administrador (`403 FORBIDDEN` si no). La entrega 2 agrega finanzas (liquidaciones y reembolsos con Mercado Pago) y clientes.
 
 **Decisiones del equipo:** solo los clientes compran (las tiendas y los administradores siguen con `CUSTOMER_ONLY`). La moderacion es **posterior**: las tiendas publican sin aprobacion y el administrador revisa lo publicado.
 
@@ -977,7 +980,7 @@ Entrega 1 de la consola de NEXUS: resumen global, supervision de tiendas, modera
 - **`orders`** cuenta sub-ordenes (el pedido de cada tienda), salvo `total`, que cuenta pedidos. `cancelled` suma rechazados y cancelados. `stale`: nuevos sin respuesta de la tienda en 48 horas.
 - **`users`:** `activeCustomers` iniciaron sesion en 30 dias y `newCustomers` se registraron en 30 dias. `providers`: tiendas por estado.
 - **`catalog.flagged`:** ofertas publicadas y aprobadas con alguna alerta de calidad (18.3).
-- **`alerts`:** solo las que tienen casos. `offers_review`, `orders_incident`, `orders_stale`, `providers_pending`, `new_providers` (7 dias), `payments_error` (30 dias), `payment_events_unknown` (avisos de Wompi con referencia desconocida en 7 dias) y `assistant_unavailable` (24 horas).
+- **`alerts`:** solo las que tienen casos. `offers_review`, `orders_incident`, `orders_stale`, `providers_pending`, `new_providers` (7 dias), `payments_error` (30 dias), `payment_events_unknown` (avisos de la pasarela con referencia desconocida en 7 dias) y `assistant_unavailable` (24 horas).
 - **`series`:** los ultimos 30 dias, uno por dia, incluidos los dias sin ventas. **`topCategories`:** hasta 6 categorias por ventas de 30 dias.
 
 ### 18.2 Tiendas
