@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/utils/format_price.dart';
+import '../../../routes.dart';
 import '../../../theme/nexus_theme.dart';
 import '../../../widgets/nexus_error_state.dart';
 import '../../../widgets/nexus_loading.dart';
@@ -9,6 +10,7 @@ import '../../../widgets/nexus_page.dart';
 import '../../../widgets/nexus_product_image.dart';
 import '../../../widgets/nexus_widgets.dart';
 import '../../cart/presentation/cart_actions.dart';
+import '../../catalog/presentation/product_detail_screen.dart';
 import '../../catalog/presentation/product_visuals.dart';
 import '../domain/pc_builder_models.dart';
 import '../pc_builder_providers.dart';
@@ -346,6 +348,14 @@ class _SlotCard extends ConsumerWidget {
               Wrap(
                 spacing: 4,
                 children: [
+                  // La ficha completa, con la oferta de la tienda elegida.
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pushNamed(
+                      NexusRoutes.productDetail,
+                      arguments: ProductDetailArgs(part.productId, offerId: part.offerId),
+                    ),
+                    child: const Text('Ver detalles'),
+                  ),
                   TextButton(
                     onPressed: () => _openPicker(context),
                     child: Text(
