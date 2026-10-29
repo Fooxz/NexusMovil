@@ -21,6 +21,8 @@ void main() {
         const ProviderScope(child: MaterialApp(home: MainShell())),
       );
       await tester.pump();
+      // Ofertas y tiendas del repositorio simulado.
+      await tester.pump(const Duration(seconds: 1));
     } finally {
       FlutterError.onError = previous;
     }

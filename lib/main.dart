@@ -19,6 +19,7 @@ import 'features/cart/presentation/cart_screen.dart';
 import 'features/checkout/presentation/checkout_screen.dart';
 import 'routes.dart';
 import 'features/catalog/presentation/product_detail_screen.dart';
+import 'features/catalog/presentation/store_catalog_screen.dart';
 import 'screens/shell/role_home.dart';
 import 'theme/nexus_theme.dart';
 
@@ -110,6 +111,13 @@ Route<Object?>? generateNexusRoute(RouteSettings settings) {
         _ => const ProductDetailScreen(productId: ''),
       },
     ),
+    NexusRoutes.store => switch (arguments) {
+      StoreCatalogArgs(:final storeId, :final storeName) => MaterialPageRoute<void>(
+        settings: settings,
+        builder: (_) => StoreCatalogScreen(storeId: storeId, storeName: storeName),
+      ),
+      _ => null,
+    },
     _ => null,
   };
 }

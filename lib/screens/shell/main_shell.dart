@@ -7,6 +7,8 @@ import '../home/home_screen.dart';
 import '../../features/pc_builder/presentation/pc_builder_screen.dart';
 import '../../widgets/lazy_indexed_stack.dart';
 import '../../widgets/nexus_bottom_nav.dart';
+import '../../widgets/nexus_menu_scope.dart';
+import 'customer_drawer.dart';
 
 enum NexusTab {
   home(0),
@@ -53,6 +55,7 @@ class MainShell extends StatefulWidget {
 }
 
 class _MainShellState extends State<MainShell> {
+  final _scaffold = GlobalKey<ScaffoldState>();
   late NexusTab _currentTab;
 
   static const List<Widget> _tabScreens = [
@@ -77,6 +80,8 @@ class _MainShellState extends State<MainShell> {
     setState(() => _currentTab = tab);
   }
 
+  void _openMenu() => _scaffold.currentState?.openDrawer();
+
   @override
   Widget build(BuildContext context) {
     return MainShellScope(
@@ -88,14 +93,20 @@ class _MainShellState extends State<MainShell> {
             setState(() => _currentTab = NexusTab.home);
           }
         },
-        child: Scaffold(
-          body: LazyIndexedStack(
-            index: _currentTab.tabIndex,
-            children: _tabScreens,
-          ),
-          bottomNavigationBar: _ShellBottomBar(
-            current: _currentTab,
-            onTap: _selectTab,
+        // El botón ☰ de cada pestaña (NexusTopBar) abre el menú lateral.
+        child: NexusMenuScope(
+          openMenu: _openMenu,
+          child: Scaffold(
+            key: _scaffold,
+            drawer: CustomerDrawer(current: _currentTab, onSelectTab: _selectTab),
+            body: LazyIndexedStack(
+              index: _currentTab.tabIndex,
+              children: _tabScreens,
+            ),
+            bottomNavigationBar: _ShellBottomBar(
+              current: _currentTab,
+              onTap: _selectTab,
+            ),
           ),
         ),
       ),

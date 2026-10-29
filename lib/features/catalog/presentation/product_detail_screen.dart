@@ -16,6 +16,7 @@ import '../catalog_providers.dart';
 import '../domain/product.dart';
 import '../../cart/presentation/cart_actions.dart';
 import 'product_visuals.dart';
+import 'store_catalog_screen.dart';
 
 /// Argumentos de `NexusRoutes.productDetail` desde una tarjeta del catálogo:
 /// el producto y la oferta de la tienda de esa tarjeta. Las demás pantallas
@@ -132,19 +133,36 @@ class _ProductDetailContentState extends ConsumerState<_ProductDetailContent> {
           productName: product.name,
         ),
         const SizedBox(height: 14),
-        Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: NexusColors.cyan.withValues(alpha: 0.5)),
-          ),
-          child: NexusProductImage(
-            imageUrl: product.imageUrl,
-            icon: visuals.icon,
-            iconColor: NexusColors.cyan,
-            iconSize: 64,
-            gradientColors: visuals.gradientColors,
-            height: 230,
-            borderRadius: 11,
+        GestureDetector(
+          onTap: product.imageUrl == null ? null : () => _showZoom(context, product.imageUrl!),
+          child: Stack(
+            children: [
+              Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: NexusColors.cyan.withValues(alpha: 0.5)),
+                ),
+                child: NexusProductImage(
+                  imageUrl: product.imageUrl,
+                  icon: visuals.icon,
+                  iconColor: NexusColors.cyan,
+                  iconSize: 64,
+                  gradientColors: visuals.gradientColors,
+                  height: 230,
+                  borderRadius: 11,
+                ),
+              ),
+              if (product.imageUrl != null)
+                Positioned(
+                  right: 10,
+                  bottom: 10,
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(color: NexusColors.bg.withValues(alpha: 0.7), shape: BoxShape.circle),
+                    child: const Icon(Icons.zoom_in, size: 18, color: NexusColors.cyan),
+                  ),
+                ),
+            ],
           ),
         ),
         const SizedBox(height: 14),
@@ -197,6 +215,10 @@ class _ProductDetailContentState extends ConsumerState<_ProductDetailContent> {
             ],
           ],
         ),
+        if (selected != null) ...[
+          const SizedBox(height: 14),
+          _SellerTile(offer: selected, otherStores: product.offers.length - 1),
+        ],
         const SizedBox(height: 18),
         _PurchasePanel(
           product: product,
@@ -296,6 +318,7 @@ class _PurchasePanelState extends ConsumerState<_PurchasePanel> {
       offerId: offerId,
       quantity: _quantity,
       openCart: openCart,
+      productName: widget.product.name,
     );
     if (mounted) setState(() => _adding = false);
   }
@@ -308,10 +331,9 @@ class _PurchasePanelState extends ConsumerState<_PurchasePanel> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (offers.isNotEmpty) ...[
-          NexusUnderlineTitle(
-            offers.length == 1 ? 'VENDIDO POR' : 'COMPARAR TIENDAS',
-          ),
+        // Con una sola tienda, "Vendido por" ya la muestra arriba.
+        if (offers.length > 1) ...[
+          const NexusUnderlineTitle('COMPARAR TIENDAS'),
           const SizedBox(height: 4),
           NexusCard(
             child: Column(
@@ -472,6 +494,12 @@ class _OfferRow extends StatelessWidget {
                 ),
             ],
           ),
+          IconButton(
+            tooltip: 'Ver la tienda ${offer.providerName}',
+            visualDensity: VisualDensity.compact,
+            icon: const Icon(Icons.storefront_outlined, size: 19, color: NexusColors.textDim),
+            onPressed: () => openStore(context, offer),
+          ),
         ],
       ),
     );
@@ -482,6 +510,117 @@ class _OfferRow extends StatelessWidget {
       enabled: available,
       button: true,
       child: InkWell(onTap: available ? onSelect : null, child: row),
+    );
+  }
+}
+
+/// Abre el catálogo de la tienda que vende [offer].
+void openStore(BuildContext context, ProductOffer offer) => Navigator.of(context).pushNamed(
+  NexusRoutes.store,
+  arguments: StoreCatalogArgs(offer.providerId, offer.providerName),
+);
+
+/// Foto a pantalla completa: se amplía con dos dedos o doble toque.
+void _showZoom(BuildContext context, String imageUrl) => showDialog<void>(
+  context: context,
+  barrierColor: Colors.black.withValues(alpha: 0.92),
+  builder: (context) => Stack(
+    children: [
+      Positioned.fill(
+        child: InteractiveViewer(
+          minScale: 1,
+          maxScale: 5,
+          child: Center(child: Image.network(imageUrl, fit: BoxFit.contain)),
+        ),
+      ),
+      Positioned(
+        top: 40,
+        right: 16,
+        child: IconButton(
+          tooltip: 'Cerrar',
+          onPressed: () => Navigator.of(context).pop(),
+          icon: const Icon(Icons.close, color: Colors.white, size: 28),
+        ),
+      ),
+    ],
+  ),
+);
+
+/// "Vendido por": la tienda de la oferta seleccionada. Abre su catálogo.
+class _SellerTile extends StatelessWidget {
+  const _SellerTile({required this.offer, required this.otherStores});
+
+  final ProductOffer offer;
+  final int otherStores;
+
+  @override
+  Widget build(BuildContext context) {
+    final name = offer.providerName;
+    return Material(
+      color: NexusColors.card,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () => openStore(context, offer),
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            border: Border.all(color: NexusColors.border),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: NexusColors.cyan.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: NexusColors.cyan.withValues(alpha: 0.5)),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  name.isEmpty ? '?' : name.characters.first.toUpperCase(),
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: NexusColors.cyan),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('VENDIDO POR', style: NexusText.sectionLabel),
+                    const SizedBox(height: 2),
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            name,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        const Icon(Icons.verified, size: 14, color: NexusColors.cyan),
+                      ],
+                    ),
+                    if (otherStores > 0)
+                      Text(
+                        otherStores == 1 ? 'Otra tienda también lo vende' : 'Otras $otherStores tiendas también lo venden',
+                        style: const TextStyle(fontSize: 10.5, color: NexusColors.textDim),
+                      ),
+                  ],
+                ),
+              ),
+              const Text(
+                'Ver tienda',
+                style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: NexusColors.cyan),
+              ),
+              const Icon(Icons.chevron_right, size: 18, color: NexusColors.cyan),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

@@ -8,7 +8,6 @@ import '../catalog/catalog_providers.dart';
 import '../catalog/data/mock_product_repository.dart';
 import 'data/mock_assistant_repository.dart';
 import 'data/supabase_assistant_repository.dart';
-import 'data/voice_input.dart';
 import 'domain/assistant_models.dart';
 import 'domain/assistant_repository.dart';
 
@@ -23,7 +22,6 @@ final assistantRepositoryProvider = Provider<AssistantRepository>((ref) {
   );
 });
 
-final voiceInputProvider = Provider<VoiceInput>((ref) => DeviceVoiceInput());
 
 /// Una entrada del chat: lo que escribió el cliente, la respuesta del
 /// asistente o un error que se puede reintentar.

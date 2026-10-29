@@ -126,7 +126,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('CERRAR SESIÓN'), findsOneWidget, reason: 'sigue en PERFIL, ya con sesión');
-      expect(find.text('TIENDA DE\nTECNOLOGÍA'), findsNothing, reason: 'no volvió a INICIO');
+      expect(find.text('ARMA TU PC\nCON IA'), findsNothing, reason: 'no volvió a INICIO');
     });
 
     testWidgets('una tienda que cierra sesión vuelve al shell del cliente', (tester) async {
@@ -138,7 +138,7 @@ void main() {
       await tapAndSettle(tester, find.text('CERRAR SESIÓN'));
 
       expect(navLabel('INICIO'), findsOneWidget);
-      expect(storeMenu, findsNothing);
+      expect(find.text('RESUMEN'), findsNothing, reason: 'ya no está en el panel de la tienda');
     });
   });
 

@@ -19,13 +19,11 @@ import '../../support/pc_builder_test_support.dart';
 void main() {
   late CartTestBed bed;
   late ScriptedBuilderRepository engine;
-  late FakeVoiceInput voice;
   NexusTab? selectedTab;
 
   setUp(() {
     bed = CartTestBed();
     engine = ScriptedBuilderRepository(bed.products, socketRule: false);
-    voice = FakeVoiceInput();
     selectedTab = null;
   });
 
@@ -40,7 +38,6 @@ void main() {
         overrides: [
           ...bed.overrides,
           assistantRepositoryProvider.overrideWithValue(assistant),
-          voiceInputProvider.overrideWithValue(voice),
           pcBuilderRepositoryProvider.overrideWithValue(engine),
         ],
         child: MainShellScope(
@@ -119,6 +116,27 @@ void main() {
         reason: 'el cliente decide la compra');
   });
 
+  testWidgets('the client can take the whole build to the cart in one tap', (tester) async {
+    final offers = [ScriptedBuilderRepository.ryzen, ScriptedBuilderRepository.z790];
+    final validation = await engine.validate(offers);
+    final (container, _) = await pumpAssistant(tester, [
+      AssistantRecommendation(
+        'Te armé esta configuración.',
+        build: ProposedBuild(reason: 'Potente para editar.', validation: validation),
+      ),
+    ]);
+    await ask(tester, 'Ármame un PC por piezas');
+
+    await tester.ensureVisible(find.text('AGREGAR TODO AL CARRITO'));
+    await tapAndSettle(tester, find.text('AGREGAR TODO AL CARRITO'));
+
+    final cart = await container.read(cartControllerProvider.future);
+    expect(cart.items.map((item) => item.offerId), unorderedEquals(offers));
+    expect(find.text('Agregamos las 2 piezas al carrito'), findsOneWidget);
+    expect(find.text('VER CARRITO'), findsOneWidget);
+    expect(selectedTab, isNull, reason: 'se queda en el asistente');
+  });
+
   testWidgets('when the AI is down it offers the other ways to buy (RNF-018)', (tester) async {
     final (_, assistant) = await pumpAssistant(tester, [
       const AssistantUnavailableFailure(),
@@ -133,31 +151,6 @@ void main() {
     await tapAndSettle(tester, find.text('REINTENTAR'));
     expect(find.text('¿Presupuesto?'), findsOneWidget);
     expect(assistant.conversations, hasLength(2));
-  });
-
-  testWidgets('dictation fills the field and waits for the client to send', (tester) async {
-    final (_, assistant) = await pumpAssistant(tester, [const AssistantQuestion('¿Presupuesto?')]);
-
-    await tapAndSettle(tester, find.byTooltip('Dictar por voz'));
-    expect(voice.listening, isTrue);
-    expect(find.text('Escuchando...'), findsOneWidget);
-
-    voice.hear('Necesito un computador para editar videos');
-    voice.finish();
-    await tester.pumpAndSettle();
-    expect(find.text('Necesito un computador para editar videos'), findsOneWidget);
-    expect(assistant.conversations, isEmpty, reason: 'no se envía solo');
-
-    await tapAndSettle(tester, find.byTooltip('Enviar'));
-    expect(assistant.conversations.single.single.text, 'Necesito un computador para editar videos');
-  });
-
-  testWidgets('says when dictation is not available', (tester) async {
-    voice = FakeVoiceInput(available: false);
-    await pumpAssistant(tester, const []);
-
-    await tapAndSettle(tester, find.byTooltip('Dictar por voz'));
-    expect(find.textContaining('El dictado por voz no está disponible'), findsOneWidget);
   });
 
   testWidgets('fits a 360 px phone with products and a build', (tester) async {

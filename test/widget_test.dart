@@ -47,10 +47,11 @@ void main() {
   testWidgets('renders the Nexus home screen without layout errors', (
     WidgetTester tester,
   ) async {
-    await tester.pumpWidget(const MaterialApp(home: HomeScreen()));
+    await tester.pumpWidget(const ProviderScope(child: MaterialApp(home: HomeScreen())));
+    await tester.pump(const Duration(seconds: 1));
 
     expect(find.text('NEXUS'), findsWidgets);
-    expect(find.text('TIENDA DE\nTECNOLOGÍA'), findsOneWidget);
+    expect(find.text('ARMA TU PC\nCON IA'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -60,7 +61,7 @@ void main() {
     await tester.pumpWidget(const ProviderScope(child: NexusApp()));
     await tester.pumpAndSettle();
 
-    expect(find.text('TIENDA DE\nTECNOLOGÍA'), findsOneWidget);
+    expect(find.text('ARMA TU PC\nCON IA'), findsOneWidget);
     expect(find.text('INICIA SESIÓN'), findsNothing);
   });
 }

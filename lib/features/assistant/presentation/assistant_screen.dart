@@ -9,6 +9,7 @@ import '../../../theme/nexus_theme.dart';
 import '../../../widgets/nexus_product_image.dart';
 import '../../../widgets/nexus_top_bar.dart';
 import '../../../widgets/nexus_widgets.dart';
+import '../../account/account_providers.dart';
 import '../../cart/presentation/cart_actions.dart';
 import '../../catalog/domain/product.dart';
 import '../../catalog/presentation/catalog_screen.dart';
@@ -17,10 +18,10 @@ import '../../pc_builder/pc_builder_providers.dart';
 import '../../pc_builder/presentation/pc_builder_screen.dart';
 import '../assistant_providers.dart';
 import '../domain/assistant_models.dart';
-import 'voice_composer.dart';
+import 'message_composer.dart';
 
 /// Asistente de recomendación (HU-006): el cliente describe lo que necesita,
-/// por texto o por voz, y recibe productos del catálogo o una configuración
+/// por texto, y recibe productos del catálogo o una configuración
 /// de piezas que puede abrir en el PC Builder. Nunca compra por él (RF-042).
 class AssistantScreen extends StatelessWidget {
   const AssistantScreen({super.key});
@@ -42,7 +43,7 @@ class AssistantScreen extends StatelessWidget {
             NexusTopBar(title: 'ASISTENTE'),
             _Notice(),
             Expanded(child: _Conversation()),
-            VoiceComposer(),
+            MessageComposer(),
           ],
         ),
       ),
@@ -133,8 +134,8 @@ class _Welcome extends ConsumerWidget {
         ),
         const SizedBox(height: 8),
         const Text(
-          'Cuéntame para qué lo vas a usar y cuánto quieres gastar. Puedes '
-          'escribir o dictar con el micrófono. Te recomiendo productos del '
+          'Cuéntame para qué lo vas a usar y cuánto quieres gastar. Te '
+          'recomiendo productos del '
           'catálogo o te armo una configuración que puedes ver en 3D.',
           textAlign: TextAlign.center,
           style: NexusText.body,
@@ -333,7 +334,7 @@ class _RecommendedProductCard extends ConsumerWidget {
                   enabled: offerId != null,
                   onPressed: offerId == null
                       ? null
-                      : () => addToCart(context, ref, offerId: offerId),
+                      : () => addToCart(context, ref, offerId: offerId, productName: product.name),
                 ),
               ),
             ],
@@ -357,6 +358,16 @@ class _BuildProposalCard extends ConsumerStatefulWidget {
 
 class _BuildProposalCardState extends ConsumerState<_BuildProposalCard> {
   bool _opening = false;
+  bool _adding = false;
+
+  /// Lleva toda la configuración al carrito, una unidad de cada pieza.
+  Future<void> _addAll() async {
+    setState(() => _adding = true);
+    await addPartsToCart(context, ref, [
+      for (final part in widget.build.validation.parts) (offerId: part.offerId, name: part.productName),
+    ]);
+    if (mounted) setState(() => _adding = false);
+  }
 
   Future<void> _openInBuilder() async {
     setState(() => _opening = true);
@@ -452,11 +463,21 @@ class _BuildProposalCardState extends ConsumerState<_BuildProposalCard> {
             ],
           ),
           const SizedBox(height: 10),
-          NexusPrimaryButton(
-            label: 'VER EN EL PC BUILDER (3D)',
-            icon: Icons.view_in_ar,
-            loading: _opening,
-            onPressed: _openInBuilder,
+          if (ref.watch(canBuyProvider)) ...[
+            NexusPrimaryButton(
+              label: 'AGREGAR TODO AL CARRITO',
+              icon: Icons.add_shopping_cart,
+              loading: _adding,
+              enabled: !_opening,
+              onPressed: _addAll,
+            ),
+            const SizedBox(height: 8),
+          ],
+          NexusOutlineButton(
+            label: _opening ? 'ABRIENDO…' : 'VER EN EL PC BUILDER (3D)',
+            color: NexusColors.cyan,
+            borderColor: NexusColors.cyan,
+            onPressed: _opening || _adding ? null : _openInBuilder,
           ),
         ],
       ),

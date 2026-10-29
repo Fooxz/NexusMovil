@@ -66,145 +66,161 @@ class NexusProductCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(10),
         ),
         clipBehavior: Clip.antiAlias,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Stack(
+        // En una grilla de alto fijo, la imagen cede espacio si el texto no
+        // cabe (nombres largos o texto grande en el teléfono) en lugar de
+        // desbordar la tarjeta. Fuera de una grilla conserva su altura.
+        child: LayoutBuilder(
+          builder: (context, constraints) => Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (constraints.hasBoundedHeight)
+                Flexible(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(maxHeight: imageHeight),
+                    child: LayoutBuilder(
+                      builder: (context, box) => _image(box.maxHeight),
+                    ),
+                  ),
+                )
+              else
+                _image(imageHeight),
+              _details(),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _image(double height) {
+    return Stack(
+      children: [
+        NexusProductImage(
+          imageUrl: imageUrl,
+          icon: icon,
+          iconColor: iconColor,
+          gradientColors: gradientColors,
+          height: height,
+        ),
+        if (discountLabel != null)
+          Positioned(
+            top: 6,
+            left: 6,
+            child: NexusDiscountBadge(label: discountLabel!, fontSize: 8),
+          ),
+      ],
+    );
+  }
+
+  Widget _details() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(8, 7, 8, 9),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (brand != null || status != null) ...[
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                NexusProductImage(
-                  imageUrl: imageUrl,
-                  icon: icon,
-                  iconColor: iconColor,
-                  gradientColors: gradientColors,
-                  height: imageHeight,
+                if (brand != null)
+                  Expanded(
+                    child: Text(
+                      brand!,
+                      style: const TextStyle(
+                        fontSize: 8,
+                        color: NexusColors.textFaint,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                if (status != null) NexusStatusDot(status!, color: statusColor),
+              ],
+            ),
+            const SizedBox(height: 3),
+          ],
+          if (tags != null) ...[
+            Wrap(
+              spacing: 4,
+              runSpacing: 4,
+              children: [for (final tag in tags!) NexusTag(tag)],
+            ),
+            const SizedBox(height: 6),
+          ],
+          Text(
+            name,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: tags == null ? 11 : 10.5,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+          if (specs != null) ...[
+            const SizedBox(height: 3),
+            Text(
+              specs!,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 8, color: NexusColors.textDim),
+            ),
+          ],
+          if (seller != null) ...[
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                const Icon(
+                  Icons.storefront_outlined,
+                  size: 11,
+                  color: NexusColors.textDim,
                 ),
-                if (discountLabel != null)
-                  Positioned(
-                    top: 6,
-                    left: 6,
-                    child: NexusDiscountBadge(
-                      label: discountLabel!,
+                const SizedBox(width: 3),
+                Expanded(
+                  child: Text(
+                    seller!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w600,
+                      color: NexusColors.text,
+                    ),
+                  ),
+                ),
+                if (sellerNote != null)
+                  Text(
+                    sellerNote!,
+                    style: const TextStyle(
                       fontSize: 8,
+                      color: NexusColors.cyan,
                     ),
                   ),
               ],
             ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(8, 7, 8, 9),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (brand != null || status != null) ...[
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        if (brand != null)
-                          Expanded(
-                            child: Text(
-                              brand!,
-                              style: const TextStyle(
-                                fontSize: 8,
-                                color: NexusColors.textFaint,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        if (status != null)
-                          NexusStatusDot(status!, color: statusColor),
-                      ],
-                    ),
-                    const SizedBox(height: 3),
-                  ],
-                  if (tags != null) ...[
-                    Wrap(
-                      spacing: 4,
-                      runSpacing: 4,
-                      children: [for (final tag in tags!) NexusTag(tag)],
-                    ),
-                    const SizedBox(height: 6),
-                  ],
-                  Text(
-                    name,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: tags == null ? 11 : 10.5,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                  if (specs != null) ...[
-                    const SizedBox(height: 3),
-                    Text(
-                      specs!,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 8,
-                        color: NexusColors.textDim,
-                      ),
-                    ),
-                  ],
-                  if (seller != null) ...[
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.storefront_outlined,
-                          size: 11,
-                          color: NexusColors.textDim,
-                        ),
-                        const SizedBox(width: 3),
-                        Expanded(
-                          child: Text(
-                            seller!,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 9,
-                              fontWeight: FontWeight.w600,
-                              color: NexusColors.text,
-                            ),
-                          ),
-                        ),
-                        if (sellerNote != null)
-                          Text(
-                            sellerNote!,
-                            style: const TextStyle(
-                              fontSize: 8,
-                              color: NexusColors.cyan,
-                            ),
-                          ),
-                      ],
-                    ),
-                  ],
-                  if (oldPriceCents != null) ...[
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        Text(
-                          formatPrice(oldPriceCents!),
-                          style: const TextStyle(
-                            fontSize: 9,
-                            color: NexusColors.textFaint,
-                            decoration: TextDecoration.lineThrough,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        Expanded(child: _priceText()),
-                      ],
-                    ),
-                  ] else ...[
-                    SizedBox(height: tags == null ? 0 : 4),
-                    _priceText(),
-                  ],
-                  if (actions != null) ...[const SizedBox(height: 8), actions!],
-                ],
-              ),
-            ),
           ],
-        ),
+          if (oldPriceCents != null) ...[
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                Text(
+                  formatPrice(oldPriceCents!),
+                  style: const TextStyle(
+                    fontSize: 9,
+                    color: NexusColors.textFaint,
+                    decoration: TextDecoration.lineThrough,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Expanded(child: _priceText()),
+              ],
+            ),
+          ] else ...[
+            SizedBox(height: tags == null ? 0 : 4),
+            _priceText(),
+          ],
+          if (actions != null) ...[const SizedBox(height: 8), actions!],
+        ],
       ),
     );
   }

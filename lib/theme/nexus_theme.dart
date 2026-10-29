@@ -62,5 +62,18 @@ ThemeData buildNexusTheme() {
       surface: NexusColors.bg,
     ),
     dividerColor: NexusColors.border,
+    // Los avisos simples toman el estilo de `showNexusNotice`.
+    snackBarTheme: SnackBarThemeData(
+      behavior: SnackBarBehavior.floating,
+      backgroundColor: NexusColors.cardAlt,
+      elevation: 8,
+      insetPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+      contentTextStyle: const TextStyle(fontSize: 12, height: 1.35, color: NexusColors.text),
+      actionTextColor: NexusColors.cyan,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: const BorderSide(color: NexusColors.border),
+      ),
+    ),
   );
 }

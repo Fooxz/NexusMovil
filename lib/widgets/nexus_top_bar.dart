@@ -27,7 +27,7 @@ class NexusTopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Dentro del panel de la tienda: botón del menú lateral.
+    // Dentro de un shell con menú lateral (cliente, tienda o administrador).
     final menu = showBack ? null : NexusMenuScope.maybeOf(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),

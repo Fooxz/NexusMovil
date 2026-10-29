@@ -2,7 +2,6 @@
     <!-- La app consume el backend de Supabase (RPC del catálogo). -->
     <uses-permission android:name="android.permission.INTERNET"/>
     <!-- Dictado por voz para el asistente (RF-089). Se pide al tocar el micrófono. -->
-    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     <application
         android:label="prueba01"
         android:name="${applicationName}"
@@ -41,10 +40,6 @@
 
          In particular, this is used by the Flutter engine in io.flutter.plugin.text.ProcessTextPlugin. -->
     <queries>
-        <!-- Android 11+: el reconocedor de voz del sistema (speech_to_text). -->
-        <intent>
-            <action android:name="android.speech.RecognitionService"/>
-        </intent>
         <!-- Pago con Mercado Pago: abrir el navegador o la app del banco o de Mercado Pago (url_launcher). -->
         <intent>
             <action android:name="android.intent.action.VIEW"/>

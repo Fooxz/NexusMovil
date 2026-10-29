@@ -2,14 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/utils/format_price.dart';
-import '../../../routes.dart';
 import '../../../theme/nexus_theme.dart';
 import '../../../widgets/nexus_error_state.dart';
 import '../../../widgets/nexus_loading.dart';
 import '../../../widgets/nexus_page.dart';
 import '../../../widgets/nexus_product_image.dart';
 import '../../../widgets/nexus_widgets.dart';
-import '../../cart/cart_providers.dart';
 import '../../cart/presentation/cart_actions.dart';
 import '../../catalog/presentation/product_visuals.dart';
 import '../domain/pc_builder_models.dart';
@@ -383,38 +381,11 @@ class _SummaryState extends ConsumerState<_Summary> {
 
   /// Agrega cada pieza al carrito (RF-051). Si alguna falla, informa cuál.
   Future<void> _addToCart() async {
-    final messenger = ScaffoldMessenger.of(context);
-    final navigator = Navigator.of(context);
-    final cart = ref.read(cartControllerProvider.notifier);
     setState(() => _adding = true);
-
-    final failures = <String>[];
-    for (final part in widget.state.validation.parts) {
-      try {
-        await cart.add(part.offerId);
-      } catch (error) {
-        failures.add('${part.productName}: ${cartErrorMessage(error)}');
-      }
-    }
-    if (!mounted) return;
-    setState(() => _adding = false);
-
-    final added = widget.state.validation.parts.length - failures.length;
-    messenger
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(
-            failures.isEmpty
-                ? 'Agregamos las $added piezas al carrito.'
-                : 'Agregamos $added piezas. No se pudo agregar:\n${failures.join('\n')}',
-          ),
-          action: SnackBarAction(
-            label: 'VER CARRITO',
-            onPressed: () => navigator.pushNamed(NexusRoutes.cart),
-          ),
-        ),
-      );
+    await addPartsToCart(context, ref, [
+      for (final part in widget.state.validation.parts) (offerId: part.offerId, name: part.productName),
+    ]);
+    if (mounted) setState(() => _adding = false);
   }
 
   Future<void> _clear() async {

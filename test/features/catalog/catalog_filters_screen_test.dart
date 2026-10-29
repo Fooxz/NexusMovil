@@ -112,7 +112,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('COMPARAR TIENDAS'), findsOneWidget);
-    expect(find.text('Proveedor A'), findsOneWidget);
+    // La tienda de la oferta elegida también está en "Vendido por".
+    expect(find.text('VENDIDO POR'), findsOneWidget);
+    expect(find.text('Proveedor A'), findsWidgets);
     expect(find.text('Proveedor B'), findsOneWidget);
     expect(find.text('\$1.500'), findsOneWidget);
   });

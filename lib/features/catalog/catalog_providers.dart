@@ -281,3 +281,130 @@ final relatedProductsProvider = FutureProvider.autoDispose
       (ref, productId) =>
           ref.watch(productRepositoryProvider).getRelated(productId, limit: 2),
     );
+
+// --- Catálogo de una tienda ------------------------------------------------
+
+/// Ofertas visibles de una tienda, con su búsqueda y tipo de pieza. Las
+/// páginas cargadas se acumulan ("Cargar más").
+@immutable
+class StoreCatalogState {
+  const StoreCatalogState({
+    required this.items,
+    required this.total,
+    required this.page,
+    required this.filters,
+    this.isLoadingMore = false,
+    this.isRefreshing = false,
+  });
+
+  final List<CatalogOffer> items;
+  final int total;
+  final int page;
+
+  /// Siempre con el `providerId` de la tienda.
+  final ProductFilters filters;
+  final bool isLoadingMore;
+
+  /// Cargando la primera página con filtros nuevos: se conservan los items
+  /// anteriores mientras tanto.
+  final bool isRefreshing;
+
+  bool hasMoreWith(int pageSize) => (page + 1) * pageSize < total;
+}
+
+final storeCatalogProvider = AsyncNotifierProvider.autoDispose
+    .family<StoreCatalogController, StoreCatalogState, String>(StoreCatalogController.new);
+
+class StoreCatalogController extends AsyncNotifier<StoreCatalogState> {
+  StoreCatalogController(this.storeId);
+
+  final String storeId;
+  int _version = 0;
+
+  Future<OfferPage> _load(ProductFilters filters, int page) => ref
+      .read(productRepositoryProvider)
+      .getOffers(page: page, pageSize: ref.read(catalogPageSizeProvider), filters: filters);
+
+  @override
+  Future<StoreCatalogState> build() async {
+    final filters = ProductFilters(providerId: storeId);
+    final first = await _load(filters, 0);
+    return StoreCatalogState(items: first.items, total: first.total, page: 0, filters: filters);
+  }
+
+  /// Cambia la búsqueda o el tipo de pieza y vuelve a la primera página.
+  Future<void> setFilters({String? search, Object? category = _keep}) async {
+    final current = state.value?.filters ?? ProductFilters(providerId: storeId);
+    final filters = current.copyWith(
+      search: search?.trim(),
+      category: identical(category, _keep) ? current.category : category,
+    );
+    if (filters == current) return;
+    final version = ++_version;
+    if (state.value case final previous?) {
+      state = AsyncData(StoreCatalogState(
+        items: previous.items,
+        total: previous.total,
+        page: previous.page,
+        filters: filters,
+        isRefreshing: true,
+      ));
+    }
+    final result = await AsyncValue.guard(() async {
+      final first = await _load(filters, 0);
+      return StoreCatalogState(items: first.items, total: first.total, page: 0, filters: filters);
+    });
+    if (version == _version) state = result;
+  }
+
+  Future<void> loadMore() async {
+    final current = state.value;
+    final pageSize = ref.read(catalogPageSizeProvider);
+    if (current == null || current.isLoadingMore || current.isRefreshing || !current.hasMoreWith(pageSize)) {
+      return;
+    }
+    state = AsyncData(StoreCatalogState(
+      items: current.items,
+      total: current.total,
+      page: current.page,
+      filters: current.filters,
+      isLoadingMore: true,
+    ));
+    try {
+      final next = await _load(current.filters, current.page + 1);
+      state = AsyncData(StoreCatalogState(
+        items: [...current.items, ...next.items],
+        total: next.total,
+        page: next.page,
+        filters: current.filters,
+      ));
+    } catch (_) {
+      state = AsyncData(current);
+      rethrow;
+    }
+  }
+}
+
+const _keep = Object();
+
+// --- Inicio ----------------------------------------------------------------
+
+/// Ofertas del inicio: las de mayor descuento con stock entre las primeras 50
+/// del catálogo. `discounted` es falso si ninguna tiene descuento y se
+/// muestran las primeras como destacadas.
+final homeDealsProvider =
+    FutureProvider.autoDispose<({List<CatalogOffer> items, bool discounted})>((ref) async {
+      final page = await ref.watch(productRepositoryProvider).getOffers(pageSize: 50);
+      final deals = page.items
+          .where((offer) => offer.hasDiscount && offer.stockLevel != StockLevel.outOfStock)
+          .toList()
+        ..sort((a, b) => b.discountPercent.compareTo(a.discountPercent));
+      return deals.isNotEmpty
+          ? (items: deals.take(4).toList(), discounted: true)
+          : (items: page.items.take(4).toList(), discounted: false);
+    });
+
+/// Tiendas con piezas visibles, para el inicio.
+final homeStoresProvider = FutureProvider.autoDispose<List<CatalogStore>>(
+  (ref) => ref.watch(productRepositoryProvider).getStores(),
+);

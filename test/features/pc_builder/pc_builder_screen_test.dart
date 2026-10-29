@@ -111,7 +111,7 @@ void main() {
 
     await tapAndSettle(tester, find.text('AGREGAR TODO AL CARRITO'));
 
-    expect(find.text('Agregamos las 3 piezas al carrito.'), findsOneWidget);
+    expect(find.text('Agregamos las 3 piezas al carrito'), findsOneWidget);
     // El carrito no tiene quien lo escuche en esta prueba: se espera a que
     // termine de recalcularse.
     final cart = await container.read(cartControllerProvider.future);

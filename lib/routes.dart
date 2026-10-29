@@ -15,6 +15,9 @@ class NexusRoutes {
   static const productDetail = '/product-detail';
   static const cart = '/cart';
 
+  /// Argumento: `StoreCatalogArgs` (la tienda y su nombre visible).
+  static const store = '/store';
+
   /// Exige sesión: se abre después de `ensureSignedIn`.
   static const checkout = '/checkout';
 }

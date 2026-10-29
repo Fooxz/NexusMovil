@@ -35,7 +35,7 @@ void main() {
     await tapAndSettle(tester, find.byTooltip('Agregar una unidad'));
     await tapAndSettle(tester, find.text('AGREGAR AL CARRITO'));
 
-    expect(find.text('3 unidades agregadas al carrito.'), findsOneWidget);
+    expect(find.text('3 unidades agregadas al carrito'), findsOneWidget);
     expect(cartLines(tester, ProductDetailScreen), ['${MockOffers.rtx5090Few}:3']);
 
     // Mundo PC solo tiene 3: una más supera lo disponible.
@@ -90,7 +90,7 @@ void main() {
 
     await tapAndSettle(tester, find.byTooltip('Agregar al carrito').first);
 
-    expect(find.text('Agregado al carrito.'), findsOneWidget);
+    expect(find.text('Agregado al carrito'), findsOneWidget);
     expect(cartLines(tester, CatalogScreen), ['${MockOffers.rtx5090Plenty}:1']);
 
     // La barra con el ícono está dentro del scroll: se vuelve arriba.

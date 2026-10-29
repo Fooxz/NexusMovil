@@ -190,7 +190,7 @@ void main() {
       _withProviderScope(const MaterialApp(home: MainShell())),
     );
 
-    expect(find.text('TIENDA DE\nTECNOLOGÍA'), findsOneWidget);
+    expect(find.text('ARMA TU PC\nCON IA'), findsOneWidget);
 
     await tester.tap(find.text('CATÁLOGO'));
     await tester.pumpAndSettle();
@@ -210,7 +210,7 @@ void main() {
     await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();
 
-    expect(find.text('TIENDA DE\nTECNOLOGÍA'), findsOneWidget);
+    expect(find.text('ARMA TU PC\nCON IA'), findsOneWidget);
     expect(find.text('CATÁLOGO COMPLETO'), findsNothing);
     expect(find.text('open shell'), findsNothing);
   });
@@ -230,6 +230,8 @@ void main() {
     );
 
     expect(find.byType(NexusBottomNav), findsOneWidget);
+    // Deja terminar la carga del inicio.
+    await tester.pump(const Duration(seconds: 1));
   });
 
   testWidgets('MainShell hides bottom bar when keyboard is visible', (
@@ -247,6 +249,7 @@ void main() {
     );
 
     expect(find.byType(NexusBottomNav), findsNothing);
+    await tester.pump(const Duration(seconds: 1));
   });
 
   testWidgets('PERFIL is a tab of the shell, not a route replacement', (
@@ -267,6 +270,8 @@ void main() {
     expect(find.text('MI CUENTA'), findsOneWidget);
     expect(find.text('INICIAR SESIÓN'), findsOneWidget);
     expect(find.byType(NexusBottomNav), findsOneWidget);
+    // Deja terminar la carga del inicio.
+    await tester.pump(const Duration(seconds: 1));
   });
 
   testWidgets('NexusBottomNav emits the correct tab for taps', (

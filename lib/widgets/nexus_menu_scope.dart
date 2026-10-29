@@ -1,6 +1,6 @@
 import 'package:flutter/widgets.dart';
 
-/// Abre el menú lateral del shell que lo provee (el panel de la tienda).
+/// Abre el menú lateral del shell que lo provee (cliente, tienda o consola).
 /// `NexusTopBar` muestra el botón del menú cuando lo encuentra, así las
 /// pantallas no dependen de qué shell las contiene.
 class NexusMenuScope extends InheritedWidget {

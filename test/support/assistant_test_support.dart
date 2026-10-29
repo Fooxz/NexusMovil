@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:prueba01/core/errors/app_failure.dart';
-import 'package:prueba01/features/assistant/data/voice_input.dart';
 import 'package:prueba01/features/assistant/domain/assistant_models.dart';
 import 'package:prueba01/features/assistant/domain/assistant_repository.dart';
 
@@ -32,34 +31,3 @@ class ScriptedAssistant implements AssistantRepository {
 }
 
 /// Dictado falso: decide si hay micrófono y permite simular lo que se oye.
-class FakeVoiceInput implements VoiceInput {
-  FakeVoiceInput({this.available = true});
-
-  final bool available;
-  bool listening = false;
-  void Function(String text)? _onText;
-  void Function()? _onDone;
-
-  @override
-  Future<bool> initialize() async => available;
-
-  @override
-  Future<void> listen({
-    required void Function(String text) onText,
-    required void Function() onDone,
-  }) async {
-    listening = true;
-    _onText = onText;
-    _onDone = onDone;
-  }
-
-  void hear(String text) => _onText!(text);
-
-  void finish() {
-    listening = false;
-    _onDone!();
-  }
-
-  @override
-  Future<void> stop() async => listening = false;
-}
